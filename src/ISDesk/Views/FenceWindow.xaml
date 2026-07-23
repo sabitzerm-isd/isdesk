@@ -11,7 +11,10 @@
         WindowStartupLocation="Manual"
         MinWidth="180" MinHeight="120"
         UseLayoutRounding="True"
-        SnapsToDevicePixels="True">
+        SnapsToDevicePixels="True"
+        AllowDrop="True"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
@@ -20,7 +23,16 @@
     <Window.Resources>
         <!-- Icon-Kachel: Bild + Name -->
         <DataTemplate x:Key="IconItemTemplate">
-            <StackPanel Width="84" Margin="2,4">
+            <StackPanel Width="84" Margin="2,4" Background="Transparent">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Öffnen" Click="IconOpen_Click" />
+                        <MenuItem Header="Im Explorer anzeigen" Click="IconShowInExplorer_Click" />
+                        <MenuItem Header="Umbenennen…" Click="IconRename_Click" />
+                        <Separator />
+                        <MenuItem Header="In den Papierkorb" Click="IconRecycle_Click" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <Image Source="{Binding Icon}" Width="32" Height="32"
                        HorizontalAlignment="Center" Margin="0,4"
                        RenderOptions.BitmapScalingMode="HighQuality" />
@@ -169,7 +181,9 @@
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  VirtualizingPanel.IsVirtualizing="False"
                  HorizontalContentAlignment="Stretch"
-                 MouseDoubleClick="IconList_MouseDoubleClick">
+                 MouseDoubleClick="IconList_MouseDoubleClick"
+                 PreviewMouseLeftButtonDown="IconList_PreviewMouseLeftButtonDown"
+                 MouseMove="IconList_MouseMove">
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal" />

@@ -9,3 +9,4 @@ global using DataFormats = System.Windows.DataFormats;
 global using IDataObject = System.Windows.IDataObject;
 global using DragEventArgs = System.Windows.DragEventArgs;
 global using DragDropEffects = System.Windows.DragDropEffects;
+global using MouseEventArgs = System.Windows.Input.MouseEventArgs;
