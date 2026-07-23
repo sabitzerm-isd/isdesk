@@ -32,6 +32,9 @@ Name: "desktopicon"; Description: "Desktop-Verknüpfung erstellen"; GroupDescrip
 
 [Files]
 Source: "..\publish\ISDesk.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Symbol-Galerie: liegt bei PublishSingleFile NEBEN der EXE und muss mitinstalliert
+; werden — sonst zeigen Bereiche und Tabs keine Symbole.
+Source: "..\publish\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\ISDesk"; Filename: "{app}\ISDesk.exe"
