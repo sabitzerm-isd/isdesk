@@ -22,10 +22,11 @@ public partial class App : Application
             args.Handled = true;
         };
 
-        // Mini-Test (wird in Task 7/8 durch FenceManager/Tray ersetzt): ein Bereich mit Demo-Tab.
+        // Mini-Test (wird in Task 7/8 durch FenceManager/Tray ersetzt): ein Bereich mit zwei Demo-Tabs.
         var demo = new FenceConfig { Title = "Testbereich", X = 200, Y = 200, Width = 460, Height = 320, Opacity = 0.75, Blur = true };
         demo.Tabs.Add(new TabConfig { Title = "Desktop", FolderPath = @"C:\Users\Public\Desktop", IconSize = 32 });
-        new FenceWindow(new FenceViewModel(demo)).Show();
+        demo.Tabs.Add(new TabConfig { Title = "Oeffentlich", FolderPath = @"C:\Users\Public", IconSize = 32 });
+        new FenceWindow(new FenceViewModel(demo, @"D:\Fences")).Show();
     }
 
     internal static void LogCrash(Exception? ex, string origin)

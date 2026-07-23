@@ -14,6 +14,8 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     private readonly object _sync = new();
     private FileSystemWatcher? _watcher;
     private System.Timers.Timer? _debounce;
+    private bool _isActive;
+    private bool _canRemove;
 
     public TabViewModel(TabConfig config, Action persist)
     {
@@ -22,6 +24,20 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public TabConfig Config => _config;
+
+    /// True, wenn dieser Tab der aktive im Bereich ist (steuert die Tab-Optik).
+    public bool IsActive
+    {
+        get => _isActive;
+        set { if (_isActive != value) { _isActive = value; OnChanged(); } }
+    }
+
+    /// False, wenn es der letzte Tab ist (Entfernen dann gesperrt).
+    public bool CanRemove
+    {
+        get => _canRemove;
+        set { if (_canRemove != value) { _canRemove = value; OnChanged(); } }
+    }
 
     public string Title
     {

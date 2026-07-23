@@ -59,11 +59,78 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Tab -->
+        <DataTemplate x:Key="TabItemTemplate">
+            <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Margin="2,0,0,0" Cursor="Hand">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#18FFFFFF" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter Property="Background" Value="#2EFFFFFF" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Umbenennen…" Click="RenameTab_Click" />
+                        <MenuItem Header="Tab entfernen" Click="RemoveTab_Click" IsEnabled="{Binding CanRemove}" />
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <TextBlock Text="{Binding Title}" FontSize="11.5" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#CCFFFFFF" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                    <Setter Property="Foreground" Value="White" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Border>
+        </DataTemplate>
+
+        <!-- "+"-Button: nur bei Maus ueber dem Fenster sichtbar -->
+        <Style x:Key="AddTabButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Foreground" Value="#DDFFFFFF" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />
+            <RowDefinition Height="28" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -77,8 +144,22 @@
                        TextTrimming="CharacterEllipsis" />
         </Border>
 
+        <!-- Tab-Leiste -->
+        <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True">
+            <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
+                    Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
+            <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabItemTemplate}"
+                          VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DockPanel>
+
         <!-- Inhalt: Icon-Raster des aktiven Tabs -->
-        <ListBox Grid.Row="1" x:Name="IconList"
+        <ListBox Grid.Row="2" x:Name="IconList"
                  ItemsSource="{Binding ActiveTab.Items}"
                  ItemTemplate="{StaticResource IconItemTemplate}"
                  ItemContainerStyle="{StaticResource IconItemContainerStyle}"

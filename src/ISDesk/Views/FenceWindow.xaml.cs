@@ -54,6 +54,37 @@ public partial class FenceWindow : Window
         }
     }
 
+    private void Tab_Click(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is TabViewModel tab)
+            _vm.ActiveTab = tab;
+    }
+
+    private void AddTab_Click(object sender, RoutedEventArgs e)
+    {
+        var name = InputDialog.Ask("Name des Tabs:", "", this);
+        if (!string.IsNullOrWhiteSpace(name))
+            _vm.AddTab(name);
+    }
+
+    private void RenameTab_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        var name = InputDialog.Ask("Neuer Name des Tabs:", tab.Title, this);
+        if (!string.IsNullOrWhiteSpace(name))
+            _vm.RenameTab(tab, name);
+    }
+
+    private void RemoveTab_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        var result = MessageBox.Show(
+            $"Tab „{tab.Title}“ entfernen?\n\nDer zugehoerige Ordner bleibt auf der Platte erhalten.",
+            "Tab entfernen", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (result == MessageBoxResult.OK)
+            _vm.RemoveTab(tab);
+    }
+
     private void IconList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;
