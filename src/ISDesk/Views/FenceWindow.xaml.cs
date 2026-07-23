@@ -151,6 +151,7 @@ public partial class FenceWindow : Window
         base.OnSourceInitialized(e);
         DesktopPinning.Attach(this);
         // GridSnapBehavior.Attach(this); // Raster vorerst deaktiviert (spaeter verbessern)
+        DarkMenuMode.AllowForWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 

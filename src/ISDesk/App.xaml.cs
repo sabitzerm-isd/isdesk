@@ -34,6 +34,8 @@ public partial class App : Application
             return;
         }
 
+        Interop.DarkMenuMode.EnableForApp(); // dunkle Explorer-Kontextmenues
+
         _config = new ConfigService();
         _config.Load();
         _manager = new FenceManager(_config);
