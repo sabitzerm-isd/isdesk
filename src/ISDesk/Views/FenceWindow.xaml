@@ -69,10 +69,20 @@
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
                             </Trigger>
+                            <!-- Live-Suche: Treffer blau hervorheben -->
+                            <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4D2D7DFF" />
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <!-- Live-Suche: Nicht-Treffer abdunkeln -->
+                <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                    <Setter Property="Opacity" Value="0.25" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Tab: nimmt Icons per Drag & Drop entgegen; optionale eigene Hintergrundfarbe
@@ -102,6 +112,10 @@
                             </Trigger>
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
                                 <Setter Property="Background" Value="#2EFFFFFF" />
+                            </DataTrigger>
+                            <!-- Live-Suche: Tabs mit Treffern blau markieren -->
+                            <DataTrigger Binding="{Binding HasSearchMatch}" Value="True">
+                                <Setter Property="Background" Value="#4D2D7DFF" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -313,6 +327,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="{Binding IconImage}" Width="16" Height="16"
@@ -341,7 +356,47 @@
                          BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
                          KeyDown="TitleEditBox_KeyDown"
                          LostKeyboardFocus="TitleEditBox_LostFocus" />
-                <ToggleButton Grid.Column="1" Style="{StaticResource LockButtonStyle}"
+                <!-- Live-Suche: sucht ueber ALLE Bereiche und Tabs, waehrend man tippt -->
+                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,4,0">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="False" />
+                                        <Condition Binding="{Binding Text, ElementName=SearchBox}" Value="" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Border CornerRadius="6" Background="#26000000" BorderBrush="#33FFFFFF" BorderThickness="1">
+                        <Grid>
+                            <TextBox x:Name="SearchBox" Width="110" FontSize="11.5" Padding="6,2"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="White" CaretBrush="White"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="SearchBox_TextChanged"
+                                     KeyDown="SearchBox_KeyDown" />
+                            <TextBlock Text="Suchen…" FontSize="11.5" Foreground="#77FFFFFF"
+                                       Margin="8,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                </Grid>
+                <ToggleButton Grid.Column="2" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
                               ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
             </Grid>

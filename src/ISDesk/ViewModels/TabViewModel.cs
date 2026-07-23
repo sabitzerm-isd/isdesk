@@ -21,6 +21,31 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     {
         _config = config;
         _persist = persist;
+        SearchService.TermChanged += ApplySearch;
+    }
+
+    private bool _hasSearchMatch;
+
+    /// True, wenn dieser Tab bei aktiver Suche Treffer enthaelt (markiert den Reiter).
+    public bool HasSearchMatch
+    {
+        get => _hasSearchMatch;
+        private set { if (_hasSearchMatch != value) { _hasSearchMatch = value; OnChanged(); } }
+    }
+
+    /// Treffer hervorheben, Nicht-Treffer abdunkeln (laeuft auf dem UI-Thread).
+    private void ApplySearch()
+    {
+        var active = SearchService.IsActive;
+        var any = false;
+        foreach (var item in Items)
+        {
+            var match = active && SearchService.Matches(item.DisplayName);
+            item.IsHighlighted = match;
+            item.IsDimmed = active && !match;
+            if (match) any = true;
+        }
+        HasSearchMatch = active && any;
     }
 
     public TabConfig Config => _config;
@@ -192,6 +217,9 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             RecycleBinMonitor.Ensure();
             RecycleBinMonitor.StateChanged += OnRecycleBinStateChanged;
         }
+
+        if (SearchService.IsActive)
+            ApplySearch(); // frisch geladene Items sofort markieren
     }
 
     private bool _binSubscribed;
@@ -329,6 +357,7 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        SearchService.TermChanged -= ApplySearch;
         if (_binSubscribed)
         {
             RecycleBinMonitor.StateChanged -= OnRecycleBinStateChanged;

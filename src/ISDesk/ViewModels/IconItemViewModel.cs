@@ -28,5 +28,36 @@ public sealed class IconItemViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _isHighlighted;
+    private bool _isDimmed;
+
+    /// Von der Live-Suche gesetzt: Treffer werden hervorgehoben, …
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        set
+        {
+            if (_isHighlighted != value)
+            {
+                _isHighlighted = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsHighlighted)));
+            }
+        }
+    }
+
+    /// … alle Nicht-Treffer abgedunkelt.
+    public bool IsDimmed
+    {
+        get => _isDimmed;
+        set
+        {
+            if (_isDimmed != value)
+            {
+                _isDimmed = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDimmed)));
+            }
+        }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 }

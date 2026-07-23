@@ -47,8 +47,42 @@ public partial class FenceWindow : Window
         LocationChanged += (_, _) => UpdateBlurCrop();
         SizeChanged += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
         WallpaperService.Changed += UpdateBlurCrop;
-        Closed += (_, _) => WallpaperService.Changed -= UpdateBlurCrop;
+        SearchService.TermChanged += SyncSearchBox;
+        Closed += (_, _) =>
+        {
+            WallpaperService.Changed -= UpdateBlurCrop;
+            SearchService.TermChanged -= SyncSearchBox;
+        };
         Loaded += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
+    }
+
+    // --- Live-Suche (global ueber alle Bereiche) ---
+
+    private bool _searchSyncing;
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_searchSyncing) return;
+        SearchService.SetTerm(SearchBox.Text);
+    }
+
+    private void SearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            SearchBox.Text = "";
+            SearchService.SetTerm("");
+            e.Handled = true;
+        }
+    }
+
+    /// Suchboxen aller Bereiche zeigen denselben Begriff (ausser der, in der getippt wird).
+    private void SyncSearchBox()
+    {
+        if (SearchBox.IsKeyboardFocusWithin) return;
+        _searchSyncing = true;
+        SearchBox.Text = SearchService.Term;
+        _searchSyncing = false;
     }
 
     /// Setzt den weichgezeichneten Wallpaper-Ausschnitt passend zur Fensterposition
@@ -102,6 +136,7 @@ public partial class FenceWindow : Window
     {
         base.OnSourceInitialized(e);
         DesktopPinning.Attach(this);
+        GridSnapBehavior.Attach(this);
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 
