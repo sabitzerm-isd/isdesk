@@ -73,6 +73,10 @@
                 <DataTrigger Binding="{Binding IsDimmed}" Value="True">
                     <Setter Property="Opacity" Value="0.25" />
                 </DataTrigger>
+                <!-- Lesezeichen: Hand-Cursor zeigt, dass ein Klick oeffnet -->
+                <DataTrigger Binding="{Binding DataContext.IsBookmarks, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Cursor" Value="Hand" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 

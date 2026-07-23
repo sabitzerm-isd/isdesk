@@ -55,6 +55,8 @@ public partial class App : Application
 
         _tray = new TrayService(_manager, _autostart);
 
+        CheckForUpdatesAsync(); // beim Start still nach neuer Version schauen
+
         // Bildschirm-Konfigurationswechsel (Docking, RDP, Beamer): entprellt das
         // gemerkte Layout der neuen Konfiguration anwenden.
         _displayDebounce = new System.Timers.Timer(1200) { AutoReset = false };
@@ -64,6 +66,25 @@ public partial class App : Application
     }
 
     private System.Timers.Timer? _displayDebounce;
+
+    private async void CheckForUpdatesAsync()
+    {
+        try
+        {
+            var service = new UpdateService();
+            var info = await service.CheckAsync();
+            if (info == null) return;
+            Dispatcher.Invoke(() =>
+            {
+                var banner = new Views.UpdateBanner(service, info);
+                banner.Show();
+            });
+        }
+        catch (Exception ex)
+        {
+            LogCrash(ex, "CheckForUpdates");
+        }
+    }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {

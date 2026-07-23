@@ -10,3 +10,4 @@ obj/
 
 # Publish-Ausgabe (kommt als Release-Asset, nicht ins Repo)
 publish/
+dist/
