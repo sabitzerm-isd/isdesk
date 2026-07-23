@@ -75,9 +75,10 @@
             </Setter>
         </Style>
 
-        <!-- Tab -->
+        <!-- Tab: nimmt auch Icons per Drag & Drop entgegen (verschiebt in den Tab-Ordner) -->
         <DataTemplate x:Key="TabItemTemplate">
-            <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Margin="2,0,0,0" Cursor="Hand">
+            <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Margin="2,0,0,0" Cursor="Hand"
+                    AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Background" Value="Transparent" />

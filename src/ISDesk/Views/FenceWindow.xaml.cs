@@ -185,6 +185,50 @@ public partial class FenceWindow : Window
             _vm.ActiveTab = tab;
     }
 
+    /// Beim Ziehen ueber einen Tab-Reiter: Effekt anzeigen und den Tab gleich
+    /// aktivieren (so kann man auch direkt in dessen Flaeche fallen lassen).
+    private void Tab_DragOver(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        var ctrl = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;
+        e.Effects = ctrl ? DragDropEffects.Copy : DragDropEffects.Move;
+        e.Handled = true;
+
+        if ((sender as FrameworkElement)?.DataContext is TabViewModel tab && !tab.IsActive)
+            _vm.ActiveTab = tab;
+    }
+
+    /// Ablegen auf einem Tab-Reiter: Dateien in den Ordner DIESES Tabs verschieben.
+    private void Tab_Drop(object sender, DragEventArgs e)
+    {
+        e.Handled = true; // nicht zusaetzlich vom Fenster-Drop verarbeiten
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        var sources = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var copy = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;
+        var errors = new List<string>();
+
+        foreach (var source in sources)
+        {
+            try { TransferInto(source, tab.FolderPath, copy); }
+            catch (Exception ex) { errors.Add($"{Path.GetFileName(source)} ({ex.Message})"); }
+        }
+
+        if (errors.Count > 0)
+        {
+            ConfirmDialog.Info(
+                $"{errors.Count} Element(e) konnten nicht in „{tab.Title}“ verschoben werden:\n\n"
+                + string.Join("\n", errors), this);
+        }
+    }
+
     private void AddTab_Click(object sender, RoutedEventArgs e)
     {
         var name = InputDialog.Ask("Name des Tabs:", "", this);
