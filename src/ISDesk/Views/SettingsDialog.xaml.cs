@@ -13,13 +13,13 @@ namespace ISDesk.Views;
 public partial class SettingsDialog : Window
 {
     private readonly FenceViewModel _vm;
-    private readonly BackupService? _backup;
+    private readonly FenceManager? _manager;
     private bool _initialized;
 
-    public SettingsDialog(FenceViewModel vm, BackupService? backup, Window? centerOn)
+    public SettingsDialog(FenceViewModel vm, FenceManager? manager, Window? centerOn)
     {
         _vm = vm;
-        _backup = backup;
+        _manager = manager;
         DataContext = vm;
         InitializeComponent();
 
@@ -65,15 +65,23 @@ public partial class SettingsDialog : Window
         if (IconSizeBox.SelectedItem is not ComboBoxItem item || item.Tag is not string tag) return;
         if (!int.TryParse(tag, out var size)) return;
 
-        foreach (var tab in _vm.Tabs)
-            tab.IconSize = size; // Setter laedt Icons neu und persistiert
+        // Optionen gelten fuer alle Bereiche (Nutzer-Vorgabe)
+        if (_manager != null)
+        {
+            _manager.SetIconSizeAll(size);
+        }
+        else
+        {
+            foreach (var tab in _vm.Tabs)
+                tab.IconSize = size;
+        }
     }
 
     private void CreateBackup_Click(object sender, RoutedEventArgs e)
-        => _backup?.CreateBackupInteractive(this);
+        => _manager?.Backup?.CreateBackupInteractive(this);
 
     private void RestoreBackup_Click(object sender, RoutedEventArgs e)
-        => _backup?.RestoreBackupInteractive(this);
+        => _manager?.Backup?.RestoreBackupInteractive(this);
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {

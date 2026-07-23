@@ -45,6 +45,8 @@ public sealed class FenceManager
         var tabFolder = Path.Combine(folder, "Allgemein");
         Directory.CreateDirectory(tabFolder);
 
+        // Neue Bereiche erben das aktuelle Erscheinungsbild der bestehenden.
+        var template = _config.Config.Fences.FirstOrDefault();
         var fenceConfig = new FenceConfig
         {
             Id = Guid.NewGuid(),
@@ -53,8 +55,10 @@ public sealed class FenceManager
             Y = at?.Y ?? 120,
             Width = 400,
             Height = 260,
-            Opacity = _config.Config.DefaultOpacity,
-            Blur = _config.Config.DefaultBlur,
+            Opacity = template?.Opacity ?? _config.Config.DefaultOpacity,
+            TitleBarOpacity = template?.TitleBarOpacity ?? 0.15,
+            Blur = template?.Blur ?? _config.Config.DefaultBlur,
+            Locked = template?.Locked ?? false,
             ActiveTab = 0
         };
         fenceConfig.Tabs.Add(new TabConfig { Title = "Allgemein", FolderPath = tabFolder, IconSize = 32 });
@@ -116,6 +120,28 @@ public sealed class FenceManager
     {
         foreach (var window in _windows)
             window.ViewModel.Locked = locked; // Setter ignoriert unveraenderte Werte
+    }
+
+    /// Erscheinungsbild (Transparenz, Titelleiste, Blur) gilt vorerst ebenfalls
+    /// fuer alle Bereiche gemeinsam (Nutzer-Vorgabe; spaeter evtl. je Bereich).
+    public void PropagateAppearance(FenceViewModel source)
+    {
+        foreach (var window in _windows)
+        {
+            var vm = window.ViewModel;
+            if (ReferenceEquals(vm, source)) continue;
+            vm.Opacity = source.Opacity;
+            vm.TitleBarOpacity = source.TitleBarOpacity;
+            vm.Blur = source.Blur;
+        }
+    }
+
+    /// Icon-Groesse fuer ALLE Tabs ALLER Bereiche setzen.
+    public void SetIconSizeAll(int size)
+    {
+        foreach (var window in _windows)
+            foreach (var tab in window.ViewModel.Tabs)
+                tab.IconSize = size;
     }
 
     /// Schliesst alle Fenster OHNE zu speichern (fuer die Wiederherstellung).

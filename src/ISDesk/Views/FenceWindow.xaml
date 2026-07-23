@@ -199,6 +199,15 @@
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
+                <MenuItem StaysOpenOnClick="True">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal" Width="210">
+                            <TextBlock Text="Titelleiste" VerticalAlignment="Center" Width="82" />
+                            <Slider Minimum="0.0" Maximum="1.0" Width="120" VerticalAlignment="Center"
+                                    Value="{Binding TitleBarOpacity, Mode=TwoWay}" />
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
                 <MenuItem Header="Hintergrund-Blur" IsCheckable="True" IsChecked="{Binding Blur, Mode=TwoWay}" />
                 <MenuItem Header="Bereich fixieren" IsCheckable="True" IsChecked="{Binding Locked, Mode=TwoWay}" />
                 <MenuItem Header="Optionen…" Click="OpenSettings_Click" />
@@ -228,9 +237,13 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Titelzeile: Ziehen = Verschieben, Doppelklick = Umbenennen -->
-        <Border Grid.Row="0" Background="#26000000"
+        <!-- Titelzeile: Ziehen = Verschieben, Doppelklick = Umbenennen.
+             Hintergrund als eigene Ebene, damit die Deckkraft separat regelbar ist,
+             ohne Titeltext und Schloss mit auszublenden. -->
+        <Border Grid.Row="0" Background="Transparent"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+            <Border Background="#FF000000" Opacity="{Binding TitleBarOpacity}" />
             <Grid Margin="12,0,6,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -251,6 +264,7 @@
                 <ToggleButton Grid.Column="1" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
                               ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
+            </Grid>
             </Grid>
         </Border>
 

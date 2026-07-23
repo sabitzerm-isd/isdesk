@@ -101,7 +101,7 @@ public partial class FenceWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        BottomMostBehavior.Attach(this);
+        DesktopPinning.Attach(this);
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 
@@ -117,6 +117,10 @@ public partial class FenceWindow : Window
     {
         if (e.PropertyName is nameof(FenceViewModel.Blur))
             UpdateBlurCrop();
+        if (e.PropertyName is nameof(FenceViewModel.Opacity)
+            or nameof(FenceViewModel.TitleBarOpacity)
+            or nameof(FenceViewModel.Blur))
+            Manager?.PropagateAppearance(_vm); // Optik gilt fuer alle Bereiche
         if (e.PropertyName is nameof(FenceViewModel.Locked))
         {
             ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
@@ -234,7 +238,7 @@ public partial class FenceWindow : Window
 
     private void OpenSettings_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsDialog(_vm, Manager?.Backup, this);
+        var dialog = new SettingsDialog(_vm, Manager, this);
         dialog.ShowDialog();
     }
 

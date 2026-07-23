@@ -167,6 +167,12 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         set { if (_config.Locked != value) { _config.Locked = value; OnChanged(); Persist(); } }
     }
 
+    public double TitleBarOpacity
+    {
+        get => _config.TitleBarOpacity;
+        set { if (Math.Abs(_config.TitleBarOpacity - value) > double.Epsilon) { _config.TitleBarOpacity = value; OnChanged(); Persist(); } }
+    }
+
     public double X
     {
         get => _config.X;

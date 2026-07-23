@@ -17,6 +17,7 @@ public sealed class FenceConfig
     public double Width { get; set; } = 400;
     public double Height { get; set; } = 260;
     public double Opacity { get; set; } = 0.75;
+    public double TitleBarOpacity { get; set; } = 0.15;
     public bool Blur { get; set; } = true;
     public bool Locked { get; set; }
     public int ActiveTab { get; set; }

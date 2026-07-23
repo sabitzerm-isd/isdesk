@@ -77,6 +77,7 @@
                 <RowDefinition Height="36" />
                 <RowDefinition Height="32" />
                 <RowDefinition Height="32" />
+                <RowDefinition Height="32" />
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Titel" Style="{StaticResource LabelStyle}" />
@@ -100,7 +101,12 @@
                     VerticalAlignment="Center"
                     Value="{Binding Opacity, Mode=TwoWay}" />
 
-            <CheckBox Grid.Row="3" Grid.Column="1" Content="Hintergrund-Blur"
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Titelleiste" Style="{StaticResource LabelStyle}" />
+            <Slider Grid.Row="3" Grid.Column="1" Minimum="0.0" Maximum="1.0"
+                    VerticalAlignment="Center"
+                    Value="{Binding TitleBarOpacity, Mode=TwoWay}" />
+
+            <CheckBox Grid.Row="4" Grid.Column="1" Content="Hintergrund-Blur"
                       Foreground="#DDFFFFFF" FontSize="12.5" VerticalAlignment="Center"
                       IsChecked="{Binding Blur, Mode=TwoWay}" />
         </Grid>
