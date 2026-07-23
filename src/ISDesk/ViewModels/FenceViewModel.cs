@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ISDesk.Models;
@@ -8,15 +9,58 @@ public sealed class FenceViewModel : INotifyPropertyChanged
 {
     private readonly FenceConfig _config;
     private readonly Action _persist;
+    private TabViewModel? _activeTab;
 
     public FenceViewModel(FenceConfig config, Action? persist = null)
     {
         _config = config;
         _persist = persist ?? (static () => { });
+
+        foreach (var tabConfig in _config.Tabs)
+            Tabs.Add(new TabViewModel(tabConfig, _persist));
+
+        if (Tabs.Count > 0)
+        {
+            var index = Math.Clamp(_config.ActiveTab, 0, Tabs.Count - 1);
+            _activeTab = Tabs[index];
+        }
     }
 
     public FenceConfig Config => _config;
     public Guid Id => _config.Id;
+
+    public ObservableCollection<TabViewModel> Tabs { get; } = new();
+
+    public TabViewModel? ActiveTab
+    {
+        get => _activeTab;
+        set
+        {
+            if (!ReferenceEquals(_activeTab, value))
+            {
+                _activeTab = value;
+                _config.ActiveTab = value != null ? Math.Max(0, Tabs.IndexOf(value)) : 0;
+                OnChanged();
+                Persist();
+            }
+        }
+    }
+
+    /// Laedt alle Tabs (Icons) und startet die Ordnerueberwachung. Auf UI-Thread aufrufen.
+    public void ActivateAllTabs()
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.Reload();
+            tab.StartWatching();
+        }
+    }
+
+    public void DisposeTabs()
+    {
+        foreach (var tab in Tabs)
+            tab.Dispose();
+    }
 
     public string Title
     {

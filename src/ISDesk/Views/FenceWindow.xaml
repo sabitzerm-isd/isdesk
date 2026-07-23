@@ -17,6 +17,50 @@
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
+    <Window.Resources>
+        <!-- Icon-Kachel: Bild + Name -->
+        <DataTemplate x:Key="IconItemTemplate">
+            <StackPanel Width="84" Margin="2,4">
+                <Image Source="{Binding Icon}" Width="32" Height="32"
+                       HorizontalAlignment="Center" Margin="0,4"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <TextBlock Text="{Binding DisplayName}" FontSize="11"
+                           Foreground="#F2FFFFFF"
+                           TextAlignment="Center" HorizontalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="30">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="3" ShadowDepth="0" Opacity="0.6" Color="Black" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Icon-Container: Hover/Selektion, kein Fokus-Rechteck -->
+        <Style x:Key="IconItemContainerStyle" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />
@@ -33,7 +77,23 @@
                        TextTrimming="CharacterEllipsis" />
         </Border>
 
-        <!-- Inhalt (Tabs/Icons folgen in spaeteren Tasks) -->
-        <Grid Grid.Row="1" x:Name="ContentRoot" />
+        <!-- Inhalt: Icon-Raster des aktiven Tabs -->
+        <ListBox Grid.Row="1" x:Name="IconList"
+                 ItemsSource="{Binding ActiveTab.Items}"
+                 ItemTemplate="{StaticResource IconItemTemplate}"
+                 ItemContainerStyle="{StaticResource IconItemContainerStyle}"
+                 Background="Transparent" BorderThickness="0"
+                 Padding="4"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 VirtualizingPanel.IsVirtualizing="False"
+                 HorizontalContentAlignment="Stretch"
+                 MouseDoubleClick="IconList_MouseDoubleClick">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+        </ListBox>
     </Grid>
 </Window>

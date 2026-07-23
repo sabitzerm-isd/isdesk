@@ -22,8 +22,9 @@ public partial class App : Application
             args.Handled = true;
         };
 
-        // Task 3 Mini-Test: ein hart erzeugtes FenceWindow (wird in Task 7/8 durch FenceManager/Tray ersetzt).
-        var demo = new FenceConfig { Title = "Testbereich", X = 200, Y = 200, Width = 400, Height = 260, Opacity = 0.75, Blur = true };
+        // Mini-Test (wird in Task 7/8 durch FenceManager/Tray ersetzt): ein Bereich mit Demo-Tab.
+        var demo = new FenceConfig { Title = "Testbereich", X = 200, Y = 200, Width = 460, Height = 320, Opacity = 0.75, Blur = true };
+        demo.Tabs.Add(new TabConfig { Title = "Desktop", FolderPath = @"C:\Users\Public\Desktop", IconSize = 32 });
         new FenceWindow(new FenceViewModel(demo)).Show();
     }
 

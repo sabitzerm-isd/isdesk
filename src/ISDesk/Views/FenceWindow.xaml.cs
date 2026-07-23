@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using ISDesk.Interop;
 using ISDesk.ViewModels;
 
@@ -23,6 +26,8 @@ public partial class FenceWindow : Window
         Height = vm.Height;
 
         _vm.PropertyChanged += OnVmPropertyChanged;
+        Loaded += (_, _) => _vm.ActivateAllTabs();
+        Closed += (_, _) => _vm.DisposeTabs();
     }
 
     public FenceViewModel ViewModel => _vm;
@@ -46,6 +51,32 @@ public partial class FenceWindow : Window
         {
             try { DragMove(); }
             catch (InvalidOperationException) { /* DragMove kann in Randfaellen werfen */ }
+        }
+    }
+
+    private void IconList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        if (FindItem(e.OriginalSource as DependencyObject) is { } item)
+            Launch(item.Path);
+    }
+
+    private static IconItemViewModel? FindItem(DependencyObject? source)
+    {
+        while (source != null && source is not ListBoxItem)
+            source = VisualTreeHelper.GetParent(source);
+        return (source as ListBoxItem)?.DataContext as IconItemViewModel;
+    }
+
+    private static void Launch(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Start fehlgeschlagen: {path} — {ex.Message}");
         }
     }
 
