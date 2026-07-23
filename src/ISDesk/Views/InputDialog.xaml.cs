@@ -52,11 +52,13 @@ public partial class InputDialog : Window
             {
                 dialog.Left = centerOn.Left + (centerOn.ActualWidth - dialog.ActualWidth) / 2;
                 dialog.Top = centerOn.Top + (centerOn.ActualHeight - dialog.ActualHeight) / 2;
+                DialogPlacement.ClampToWorkArea(dialog);
             };
         }
         else
         {
             dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            dialog.Loaded += (_, _) => DialogPlacement.ClampToWorkArea(dialog);
         }
 
         return dialog.ShowDialog() == true ? dialog.Value : null;

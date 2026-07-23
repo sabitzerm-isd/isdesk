@@ -118,9 +118,12 @@
         <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
         </StackPanel>
-        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0" Click="Close_Click" />
-        </StackPanel>
+        <Grid Grid.Row="7" Margin="0,16,0,0">
+            <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
+                       Foreground="#66FFFFFF" FontSize="11" />
+            <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0"
+                    HorizontalAlignment="Right" Click="Close_Click" />
+        </Grid>
     </Grid>
     </Border>
 </Window>

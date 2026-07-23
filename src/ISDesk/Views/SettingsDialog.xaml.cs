@@ -41,12 +41,16 @@ public partial class SettingsDialog : Window
             {
                 Left = centerOn.Left + (centerOn.ActualWidth - ActualWidth) / 2;
                 Top = centerOn.Top + (centerOn.ActualHeight - ActualHeight) / 2;
+                DialogPlacement.ClampToWorkArea(this);
             };
         }
         else
         {
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            Loaded += (_, _) => DialogPlacement.ClampToWorkArea(this);
         }
+
+        VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
     }
 
     protected override void OnSourceInitialized(EventArgs e)
