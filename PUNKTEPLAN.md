@@ -39,7 +39,7 @@ einen eigenen Namen. Funktionsnachbau in eigener Implementierung ist zulässig.
 | B4 | Layout-Snapshots | Automatische tägliche Sicherung + „Layout wiederherstellen" (macht Fences heute für dich) |
 | B5 | Multi-Monitor robust | Docking/RDP/Auflösungswechsel: Bereiche bleiben wo sie hingehören (Fences' größte Schwäche laut deinen Logs) |
 | B6 | Volles Shell-Kontextmenü | Rechtsklick wie im Explorer (inkl. „Senden an", Kopieren etc.) |
-| B7 | Verteil-Paket für Kollegen | Installer + kurze Anleitung; Kollege installiert, bekommt ab dann Updates automatisch |
+| B7 | Verteil-Paket für Kollegen | Installer + kurze Anleitung; Kollege installiert, bekommt ab dann Updates automatisch. **Vorgabe (23.07.): Installation nach `C:\Program Files\ISDesk` (Standard-Programmordner, per-machine, Admin nur bei Installation/Update)** |
 
 ### C. SPÄTER — Phase 3 (nur bei Bedarf)
 
