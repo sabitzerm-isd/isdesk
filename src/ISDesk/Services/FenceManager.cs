@@ -117,6 +117,31 @@ public sealed class FenceManager
             window.Close();
     }
 
+    /// Wendet fuer die aktuelle Bildschirm-Konfiguration das gemerkte Layout an
+    /// (bzw. lernt sie kennen). Wird beim Start und bei Monitor-Wechseln aufgerufen.
+    public void ApplyLayoutsForCurrentDisplays()
+    {
+        DisplayConfig.Invalidate();
+        var key = DisplayConfig.Current;
+
+        foreach (var window in _windows)
+        {
+            var cfg = window.ViewModel.Config;
+            if (cfg.Layouts.TryGetValue(key, out var rect))
+            {
+                cfg.X = rect.X; cfg.Y = rect.Y;
+                cfg.Width = Math.Max(rect.Width, 180); cfg.Height = Math.Max(rect.Height, 120);
+            }
+            EnsureOnScreen(cfg);
+            window.Left = cfg.X;
+            window.Top = cfg.Y;
+            window.Width = cfg.Width;
+            window.Height = cfg.Height;
+            cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
+        }
+        _config.SaveDebounced();
+    }
+
     /// Holt alle Fenster wieder in einen sichtbaren Bildschirmbereich.
     public void RealignAll()
     {

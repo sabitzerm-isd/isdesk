@@ -12,3 +12,4 @@ global using DragDropEffects = System.Windows.DragDropEffects;
 global using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 global using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 global using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+global using KeyEventArgs = System.Windows.Input.KeyEventArgs;

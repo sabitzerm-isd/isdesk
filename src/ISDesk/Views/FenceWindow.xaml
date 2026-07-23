@@ -17,7 +17,7 @@
         Drop="Window_Drop">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="-1" CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
@@ -112,6 +112,42 @@
             </Border>
         </DataTemplate>
 
+        <!-- Fixier-Button: bei Maus ueber dem Fenster sichtbar, im gesperrten Zustand immer -->
+        <Style x:Key="LockButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                            <TextBlock x:Name="Glyph" Text="&#xE785;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12" Foreground="#99FFFFFF"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Glyph" Property="Text" Value="&#xE72E;" />
+                                <Setter TargetName="Glyph" Property="Foreground" Value="#7DB7FF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- "+"-Button: nur bei Maus ueber dem Fenster sichtbar -->
         <Style x:Key="AddTabButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="28" />
@@ -164,26 +200,48 @@
                     </MenuItem.Header>
                 </MenuItem>
                 <MenuItem Header="Hintergrund-Blur" IsCheckable="True" IsChecked="{Binding Blur, Mode=TwoWay}" />
+                <MenuItem Header="Bereich fixieren" IsCheckable="True" IsChecked="{Binding Locked, Mode=TwoWay}" />
                 <MenuItem Header="Optionen…" Click="OpenSettings_Click" />
                 <Separator />
                 <MenuItem Header="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
                 <MenuItem Header="ISDesk beenden" Click="ExitApp_Click" />
             </ContextMenu>
         </Grid.ContextMenu>
+        <!-- Toenungsebene: dunkle Grundfarbe, Deckkraft = Transparenz-Regler.
+             Von der App gezeichnet, wirkt daher auf jedem Windows-Build. -->
+        <Border Background="#FF1C1C1E" Opacity="{Binding Opacity}" />
+
+        <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />
             <RowDefinition Height="28" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Titelzeile: Ziehen zum Verschieben -->
+        <!-- Titelzeile: Ziehen = Verschieben, Doppelklick = Umbenennen -->
         <Border Grid.Row="0" Background="#26000000"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <TextBlock Text="{Binding Title}"
-                       FontWeight="SemiBold" FontSize="12.5"
-                       Foreground="#DDFFFFFF"
-                       VerticalAlignment="Center" Margin="12,0"
-                       TextTrimming="CharacterEllipsis" />
+            <Grid Margin="12,0,6,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TitleText" Text="{Binding Title}"
+                           FontWeight="SemiBold" FontSize="12.5"
+                           Foreground="#DDFFFFFF"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBox x:Name="TitleEditBox" Visibility="Collapsed"
+                         FontWeight="SemiBold" FontSize="12.5"
+                         VerticalAlignment="Center" Padding="3,1" Margin="-4,0,0,0"
+                         Background="#33000000" Foreground="White"
+                         BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
+                         KeyDown="TitleEditBox_KeyDown"
+                         LostKeyboardFocus="TitleEditBox_LostFocus" />
+                <ToggleButton Grid.Column="1" Style="{StaticResource LockButtonStyle}"
+                              IsChecked="{Binding Locked, Mode=TwoWay}"
+                              ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
+            </Grid>
         </Border>
 
         <!-- Tab-Leiste -->
@@ -220,5 +278,6 @@
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
         </ListBox>
+        </Grid>
     </Grid>
 </Window>

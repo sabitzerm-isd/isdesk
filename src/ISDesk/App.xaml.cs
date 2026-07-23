@@ -44,8 +44,24 @@ public partial class App : Application
 
         _manager.Backup = new BackupService(_config, _manager);
         _manager.OpenAll();
+        _manager.ApplyLayoutsForCurrentDisplays();
 
         _tray = new TrayService(_manager, _autostart);
+
+        // Bildschirm-Konfigurationswechsel (Docking, RDP, Beamer): entprellt das
+        // gemerkte Layout der neuen Konfiguration anwenden.
+        _displayDebounce = new System.Timers.Timer(1200) { AutoReset = false };
+        _displayDebounce.Elapsed += (_, _) =>
+            Dispatcher.Invoke(() => _manager?.ApplyLayoutsForCurrentDisplays());
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+    }
+
+    private System.Timers.Timer? _displayDebounce;
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        _displayDebounce?.Stop();
+        _displayDebounce?.Start();
     }
 
     /// Startet die App neu (nach einer Wiederherstellung). Gibt den
@@ -84,6 +100,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        _displayDebounce?.Dispose();
         _tray?.Dispose();
         _manager?.ShutdownAll();
         _singleInstanceMutex?.Dispose();

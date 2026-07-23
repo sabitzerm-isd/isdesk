@@ -18,8 +18,22 @@ public sealed class FenceConfig
     public double Height { get; set; } = 260;
     public double Opacity { get; set; } = 0.75;
     public bool Blur { get; set; } = true;
+    public bool Locked { get; set; }
     public int ActiveTab { get; set; }
     public List<TabConfig> Tabs { get; set; } = new();
+
+    /// Fenster-Geometrie je Bildschirm-Konfiguration (Schluessel = Display-Fingerprint,
+    /// z. B. Mobil / Homeoffice / Dortmund). X/Y/Width/Height oben sind der zuletzt
+    /// aktive Stand und dienen als Fallback fuer unbekannte Konfigurationen.
+    public Dictionary<string, LayoutRect> Layouts { get; set; } = new();
+}
+
+public sealed class LayoutRect
+{
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
 }
 
 public sealed class TabConfig

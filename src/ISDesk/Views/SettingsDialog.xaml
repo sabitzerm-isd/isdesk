@@ -49,7 +49,8 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Border Background="#F21B1E26" Padding="20">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -121,4 +122,5 @@
             <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0" Click="Close_Click" />
         </StackPanel>
     </Grid>
+    </Border>
 </Window>

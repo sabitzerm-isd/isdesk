@@ -44,22 +44,67 @@ public partial class FenceWindow : Window
         base.OnSourceInitialized(e);
         BottomMostBehavior.Attach(this);
         WindowBackdrop.Apply(this, _vm.Opacity, _vm.Blur);
+        ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(FenceViewModel.Opacity) or nameof(FenceViewModel.Blur))
             WindowBackdrop.Apply(this, _vm.Opacity, _vm.Blur);
+        if (e.PropertyName is nameof(FenceViewModel.Locked))
+            ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed)
+        if (e.ButtonState != MouseButtonState.Pressed) return;
+
+        if (e.ClickCount == 2)
         {
-            try { DragMove(); }
-            catch (InvalidOperationException) { /* DragMove kann in Randfaellen werfen */ }
+            BeginTitleEdit();
+            e.Handled = true;
+            return;
         }
+
+        if (_vm.Locked) return; // fixiert: nicht verschieben
+
+        try { DragMove(); }
+        catch (InvalidOperationException) { /* DragMove kann in Randfaellen werfen */ }
     }
+
+    // --- Titel direkt in der Titelzeile umbenennen (Doppelklick) ---
+
+    private void BeginTitleEdit()
+    {
+        TitleEditBox.Text = _vm.Title;
+        TitleText.Visibility = Visibility.Collapsed;
+        TitleEditBox.Visibility = Visibility.Visible;
+        Activate();
+        TitleEditBox.Focus();
+        TitleEditBox.SelectAll();
+    }
+
+    private void EndTitleEdit(bool save)
+    {
+        if (TitleEditBox.Visibility != Visibility.Visible) return;
+
+        if (save)
+        {
+            var text = TitleEditBox.Text.Trim();
+            if (text.Length > 0) _vm.Title = text;
+        }
+        TitleEditBox.Visibility = Visibility.Collapsed;
+        TitleText.Visibility = Visibility.Visible;
+    }
+
+    private void TitleEditBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { EndTitleEdit(save: true); e.Handled = true; }
+        else if (e.Key == Key.Escape) { EndTitleEdit(save: false); e.Handled = true; }
+    }
+
+    private void TitleEditBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => EndTitleEdit(save: true);
 
     private void Tab_Click(object sender, MouseButtonEventArgs e)
     {

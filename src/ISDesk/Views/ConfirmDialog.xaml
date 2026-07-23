@@ -38,7 +38,8 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Border Background="#F21B1E26" Padding="18">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -59,4 +60,5 @@
             <Button x:Name="OkButton" Content="OK" IsDefault="True" Click="Ok_Click" />
         </StackPanel>
     </Grid>
+    </Border>
 </Window>
