@@ -25,15 +25,6 @@
         <DataTemplate x:Key="IconItemTemplate">
             <StackPanel Margin="2,4" Background="Transparent"
                         Width="{Binding DataContext.ActiveTab.CellWidth, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=84}">
-                <StackPanel.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Öffnen" Click="IconOpen_Click" />
-                        <MenuItem Header="Im Explorer anzeigen" Click="IconShowInExplorer_Click" />
-                        <MenuItem Header="Umbenennen…" Click="IconRename_Click" />
-                        <Separator />
-                        <MenuItem Header="In den Papierkorb" Click="IconRecycle_Click" />
-                    </ContextMenu>
-                </StackPanel.ContextMenu>
                 <Image Source="{Binding Icon}"
                        Width="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
                        Height="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
@@ -475,7 +466,8 @@
                  HorizontalContentAlignment="Stretch"
                  MouseDoubleClick="IconList_MouseDoubleClick"
                  PreviewMouseLeftButtonDown="IconList_PreviewMouseLeftButtonDown"
-                 MouseMove="IconList_MouseMove">
+                 MouseMove="IconList_MouseMove"
+                 PreviewMouseRightButtonUp="IconList_MouseRightButtonUp">
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal" />

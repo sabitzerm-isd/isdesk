@@ -145,11 +145,19 @@ public sealed class DesktopSweeper : IDisposable
         var ext = Path.GetExtension(entry.Name).TrimStart('.').ToLowerInvariant();
         if (ext.Length == 0) return null;
 
+        // Priorität 1: exakt zugewiesene Einzelendung (z. B. "pdf" gehoert dem PDF-Tab,
+        // nicht dem Office-Tab, obwohl "office" pdf mit abdeckt).
         foreach (var fence in _config.Config.Fences)
             foreach (var tab in fence.Tabs)
-                if (tab.AutoExtensions.Any(e => string.Equals(e, ext, StringComparison.OrdinalIgnoreCase))
-                    && Directory.Exists(tab.FolderPath))
+                if (FileCategories.MatchesExact(tab.AutoExtensions, ext) && Directory.Exists(tab.FolderPath))
                     return tab.FolderPath;
+
+        // Priorität 2: Kategorie-Regel (z. B. "office", "bilder").
+        foreach (var fence in _config.Config.Fences)
+            foreach (var tab in fence.Tabs)
+                if (FileCategories.MatchesCategory(tab.AutoExtensions, ext) && Directory.Exists(tab.FolderPath))
+                    return tab.FolderPath;
+
         return null;
     }
 

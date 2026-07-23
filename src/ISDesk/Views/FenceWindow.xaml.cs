@@ -388,7 +388,8 @@ public partial class FenceWindow : Window
 
         var current = string.Join("; ", tab.Config.AutoExtensions);
         var input = InputDialog.Ask(
-            "Dateiendungen für diesen Tab (mit ; getrennt, ohne Punkt — z. B. sza; szx).\n" +
+            "Dateiendungen für diesen Tab (mit ; getrennt). Einzelne Endungen ohne Punkt " +
+            "(z. B. sza; 7z) oder eine Kategorie: bilder, office, video, audio, archiv.\n" +
             "Der Desktop-Einsammler legt passende Dateien automatisch hier ab:",
             current, this);
         if (input == null) return;
@@ -727,80 +728,17 @@ public partial class FenceWindow : Window
         catch (Exception ex) { Debug.WriteLine($"Drag fehlgeschlagen: {ex.Message}"); }
     }
 
-    // --- Icon-Kontextmenue ---
+    // --- Icon-Kontextmenue: das ECHTE Windows-Explorer-Menue ---
 
-    private void IconOpen_Click(object sender, RoutedEventArgs e)
+    private void IconList_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is IconItemViewModel item)
-            Launch(item.Path);
-    }
+        var item = FindItem(e.OriginalSource as DependencyObject);
+        if (item == null) return;
 
-    private void IconShowInExplorer_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
-        try
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{item.Path}\"") { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Explorer-Anzeige fehlgeschlagen: {ex.Message}");
-        }
-    }
-
-    private void IconRename_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
-        var trimmed = item.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var dir = Path.GetDirectoryName(trimmed);
-        if (dir is null) return;
-
-        // Nur der ANZEIGE-Name wird bearbeitet — die Dateiendung (.url/.lnk/…)
-        // bleibt automatisch erhalten, sonst verliert die Datei Typ und Icon.
-        var fileName = Path.GetFileName(trimmed);
-        var extension = item.IsFolder ? "" : Path.GetExtension(fileName);
-        var stem = item.IsFolder ? fileName : Path.GetFileNameWithoutExtension(fileName);
-
-        var input = InputDialog.Ask("Neuer Name:", stem, this);
-        if (string.IsNullOrWhiteSpace(input)) return;
-
-        var newName = input.Trim();
-        if (extension.Length > 0 && !newName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-            newName += extension;
-        if (string.Equals(newName, fileName, StringComparison.Ordinal)) return;
-
-        try
-        {
-            var dest = Path.Combine(dir, newName);
-            if (item.IsFolder) Directory.Move(item.Path, dest);
-            else File.Move(item.Path, dest);
-        }
-        catch (Exception ex)
-        {
-            ConfirmDialog.Info($"Umbenennen fehlgeschlagen:\n{ex.Message}", this);
-        }
-    }
-
-    private void IconRecycle_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
-
-        var (confirmed, _) = ConfirmDialog.Show(
-            $"„{item.DisplayName}“ in den Papierkorb verschieben?",
-            this, okText: "In den Papierkorb");
-        if (!confirmed) return;
-
-        try
-        {
-            if (item.IsFolder)
-                FileSystem.DeleteDirectory(item.Path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-            else
-                FileSystem.DeleteFile(item.Path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-        }
-        catch (Exception ex)
-        {
-            ConfirmDialog.Info($"Löschen fehlgeschlagen:\n{ex.Message}", this);
-        }
+        e.Handled = true;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var screen = PointToScreen(e.GetPosition(this));
+        ShellContextMenu.Show(item.Path, hwnd, (int)screen.X, (int)screen.Y);
     }
 
     protected override void OnLocationChanged(EventArgs e)
