@@ -43,8 +43,12 @@ public partial class App : Application
             CreateWelcomeFence();
 
         _manager.Backup = new BackupService(_config, _manager);
+        PlacementRegistry.Init(_config);
+        _manager.Sweeper = new DesktopSweeper(_config, _manager.GetAblageFolder);
         _manager.OpenAll();
         _manager.ApplyLayoutsForCurrentDisplays();
+        if (_config.Config.DesktopSweep)
+            _manager.Sweeper.Start();
 
         _tray = new TrayService(_manager, _autostart);
 
@@ -102,6 +106,7 @@ public partial class App : Application
     {
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _displayDebounce?.Dispose();
+        _manager?.Sweeper?.Dispose();
         _tray?.Dispose();
         _manager?.ShutdownAll();
         _singleInstanceMutex?.Dispose();

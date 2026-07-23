@@ -224,6 +224,13 @@ public sealed class FenceViewModel : INotifyPropertyChanged
 
     public System.Windows.Media.ImageSource? IconImage => Services.IconLibrary.Load(_config.IconPath);
 
+    /// Zeigt hinter jedem Tab-Titel die Dateianzahl (nur fuer diesen Bereich).
+    public bool ShowTabCounts
+    {
+        get => _config.ShowTabCounts;
+        set { if (_config.ShowTabCounts != value) { _config.ShowTabCounts = value; OnChanged(); Persist(); } }
+    }
+
     public double X
     {
         get => _config.X;

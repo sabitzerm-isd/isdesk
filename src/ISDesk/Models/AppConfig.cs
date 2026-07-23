@@ -6,6 +6,14 @@ public sealed class AppConfig
     public double DefaultOpacity { get; set; } = 0.75;
     public bool DefaultBlur { get; set; } = true;
     public List<FenceConfig> Fences { get; set; } = new();
+
+    /// Ablage aktiv: Desktop-Dateien werden automatisch eingesammelt —
+    /// bekannte in ihren gelernten Bereich, unbekannte in den Bereich "Ablage".
+    public bool DesktopSweep { get; set; }
+
+    /// Platz-Gedaechtnis: Dateiname (klein) → Tab-Ordner, in dem er zuletzt lag.
+    /// So findet z. B. die neue Verknuepfung nach einem Programm-Update ihren Bereich wieder.
+    public Dictionary<string, string> Placements { get; set; } = new();
 }
 
 public sealed class FenceConfig
@@ -24,6 +32,9 @@ public sealed class FenceConfig
 
     /// Symbol in der Titelzeile: Galerie-Dateiname (Assets\TabIcons) oder absoluter PNG-Pfad.
     public string? IconPath { get; set; }
+
+    /// Zeigt hinter jedem Tab-Titel die Anzahl der Dateien (nur fuer diesen Bereich).
+    public bool ShowTabCounts { get; set; }
     public List<TabConfig> Tabs { get; set; } = new();
 
     /// Fenster-Geometrie je Bildschirm-Konfiguration (Schluessel = Display-Fingerprint,
@@ -55,4 +66,8 @@ public sealed class TabConfig
     /// Manuelle Icon-Reihenfolge (Dateinamen). Neue Dateien werden hinten angefuegt,
     /// verschwundene automatisch entfernt — es wird NICHT automatisch sortiert.
     public List<string> Order { get; set; } = new();
+
+    /// Automatik-Regel des Desktop-Einsammlers: Dateien mit diesen Endungen
+    /// (ohne Punkt, z. B. "sza") landen automatisch in diesem Tab.
+    public List<string> AutoExtensions { get; set; } = new();
 }

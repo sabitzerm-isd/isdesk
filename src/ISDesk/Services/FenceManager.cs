@@ -17,6 +17,44 @@ public sealed class FenceManager
     /// Wird von App nach der Konstruktion gesetzt (Sicherung/Wiederherstellung).
     public BackupService? Backup { get; set; }
 
+    /// Wird von App gesetzt (Desktop-Einsammler fuer die Ablage).
+    public DesktopSweeper? Sweeper { get; set; }
+
+    public bool DesktopSweepEnabled => _config.Config.DesktopSweep;
+
+    public void PersistNow() => _config.SaveDebounced();
+
+    /// Schaltet die Ablage um: an = Bereich "Ablage" sicherstellen + Einsammler starten.
+    public void SetDesktopSweep(bool enabled)
+    {
+        _config.Config.DesktopSweep = enabled;
+        _config.SaveDebounced();
+        if (enabled)
+        {
+            EnsureAblageFence();
+            Sweeper?.Start();
+        }
+        else
+        {
+            Sweeper?.Stop();
+        }
+    }
+
+    /// Tab-Ordner des Ablage-Bereichs ("" wenn nicht vorhanden) — threadsicher lesbar.
+    public string GetAblageFolder()
+        => _config.Config.Fences.FirstOrDefault(f =>
+                string.Equals(f.Title, "Ablage", StringComparison.OrdinalIgnoreCase))
+            ?.Tabs.FirstOrDefault()?.FolderPath ?? "";
+
+    private void EnsureAblageFence()
+    {
+        if (_config.Config.Fences.Any(f =>
+                string.Equals(f.Title, "Ablage", StringComparison.OrdinalIgnoreCase)))
+            return;
+        var window = CreateFence("Ablage");
+        window.ViewModel.IconPath = "download.png";
+    }
+
     public IReadOnlyList<FenceWindow> Windows => _windows;
 
     /// Oeffnet je FenceConfig ein FenceWindow.

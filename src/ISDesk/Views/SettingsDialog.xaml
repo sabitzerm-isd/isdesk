@@ -60,6 +60,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Optionen"
@@ -111,20 +113,28 @@
                       IsChecked="{Binding Blur, Mode=TwoWay}" />
         </Grid>
 
+        <!-- Ablage -->
+        <TextBlock Grid.Row="3" Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
+        <CheckBox Grid.Row="4" x:Name="SweepCheck"
+                  Content="Ablage aktivieren – Dateien vom Desktop automatisch einsammeln"
+                  Foreground="#DDFFFFFF" FontSize="12.5"
+                  Checked="Sweep_Checked" Unchecked="Sweep_Unchecked"
+                  ToolTip="Bekannte Dateien wandern zurück in ihren gelernten Bereich, alles andere in den Bereich „Ablage“." />
+
         <!-- Sicherung -->
-        <TextBlock Grid.Row="3" Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
-        <TextBlock Grid.Row="4" Foreground="#99FFFFFF" FontSize="11.5" TextWrapping="Wrap"
+        <TextBlock Grid.Row="5" Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
+        <TextBlock Grid.Row="6" Foreground="#99FFFFFF" FontSize="11.5" TextWrapping="Wrap"
                    Text="Sichert die Konfiguration und alle Bereichs-Ordner in eine ZIP-Datei – z. B. bevor der Rechner neu aufgesetzt wird." />
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
+        <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,8,0,0">
             <Button Content="Sicherung erstellen…" Click="CreateBackup_Click" />
             <Button Content="Sicherung wiederherstellen…" Click="RestoreBackup_Click" />
         </StackPanel>
 
         <!-- Fusszeile -->
-        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,16,0,0">
+        <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
         </StackPanel>
-        <Grid Grid.Row="7" Margin="0,16,0,0">
+        <Grid Grid.Row="9" Margin="0,16,0,0">
             <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
                        Foreground="#66FFFFFF" FontSize="11" />
             <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0"

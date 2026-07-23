@@ -33,6 +33,7 @@ public partial class SettingsDialog : Window
             }
         }
         IconSizeBox.SelectedItem ??= IconSizeBox.Items[1]; // Mittel (32)
+        SweepCheck.IsChecked = manager?.DesktopSweepEnabled ?? false;
         _initialized = true;
 
         if (centerOn != null)
@@ -75,6 +76,16 @@ public partial class SettingsDialog : Window
             foreach (var tab in _vm.Tabs)
                 tab.IconSize = size;
         }
+    }
+
+    private void Sweep_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized) _manager?.SetDesktopSweep(true);
+    }
+
+    private void Sweep_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized) _manager?.SetDesktopSweep(false);
     }
 
     private void CreateBackup_Click(object sender, RoutedEventArgs e)

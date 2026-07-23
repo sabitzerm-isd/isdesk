@@ -45,7 +45,7 @@ public partial class FenceWindow : Window
         };
 
         LocationChanged += (_, _) => UpdateBlurCrop();
-        SizeChanged += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
+        SizeChanged += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); UpdateSearchVisibility(); };
         WallpaperService.Changed += UpdateBlurCrop;
         SearchService.TermChanged += SyncSearchBox;
         Closed += (_, _) =>
@@ -53,7 +53,20 @@ public partial class FenceWindow : Window
             WallpaperService.Changed -= UpdateBlurCrop;
             SearchService.TermChanged -= SyncSearchBox;
         };
-        Loaded += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
+        Loaded += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); UpdateSearchVisibility(); };
+        MouseEnter += (_, _) => UpdateSearchVisibility();
+        MouseLeave += (_, _) => UpdateSearchVisibility();
+        SearchBox.GotKeyboardFocus += (_, _) => UpdateSearchVisibility();
+        SearchBox.LostKeyboardFocus += (_, _) => UpdateSearchVisibility();
+    }
+
+    /// Suchbox nur zeigen, wenn Platz da ist (sonst blockiert sie die Greif-Flaeche
+    /// der Titelzeile) und der Bereich gehovert wird bzw. eine Suche laeuft.
+    private void UpdateSearchVisibility()
+    {
+        var show = ActualWidth >= 340
+                   && (IsMouseOver || SearchBox.Text.Length > 0 || SearchBox.IsKeyboardFocusWithin);
+        SearchContainer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // --- Live-Suche (global ueber alle Bereiche) ---
@@ -62,6 +75,7 @@ public partial class FenceWindow : Window
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
+        UpdateSearchVisibility();
         if (_searchSyncing) return;
         SearchService.SetTerm(SearchBox.Text);
     }
@@ -136,7 +150,7 @@ public partial class FenceWindow : Window
     {
         base.OnSourceInitialized(e);
         DesktopPinning.Attach(this);
-        GridSnapBehavior.Attach(this);
+        // GridSnapBehavior.Attach(this); // Raster vorerst deaktiviert (spaeter verbessern)
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
 
@@ -217,7 +231,18 @@ public partial class FenceWindow : Window
     private void Tab_Click(object sender, MouseButtonEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is TabViewModel tab)
+        {
             _vm.ActiveTab = tab;
+            e.Handled = true; // nicht zusaetzlich als Fenster-Drag interpretieren
+        }
+    }
+
+    /// Leere Flaeche der Tab-Leiste: zusaetzliche Greif-Flaeche zum Verschieben.
+    private void TabBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState != MouseButtonState.Pressed || _vm.Locked) return;
+        try { DragMove(); }
+        catch (InvalidOperationException) { /* Randfaelle */ }
     }
 
     /// Beim Ziehen ueber einen Tab-Reiter: Effekt anzeigen und den Tab gleich
@@ -353,6 +378,28 @@ public partial class FenceWindow : Window
         }
         if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             tab.Color = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+    }
+
+    /// Endungs-Regel des Desktop-Einsammlers fuer diesen Tab bearbeiten
+    /// (z. B. "sza; szx" → alle SZA/SZX vom Desktop landen automatisch hier).
+    private void TabAutoExtensions_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+
+        var current = string.Join("; ", tab.Config.AutoExtensions);
+        var input = InputDialog.Ask(
+            "Dateiendungen für diesen Tab (mit ; getrennt, ohne Punkt — z. B. sza; szx).\n" +
+            "Der Desktop-Einsammler legt passende Dateien automatisch hier ab:",
+            current, this);
+        if (input == null) return;
+
+        tab.Config.AutoExtensions = input
+            .Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim().TrimStart('*', '.').ToLowerInvariant())
+            .Where(s => s.Length > 0)
+            .Distinct()
+            .ToList();
+        Manager?.PersistNow();
     }
 
     private void RemoveTab_Click(object sender, RoutedEventArgs e)

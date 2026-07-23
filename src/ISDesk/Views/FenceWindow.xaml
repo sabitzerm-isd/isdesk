@@ -124,6 +124,7 @@
                     <ContextMenu>
                         <MenuItem Header="Umbenennen…" Click="RenameTab_Click" />
                         <MenuItem Header="Symbol wählen…" Click="PickTabIcon_Click" />
+                        <MenuItem Header="Automatische Dateiendungen…" Click="TabAutoExtensions_Click" />
                         <MenuItem Header="Farbe">
                             <MenuItem Header="Blau" Tag="#2D7DFF" Click="TabColor_Click">
                                 <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2D7DFF" /></MenuItem.Icon>
@@ -183,6 +184,20 @@
                             </Style.Triggers>
                         </Style>
                     </TextBlock.Style>
+                    </TextBlock>
+                    <!-- Dateianzahl je Tab (nur wenn im Bereich aktiviert) -->
+                    <TextBlock Text="{Binding Items.Count, StringFormat=' ({0})'}"
+                               FontSize="11.5" VerticalAlignment="Center" Foreground="#99FFFFFF">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DataContext.ShowTabCounts, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
                 </Border>
@@ -288,6 +303,7 @@
                 </MenuItem>
                 <MenuItem Header="Hintergrund-Blur" IsCheckable="True" IsChecked="{Binding Blur, Mode=TwoWay}" />
                 <MenuItem Header="Bereich fixieren" IsCheckable="True" IsChecked="{Binding Locked, Mode=TwoWay}" />
+                <MenuItem Header="Tab-Zähler anzeigen" IsCheckable="True" IsChecked="{Binding ShowTabCounts, Mode=TwoWay}" />
                 <MenuItem Header="Optionen…" Click="OpenSettings_Click" />
                 <Separator />
                 <MenuItem Header="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
@@ -356,25 +372,14 @@
                          BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
                          KeyDown="TitleEditBox_KeyDown"
                          LostKeyboardFocus="TitleEditBox_LostFocus" />
-                <!-- Live-Suche: sucht ueber ALLE Bereiche und Tabs, waehrend man tippt -->
-                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,4,0">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Style.Triggers>
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="False" />
-                                        <Condition Binding="{Binding Text, ElementName=SearchBox}" Value="" />
-                                    </MultiDataTrigger.Conditions>
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </MultiDataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
+                <!-- Live-Suche: sucht ueber ALLE Bereiche und Tabs, waehrend man tippt.
+                     Sichtbarkeit steuert Code-Behind (nur bei breiten Fenstern, sonst
+                     blockiert die Box die Greif-Flaeche der Titelzeile). -->
+                <Grid Grid.Column="1" x:Name="SearchContainer" VerticalAlignment="Center"
+                      Margin="0,0,4,0" Visibility="Collapsed">
                     <Border CornerRadius="6" Background="#26000000" BorderBrush="#33FFFFFF" BorderThickness="1">
                         <Grid>
-                            <TextBox x:Name="SearchBox" Width="110" FontSize="11.5" Padding="6,2"
+                            <TextBox x:Name="SearchBox" Width="90" FontSize="11.5" Padding="6,2"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="White" CaretBrush="White"
                                      VerticalContentAlignment="Center"
@@ -403,8 +408,9 @@
             </Grid>
         </Border>
 
-        <!-- Tab-Leiste -->
-        <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True">
+        <!-- Tab-Leiste (leere Flaeche dient auch als Greif-Flaeche zum Verschieben) -->
+        <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True"
+                   Background="Transparent" MouseLeftButtonDown="TabBar_MouseLeftButtonDown">
             <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
                     Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
             <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabItemTemplate}"
