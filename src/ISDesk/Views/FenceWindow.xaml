@@ -272,9 +272,10 @@
             </Border>
         </Grid>
 
-        <!-- Toenungsebene: dunkle Grundfarbe, Deckkraft = Transparenz-Regler.
-             Von der App gezeichnet, wirkt daher auf jedem Windows-Build. -->
-        <Border Background="#FF1C1C1E" Opacity="{Binding Opacity}" />
+        <!-- Toenungsebene: Grundfarbe = Tab-Farbe (dunkel abgetoent) bzw. Anthrazit,
+             Deckkraft = Transparenz-Regler. Von der App gezeichnet (build-unabhaengig). -->
+        <Border Background="{Binding ActiveTab.AreaBrush, FallbackValue=#FF1C1C1E}"
+                Opacity="{Binding Opacity}" />
 
         <Grid>
         <Grid.RowDefinitions>

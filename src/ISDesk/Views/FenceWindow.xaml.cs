@@ -504,6 +504,12 @@ public partial class FenceWindow : Window
         if (!copy && string.Equals(sourceParent, targetDir, StringComparison.OrdinalIgnoreCase))
             return;
 
+        // Liegt am Ziel schon eine INHALTSGLEICHE Datei gleichen Namens, kein
+        // " (2)"-Duplikat anlegen, sondern still ueberspringen.
+        var existing = Path.Combine(targetDir, name);
+        if (!isDir && File.Exists(existing) && FilesEqual(source, existing))
+            return;
+
         var dest = MakeUniqueDestination(targetDir, name);
         if (isDir)
         {
@@ -521,6 +527,24 @@ public partial class FenceWindow : Window
         {
             if (copy) File.Copy(source, dest);
             else File.Move(source, dest); // File.Move funktioniert auch ueber Volumes
+        }
+    }
+
+    /// Byte-Vergleich fuer kleine Dateien (Verknuepfungen etc.); grosse Dateien
+    /// gelten als verschieden und laufen in die normale " (n)"-Umbenennung.
+    private static bool FilesEqual(string a, string b)
+    {
+        try
+        {
+            var infoA = new FileInfo(a);
+            var infoB = new FileInfo(b);
+            if (infoA.Length != infoB.Length) return false;
+            if (infoA.Length > 4 * 1024 * 1024) return false;
+            return File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b));
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

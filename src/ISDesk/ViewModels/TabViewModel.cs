@@ -58,8 +58,34 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
                 _config.Color = value;
                 OnChanged();
                 OnChanged(nameof(PillBrush));
+                OnChanged(nameof(AreaBrush));
                 _persist();
             }
+        }
+    }
+
+    /// Flaechen-Hintergrund des Bereichs, wenn dieser Tab aktiv ist:
+    /// die Tab-Farbe dunkel abgetoent (lesbar), sonst das Standard-Anthrazit.
+    public System.Windows.Media.Brush AreaBrush
+    {
+        get
+        {
+            var baseColor = System.Windows.Media.Color.FromRgb(0x1C, 0x1C, 0x1E);
+            if (!string.IsNullOrWhiteSpace(_config.Color))
+            {
+                try
+                {
+                    var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_config.Color);
+                    baseColor = System.Windows.Media.Color.FromRgb(
+                        (byte)(baseColor.R + (c.R - baseColor.R) * 0.45),
+                        (byte)(baseColor.G + (c.G - baseColor.G) * 0.45),
+                        (byte)(baseColor.B + (c.B - baseColor.B) * 0.45));
+                }
+                catch (Exception) { /* ungueltige Farbe → Standard */ }
+            }
+            var brush = new System.Windows.Media.SolidColorBrush(baseColor);
+            brush.Freeze();
+            return brush;
         }
     }
 
