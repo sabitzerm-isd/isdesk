@@ -104,10 +104,19 @@ public static class WebLinkFactory
         });
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Task<string?>> HostDownloads
+        = new(StringComparer.OrdinalIgnoreCase);
+
+    /// Ein Download je Host: Viele Links derselben Domain (z. B. Lesezeichen-Import)
+    /// teilen sich denselben Task — verhindert Schreibkonflikte auf die .ico-Datei
+    /// und doppelte Downloads.
+    private static Task<string?> DownloadFaviconAsync(Uri site)
+        => HostDownloads.GetOrAdd(site.Host, _ => DownloadFaviconCoreAsync(site));
+
     /// Laedt das Favicon als .ico in den lokalen Cache (%APPDATA%\ISDesk\FavIcons).
     /// Sucht wie der Browser: zuerst die im HTML deklarierten Icons, dann
     /// /favicon.ico, zuletzt der Favicon-Dienst.
-    private static async Task<string?> DownloadFaviconAsync(Uri site)
+    private static async Task<string?> DownloadFaviconCoreAsync(Uri site)
     {
         var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ISDesk", "FavIcons");
