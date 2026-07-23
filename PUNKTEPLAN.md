@@ -1,6 +1,6 @@
-# Punkteplan: Eigener Fences-Nachbau („DeskFences" — Arbeitstitel)
+# Punkteplan: ISDesk — eigener Fences-Nachbau
 
-Stand: 23.07.2026 · Status: **Entwurf — wartet auf deine Freigabe**
+Stand: 23.07.2026 · Status: **Kernentscheidungen beschlossen** (siehe Abschnitt 5)
 
 ## 0. Ziel & Rahmen
 
@@ -96,9 +96,8 @@ Ansicht live.
 
 ## 3. GitHub & Auto-Update
 
-- Repo unter deinem GitHub-Konto (`sabitzerm-isd`) — Name = App-Name (klein), **privat**
-  empfohlen; Auto-Update funktioniert auch aus privaten Repos (Releases werden mit einem
-  schreibgeschützten Token abgefragt) — oder öffentlich, dann ohne Token. → offene Frage unten
+- Repo: `sabitzerm-isd/isdesk` (**privat**); Auto-Update aus dem privaten Repo läuft über ein
+  schreibgeschütztes Token, das mit dem Installer ausgeliefert wird
 - Jede Arbeitssitzung endet mit Commit + Push (Sicherung ab Tag 1)
 - Release-Ablauf: Version hochzählen → Build → Installer (Inno Setup) → GitHub Release mit
   Installer als Asset → alle Installationen melden sich beim nächsten Start
@@ -124,9 +123,9 @@ sie mit **Opus** statt Fable umgesetzt werden können (Modell wählst du in der 
 App pro Session). Rechenintensive Unteraufgaben delegiere ich zusätzlich an günstigere
 Subagenten. Fable lohnt sich wieder bei kniffligen Architektur-/Debug-Fragen (z. B. Multi-Monitor).
 
-## 5. Offene Fragen (vor Phase 1 zu klären)
+## 5. Entscheidungen (23.07.2026, mit Michael abgestimmt)
 
-1. **Icon-Ansatz:** Variante 1 (eigene Bereiche mit echten Ordnern) ok? ← Empfehlung
-2. **GitHub:** Repo unter `sabitzerm-isd` privat anlegen — oder öffentlich / anderes Konto (Firmen-Org)?
-3. **App-Name:** Vorschläge: „DeskFences", „IconBay", „Zonen", eigener Vorschlag?
-4. Basisordner für Bereichs-Ordner: `D:\Fences\…` ok oder anderer Pfad?
+1. **Icon-Ansatz:** Variante 1 — eigene Bereiche mit echten Ordnern ✅
+2. **GitHub:** privates Repo `sabitzerm-isd/isdesk` ✅
+3. **App-Name:** **ISDesk** ✅
+4. **Basisordner:** `D:\Fences\<Bereichsname>` (pro Rechner umstellbar) ✅
