@@ -42,4 +42,7 @@ public sealed class TabConfig
     public string Title { get; set; } = "";
     public string FolderPath { get; set; } = "";
     public int IconSize { get; set; } = 32;
+
+    /// Hintergrundfarbe des Tab-Reiters als "#RRGGBB"; null = Standard-Optik.
+    public string? Color { get; set; }
 }

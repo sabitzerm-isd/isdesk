@@ -75,10 +75,24 @@
             </Setter>
         </Style>
 
-        <!-- Tab: nimmt auch Icons per Drag & Drop entgegen (verschiebt in den Tab-Ordner) -->
+        <!-- Tab: nimmt Icons per Drag & Drop entgegen; optionale eigene Hintergrundfarbe
+             (Farbebene unter der Hover-/Aktiv-Ebene, damit die Trigger unveraendert wirken) -->
         <DataTemplate x:Key="TabItemTemplate">
-            <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Margin="2,0,0,0" Cursor="Hand"
-                    AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
+            <Grid Margin="2,0,0,0">
+                <Border CornerRadius="6" Background="{Binding PillBrush}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                    <Setter Property="Opacity" Value="1.0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+                <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Cursor="Hand"
+                        AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Background" Value="Transparent" />
@@ -95,6 +109,32 @@
                 <Border.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Umbenennen…" Click="RenameTab_Click" />
+                        <MenuItem Header="Farbe">
+                            <MenuItem Header="Blau" Tag="#2D7DFF" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2D7DFF" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Grün" Tag="#2FA84F" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2FA84F" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Rot" Tag="#D0453E" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#D0453E" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Orange" Tag="#E8842C" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#E8842C" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Violett" Tag="#8C5BD8" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#8C5BD8" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Türkis" Tag="#1FA8A0" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#1FA8A0" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Grau" Tag="#6B7280" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#6B7280" /></MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Benutzerdefiniert…" Click="TabColorCustom_Click" />
+                            <MenuItem Header="Standard (keine Farbe)" Click="TabColorDefault_Click" />
+                        </MenuItem>
                         <MenuItem Header="In anderen Bereich verschieben" IsEnabled="{Binding CanRemove}"
                                   SubmenuOpened="MoveTabMenu_SubmenuOpened">
                             <MenuItem Header="…" />
@@ -114,7 +154,8 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-            </Border>
+                </Border>
+            </Grid>
         </DataTemplate>
 
         <!-- Fixier-Button: bei Maus ueber dem Fenster sichtbar, im gesperrten Zustand immer -->

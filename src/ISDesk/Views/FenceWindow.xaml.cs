@@ -283,6 +283,36 @@ public partial class FenceWindow : Window
         }
     }
 
+    private void TabColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: TabViewModel tab, Tag: string hex })
+            tab.Color = hex;
+    }
+
+    private void TabColorDefault_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: TabViewModel tab })
+            tab.Color = null;
+    }
+
+    private void TabColorCustom_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: TabViewModel tab }) return;
+
+        using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true };
+        if (!string.IsNullOrEmpty(tab.Color))
+        {
+            try
+            {
+                var current = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tab.Color);
+                dialog.Color = System.Drawing.Color.FromArgb(current.R, current.G, current.B);
+            }
+            catch (Exception) { /* Standardfarbe des Dialogs */ }
+        }
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            tab.Color = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+    }
+
     private void RemoveTab_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;

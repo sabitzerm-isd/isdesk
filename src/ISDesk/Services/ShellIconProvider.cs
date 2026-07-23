@@ -13,6 +13,29 @@ public sealed class ShellIconProvider
 
     private readonly ConcurrentDictionary<string, ImageSource?> _cache = new(StringComparer.OrdinalIgnoreCase);
 
+    // Ein dedizierter STA-Thread fuer die Shell-Icon-Extraktion: manche Icon-Handler
+    // (z. B. ClickOnce .appref-ms) liefern auf MTA-Threadpool-Threads nur das
+    // generische Blatt-Icon oder schlagen fehl.
+    private static readonly System.Collections.Concurrent.BlockingCollection<Action> StaQueue = new();
+
+    static ShellIconProvider()
+    {
+        var thread = new Thread(() =>
+        {
+            foreach (var work in StaQueue.GetConsumingEnumerable())
+            {
+                try { work(); }
+                catch (Exception) { /* Einzelfehler duerfen den Worker nicht beenden */ }
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "ISDesk.ShellIcons"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+    }
+
     [ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IShellItemImageFactory { [PreserveSig] int GetImage(SIZE size, int flags, out IntPtr phbm); }
     [StructLayout(LayoutKind.Sequential)] private struct SIZE { public int cx, cy; }
@@ -29,9 +52,29 @@ public sealed class ShellIconProvider
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
-        var icon = await Task.Run(() => LoadIcon(path, size)).ConfigureAwait(false);
-        _cache[key] = icon;
+        var icon = await LoadOnStaAsync(path, size).ConfigureAwait(false);
+        if (icon == null)
+        {
+            // Datei war evtl. gerade mitten im Verschieben — einmal kurz spaeter erneut.
+            await Task.Delay(600).ConfigureAwait(false);
+            icon = await LoadOnStaAsync(path, size).ConfigureAwait(false);
+        }
+
+        // Fehlschlaege NICHT cachen, damit der naechste Reload erneut versucht.
+        if (icon != null)
+            _cache[key] = icon;
         return icon;
+    }
+
+    private static Task<ImageSource?> LoadOnStaAsync(string path, int size)
+    {
+        var tcs = new TaskCompletionSource<ImageSource?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        StaQueue.Add(() =>
+        {
+            try { tcs.TrySetResult(LoadIcon(path, size)); }
+            catch (Exception) { tcs.TrySetResult(null); }
+        });
+        return tcs.Task;
     }
 
     /// Gecachte Icons eines Pfads verwerfen (z. B. nachdem einer .url-Datei

@@ -47,6 +47,42 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     public string FolderPath => _config.FolderPath;
 
+    /// Hintergrundfarbe des Reiters ("#RRGGBB"), null = Standard.
+    public string? Color
+    {
+        get => _config.Color;
+        set
+        {
+            if (_config.Color != value)
+            {
+                _config.Color = value;
+                OnChanged();
+                OnChanged(nameof(PillBrush));
+                _persist();
+            }
+        }
+    }
+
+    /// Fertiger Brush fuer den Reiter-Hintergrund (null = keine Einfaerbung).
+    public System.Windows.Media.Brush? PillBrush
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_config.Color)) return null;
+            try
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_config.Color);
+                var brush = new System.Windows.Media.SolidColorBrush(color);
+                brush.Freeze();
+                return brush;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+    }
+
     public int IconSize
     {
         get => _config.IconSize;
@@ -112,10 +148,15 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
+
     private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
     {
         lock (_sync)
         {
+            _changedPaths.Add(e.FullPath);
+            if (e is RenamedEventArgs renamed)
+                _changedPaths.Add(renamed.OldFullPath);
             _debounce?.Stop();
             _debounce?.Start();
         }
@@ -123,6 +164,15 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     private void DispatchReload()
     {
+        // Geaenderte Dateien koennten beim ersten Laden ein falsches/generisches
+        // Icon geliefert haben (Datei mitten im Verschieben) → Cache verwerfen.
+        lock (_sync)
+        {
+            foreach (var path in _changedPaths)
+                ShellIconProvider.Instance.Invalidate(path);
+            _changedPaths.Clear();
+        }
+
         var app = Application.Current;
         if (app != null)
             app.Dispatcher.Invoke(Reload);
