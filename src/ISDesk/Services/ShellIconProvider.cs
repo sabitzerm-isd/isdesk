@@ -90,6 +90,14 @@ public sealed class ShellIconProvider
 
     private static ImageSource? LoadIcon(string path, int size)
     {
+        // .url mit eingetragenem IconFile: Favicon direkt aus der .ico laden —
+        // umgeht saemtliche Shell-Icon-Caches (die gern das alte Icon festhalten).
+        if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+        {
+            var custom = TryLoadUrlIconFile(path, size);
+            if (custom != null) return custom;
+        }
+
         IntPtr hbm = IntPtr.Zero;
         try
         {
@@ -113,6 +121,46 @@ public sealed class ShellIconProvider
         finally
         {
             if (hbm != IntPtr.Zero) DeleteObject(hbm);
+        }
+    }
+
+    private static ImageSource? TryLoadUrlIconFile(string urlPath, int size)
+    {
+        try
+        {
+            string? icoFile = null;
+            foreach (var line in System.IO.File.ReadAllLines(urlPath))
+            {
+                if (line.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+                {
+                    icoFile = line["IconFile=".Length..].Trim();
+                    break;
+                }
+            }
+            if (string.IsNullOrEmpty(icoFile) || !System.IO.File.Exists(icoFile)) return null;
+            if (!icoFile.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)) return null;
+
+            using var stream = System.IO.File.OpenRead(icoFile);
+            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+
+            // Frame waehlen: kleinstes Bild, das die Zielgroesse noch abdeckt.
+            BitmapFrame? best = null;
+            foreach (var frame in decoder.Frames)
+            {
+                if (best == null) { best = frame; continue; }
+                var coversTarget = frame.PixelWidth >= size;
+                var bestCovers = best.PixelWidth >= size;
+                if ((coversTarget && (!bestCovers || frame.PixelWidth < best.PixelWidth))
+                    || (!coversTarget && !bestCovers && frame.PixelWidth > best.PixelWidth))
+                    best = frame;
+            }
+            if (best == null) return null;
+            best.Freeze();
+            return best;
+        }
+        catch (Exception)
+        {
+            return null; // dann normaler Shell-Weg
         }
     }
 }

@@ -138,6 +138,8 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             var item = new IconItemViewModel(path, FolderContents.GetDisplayName(path), Directory.Exists(path));
             Items.Add(item);
             LoadIconAsync(item);
+            if (!item.IsFolder)
+                WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
         }
     }
 
