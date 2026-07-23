@@ -34,6 +34,7 @@ public partial class SettingsDialog : Window
         }
         IconSizeBox.SelectedItem ??= IconSizeBox.Items[1]; // Mittel (32)
         SweepCheck.IsChecked = manager?.DesktopSweepEnabled ?? false;
+        BackupPathBox.Text = manager?.AutoBackupFolder ?? "";
         _initialized = true;
 
         if (centerOn != null)
@@ -87,6 +88,22 @@ public partial class SettingsDialog : Window
     {
         if (_initialized) _manager?.SetDesktopSweep(false);
     }
+
+    private void BackupPath_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_initialized && _manager != null)
+            _manager.AutoBackupFolder = BackupPathBox.Text;
+    }
+
+    private void BrowseBackupPath_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Ordner für automatische Sicherungen" };
+        if (dialog.ShowDialog() == true)
+            BackupPathBox.Text = dialog.FolderName;
+    }
+
+    private void AutoBackup_Click(object sender, RoutedEventArgs e)
+        => _manager?.Backup?.CreateBackupAuto(this);
 
     private void CreateBackup_Click(object sender, RoutedEventArgs e)
         => _manager?.Backup?.CreateBackupInteractive(this);

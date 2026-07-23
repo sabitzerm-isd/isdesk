@@ -24,6 +24,16 @@ public sealed class FenceManager
 
     public void PersistNow() => _config.SaveDebounced();
 
+    public string? AutoBackupFolder
+    {
+        get => _config.Config.AutoBackupFolder;
+        set
+        {
+            _config.Config.AutoBackupFolder = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            _config.SaveDebounced();
+        }
+    }
+
     /// Schaltet die Ablage um: an = Bereich "Ablage" sicherstellen + Einsammler starten.
     public void SetDesktopSweep(bool enabled)
     {

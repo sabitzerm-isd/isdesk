@@ -34,27 +34,56 @@ public sealed class BackupService
 
         try
         {
-            _config.Save(); // aktuellen Stand auf die Platte bringen
-
-            using var zip = ZipFile.Open(dialog.FileName, ZipArchiveMode.Create);
-            zip.CreateEntryFromFile(_config.ConfigPath, "config.json");
-
-            var baseFolder = _config.Config.BaseFolder;
-            if (Directory.Exists(baseFolder))
-            {
-                foreach (var file in Directory.EnumerateFiles(baseFolder, "*", SearchOption.AllDirectories))
-                {
-                    var rel = Path.GetRelativePath(baseFolder, file).Replace('\\', '/');
-                    zip.CreateEntryFromFile(file, "Fences/" + rel);
-                }
-            }
-
+            WriteBackup(dialog.FileName);
             ConfirmDialog.Info($"Sicherung erstellt:\n{dialog.FileName}", centerOn);
         }
         catch (Exception ex)
         {
             App.LogCrash(ex, "CreateBackup");
             ConfirmDialog.Info($"Sicherung fehlgeschlagen:\n{ex.Message}", centerOn);
+        }
+    }
+
+    /// Ein-Klick-Sicherung in den hinterlegten Ordner (mit Zeitstempel im Namen).
+    public void CreateBackupAuto(Window? centerOn)
+    {
+        var folder = _config.Config.AutoBackupFolder;
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            ConfirmDialog.Info("Kein Sicherungspfad hinterlegt — bitte oben den Ordner setzen.", centerOn);
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(folder);
+            var file = Path.Combine(folder, $"ISDesk-Sicherung-{DateTime.Now:yyyy-MM-dd_HHmm}.zip");
+            WriteBackup(file);
+            ConfirmDialog.Info($"Sicherung erstellt:\n{file}", centerOn);
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "CreateBackupAuto");
+            ConfirmDialog.Info($"Sicherung fehlgeschlagen:\n{ex.Message}", centerOn);
+        }
+    }
+
+    private void WriteBackup(string fileName)
+    {
+        _config.Save(); // aktuellen Stand auf die Platte bringen
+
+        if (File.Exists(fileName)) File.Delete(fileName);
+        using var zip = ZipFile.Open(fileName, ZipArchiveMode.Create);
+        zip.CreateEntryFromFile(_config.ConfigPath, "config.json");
+
+        var baseFolder = _config.Config.BaseFolder;
+        if (Directory.Exists(baseFolder))
+        {
+            foreach (var file in Directory.EnumerateFiles(baseFolder, "*", SearchOption.AllDirectories))
+            {
+                var rel = Path.GetRelativePath(baseFolder, file).Replace('\\', '/');
+                zip.CreateEntryFromFile(file, "Fences/" + rel);
+            }
         }
     }
 

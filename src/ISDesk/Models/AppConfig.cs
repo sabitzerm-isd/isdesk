@@ -14,6 +14,9 @@ public sealed class AppConfig
     /// Platz-Gedaechtnis: Dateiname (klein) → Tab-Ordner, in dem er zuletzt lag.
     /// So findet z. B. die neue Verknuepfung nach einem Programm-Update ihren Bereich wieder.
     public Dictionary<string, string> Placements { get; set; } = new();
+
+    /// Zielordner fuer die Ein-Klick-Sicherung ("Automatische Sicherung").
+    public string? AutoBackupFolder { get; set; }
 }
 
 public sealed class FenceConfig
