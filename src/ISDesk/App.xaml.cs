@@ -41,6 +41,19 @@ public partial class App : Application
         _manager = new FenceManager(_config);
         _autostart = new AutostartService();
 
+        // Autostart: beim allerersten Start automatisch einschalten; danach nur
+        // noch den Pfad korrigieren, falls die EXE verschoben/neu installiert wurde.
+        if (!_config.Config.AutostartConfigured)
+        {
+            _autostart.Enable();
+            _config.Config.AutostartConfigured = true;
+            _config.SaveDebounced();
+        }
+        else
+        {
+            _autostart.EnsureCurrentPath();
+        }
+
         if (_config.Config.Fences.Count == 0)
             CreateWelcomeFence();
 

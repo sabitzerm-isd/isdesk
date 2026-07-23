@@ -35,7 +35,10 @@ public sealed class BackupService
         try
         {
             WriteBackup(dialog.FileName);
-            ConfirmDialog.Info($"Sicherung erstellt:\n{dialog.FileName}", centerOn);
+            var mb = Math.Max(1, new FileInfo(dialog.FileName).Length / 1024 / 1024);
+            var text = $"Sicherung erstellt ({mb} MB):\n{dialog.FileName}";
+            if (_skippedLarge > 0) text += $"\n\n{_skippedLarge} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
+            ConfirmDialog.Info(text, centerOn);
         }
         catch (Exception ex)
         {
@@ -59,7 +62,13 @@ public sealed class BackupService
             Directory.CreateDirectory(folder);
             var file = Path.Combine(folder, $"ISDesk-Sicherung-{DateTime.Now:yyyy-MM-dd_HHmm}.zip");
             WriteBackup(file);
-            ConfirmDialog.Info($"Sicherung erstellt:\n{file}", centerOn);
+            var removed = PruneOldBackups(folder);
+
+            var mb = Math.Max(1, new FileInfo(file).Length / 1024 / 1024);
+            var text = $"Sicherung erstellt ({mb} MB):\n{file}";
+            if (_skippedLarge > 0) text += $"\n\n{_skippedLarge} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
+            if (removed > 0) text += $"\n{removed} ältere Sicherung(en) entfernt – es bleiben die neuesten 3.";
+            ConfirmDialog.Info(text, centerOn);
         }
         catch (Exception ex)
         {
@@ -68,9 +77,18 @@ public sealed class BackupService
         }
     }
 
+    /// Groessere Dateien kommen NICHT in die Sicherung: gesichert wird das Layout
+    /// (Konfiguration) samt Verknuepfungen — echte Arbeitsdateien gehoeren ins
+    /// normale Datei-Backup und wuerden die ZIP sonst auf hunderte MB aufblaehen.
+    private const long MaxFileSize = 1024 * 1024; // 1 MB
+
+    /// Anzahl der beim letzten Lauf uebersprungenen grossen Dateien.
+    private int _skippedLarge;
+
     private void WriteBackup(string fileName)
     {
         _config.Save(); // aktuellen Stand auf die Platte bringen
+        _skippedLarge = 0;
 
         if (File.Exists(fileName)) File.Delete(fileName);
         using var zip = ZipFile.Open(fileName, ZipArchiveMode.Create);
@@ -81,9 +99,34 @@ public sealed class BackupService
         {
             foreach (var file in Directory.EnumerateFiles(baseFolder, "*", SearchOption.AllDirectories))
             {
+                try
+                {
+                    if (new FileInfo(file).Length > MaxFileSize) { _skippedLarge++; continue; }
+                }
+                catch (Exception) { continue; }
+
                 var rel = Path.GetRelativePath(baseFolder, file).Replace('\\', '/');
                 zip.CreateEntryFromFile(file, "Fences/" + rel);
             }
+        }
+    }
+
+    /// Behaelt nur die neuesten Sicherungen im Ordner (Standard: 3).
+    private static int PruneOldBackups(string folder, int keep = 3)
+    {
+        try
+        {
+            var old = new DirectoryInfo(folder)
+                .GetFiles("ISDesk-Sicherung-*.zip")
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Skip(keep)
+                .ToList();
+            foreach (var f in old) f.Delete();
+            return old.Count;
+        }
+        catch (Exception)
+        {
+            return 0;
         }
     }
 

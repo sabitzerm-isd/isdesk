@@ -28,19 +28,17 @@ SetupIconFile=..\src\ISDesk\Assets\ISDesk.ico
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 
 [Tasks]
-Name: "autostart"; Description: "ISDesk automatisch mit Windows starten"; GroupDescription: "Start:"
+Name: "desktopicon"; Description: "Desktop-Verknüpfung erstellen"; GroupDescription: "Zusätzliche Symbole:"
 
 [Files]
 Source: "..\publish\ISDesk.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\ISDesk"; Filename: "{app}\ISDesk.exe"
-Name: "{userdesktop}\ISDesk"; Filename: "{app}\ISDesk.exe"; Tasks: autostart
+Name: "{autodesktop}\ISDesk"; Filename: "{app}\ISDesk.exe"; Tasks: desktopicon
 
-[Registry]
-; Autostart (optional, ueber Task): HKCU-Run-Eintrag
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; \
-    ValueName: "ISDesk"; ValueData: """{app}\ISDesk.exe"""; Flags: uninsdeletevalue; Tasks: autostart
+; Hinweis: Den Autostart richtet ISDesk beim ersten Start selbst ein (HKCU des
+; echten Anwenders, nicht des ggf. erhoehten Installer-Kontexts). Im Tray abschaltbar.
 
 [Run]
 Filename: "{app}\ISDesk.exe"; Description: "ISDesk jetzt starten"; Flags: nowait postinstall skipifsilent

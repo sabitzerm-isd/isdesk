@@ -41,6 +41,51 @@ public partial class SettingsDialog : Window
         if (!BookmarkButton.IsEnabled) BookmarkButton.Content = "Chrome nicht gefunden";
         VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
+
+        Loaded += async (_, _) => await CheckUpdateAsync();
+    }
+
+    // --- Update ---
+
+    private readonly UpdateService _updates = new();
+    private UpdateService.UpdateInfo? _updateInfo;
+
+    private async Task CheckUpdateAsync()
+    {
+        UpdateStatusText.Text = "Suche nach Updates…";
+        UpdateCheckButton.IsEnabled = false;
+        UpdateInstallButton.Visibility = Visibility.Collapsed;
+
+        _updateInfo = await _updates.CheckAsync();
+
+        UpdateCheckButton.IsEnabled = true;
+        if (_updateInfo == null)
+        {
+            UpdateStatusText.Text = $"ISDesk {UpdateService.CurrentVersion} ist aktuell.";
+            return;
+        }
+
+        var mb = _updateInfo.Size > 0 ? $", {_updateInfo.Size / 1024 / 1024} MB" : "";
+        UpdateStatusText.Text = $"Neue Version {_updateInfo.LatestVersion} verfügbar (du hast {UpdateService.CurrentVersion}{mb}).";
+        UpdateInstallButton.Visibility = Visibility.Visible;
+    }
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await CheckUpdateAsync();
+
+    private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateInfo == null) return;
+        UpdateInstallButton.IsEnabled = false;
+        UpdateInstallButton.Content = "Wird geladen…";
+
+        var path = await _updates.DownloadAndRunAsync(_updateInfo);
+        if (path == null)
+        {
+            UpdateInstallButton.Content = "Fehlgeschlagen";
+            UpdateInstallButton.IsEnabled = true;
+            return;
+        }
+        Application.Current.Shutdown(); // Installer uebernimmt
     }
 
     protected override void OnSourceInitialized(EventArgs e)

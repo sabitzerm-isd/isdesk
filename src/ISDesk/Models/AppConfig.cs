@@ -17,6 +17,10 @@ public sealed class AppConfig
 
     /// Zielordner fuer die Ein-Klick-Sicherung ("Automatische Sicherung").
     public string? AutoBackupFolder { get; set; }
+
+    /// Wurde der Autostart schon einmal eingerichtet? Beim allerersten Start
+    /// schaltet ISDesk ihn automatisch ein (im Tray abschaltbar).
+    public bool AutostartConfigured { get; set; }
 }
 
 public sealed class FenceConfig
