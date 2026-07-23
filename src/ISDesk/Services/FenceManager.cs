@@ -110,6 +110,14 @@ public sealed class FenceManager
         => path.Length > baseFolder.Length
            && path.StartsWith(baseFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
+    /// Sperren gilt auf Wunsch des Nutzers IMMER fuer alle Bereiche gemeinsam:
+    /// Ein Umschalten an einem Bereich zieht alle anderen nach.
+    public void PropagateLock(bool locked)
+    {
+        foreach (var window in _windows)
+            window.ViewModel.Locked = locked; // Setter ignoriert unveraenderte Werte
+    }
+
     /// Schliesst alle Fenster OHNE zu speichern (fuer die Wiederherstellung).
     public void CloseAllWithoutSave()
     {

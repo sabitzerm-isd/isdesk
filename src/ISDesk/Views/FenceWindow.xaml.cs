@@ -35,6 +35,65 @@ public partial class FenceWindow : Window
         _vm.PropertyChanged += OnVmPropertyChanged;
         Loaded += (_, _) => _vm.ActivateAllTabs();
         Closed += (_, _) => _vm.DisposeTabs();
+
+        // "Desktop anzeigen" (Win+D) minimiert alle Fenster — Bereiche gehoeren
+        // aber ZUM Desktop und stellen sich sofort wieder her.
+        StateChanged += (_, _) =>
+        {
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
+        };
+
+        LocationChanged += (_, _) => UpdateBlurCrop();
+        SizeChanged += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
+        WallpaperService.Changed += UpdateBlurCrop;
+        Closed += (_, _) => WallpaperService.Changed -= UpdateBlurCrop;
+        Loaded += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); };
+    }
+
+    /// Setzt den weichgezeichneten Wallpaper-Ausschnitt passend zur Fensterposition
+    /// (Fill-Modus: Bild skaliert auf Monitorgroesse, mittig beschnitten).
+    private void UpdateBlurCrop()
+    {
+        if (!_vm.Blur || WallpaperService.Current is not { } wallpaper)
+        {
+            BlurLayer.Background = null;
+            return;
+        }
+
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
+            var sb = screen.Bounds; // Pixel
+
+            double dpi = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+            double wx = Left * dpi - sb.X, wy = Top * dpi - sb.Y;
+            double ww = ActualWidth * dpi, wh = ActualHeight * dpi;
+
+            double imgW = wallpaper.PixelWidth, imgH = wallpaper.PixelHeight;
+            double scale = Math.Max(sb.Width / imgW, sb.Height / imgH);
+            double ox = (imgW * scale - sb.Width) / 2.0;   // links/oben weggeschnittener Teil
+            double oy = (imgH * scale - sb.Height) / 2.0;
+
+            // Ausschnitt inkl. Rand fuer den Blur-Ueberhang (Margin -40 der BlurLayer)
+            double pad = 40 * dpi;
+            double ix = (wx - pad + ox) / scale, iy = (wy - pad + oy) / scale;
+            double iw = (ww + 2 * pad) / scale, ih = (wh + 2 * pad) / scale;
+
+            BlurLayer.Background = new System.Windows.Media.ImageBrush(wallpaper)
+            {
+                Viewbox = new Rect(ix / imgW, iy / imgH, iw / imgW, ih / imgH),
+                ViewboxUnits = System.Windows.Media.BrushMappingMode.RelativeToBoundingBox,
+                Stretch = System.Windows.Media.Stretch.Fill
+            };
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Blur-Ausschnitt fehlgeschlagen: {ex.Message}");
+            BlurLayer.Background = null;
+        }
     }
 
     public FenceViewModel ViewModel => _vm;
@@ -43,16 +102,26 @@ public partial class FenceWindow : Window
     {
         base.OnSourceInitialized(e);
         BottomMostBehavior.Attach(this);
-        WindowBackdrop.Apply(this, _vm.Opacity, _vm.Blur);
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
+    }
+
+    /// Runde Ecken selbst clippen — DWM-Rundungen gelten nicht zuverlaessig
+    /// fuer Fenster mit echter Transparenz (Layered Windows).
+    private void UpdateRootClip()
+    {
+        RootGrid.Clip = new System.Windows.Media.RectangleGeometry(
+            new Rect(0, 0, RootGrid.ActualWidth, RootGrid.ActualHeight), 10, 10);
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(FenceViewModel.Opacity) or nameof(FenceViewModel.Blur))
-            WindowBackdrop.Apply(this, _vm.Opacity, _vm.Blur);
+        if (e.PropertyName is nameof(FenceViewModel.Blur))
+            UpdateBlurCrop();
         if (e.PropertyName is nameof(FenceViewModel.Locked))
+        {
             ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
+            Manager?.PropagateLock(_vm.Locked); // Sperren gilt fuer alle Bereiche
+        }
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

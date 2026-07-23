@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Title}"
         WindowStyle="None"
-        AllowsTransparency="False"
+        AllowsTransparency="True"
         Background="Transparent"
         ShowInTaskbar="False"
         ShowActivated="False"
@@ -17,7 +17,7 @@
         Drop="Window_Drop">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="-1" CornerRadius="0" />
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
@@ -178,7 +178,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="Transparent">
+    <Grid x:Name="RootGrid" Background="Transparent">
         <!-- Bereichs-Menue: verfuegbar auf der GESAMTEN Flaeche (Titelzeile, Tabs, Icon-Flaeche);
              Icons haben ihr eigenes Menue, das hier Vorrang hat. -->
         <Grid.ContextMenu>
@@ -207,6 +207,16 @@
                 <MenuItem Header="ISDesk beenden" Click="ExitApp_Click" />
             </ContextMenu>
         </Grid.ContextMenu>
+        <!-- Frosted-Glass: weichgezeichneter Wallpaper-Ausschnitt (selbst gerechnet,
+             da DWM-Blur fuer inaktive Fenster auf neuen Win11-Builds tot ist). -->
+        <Grid ClipToBounds="True">
+            <Border x:Name="BlurLayer" Margin="-40">
+                <Border.Effect>
+                    <BlurEffect Radius="45" KernelType="Gaussian" />
+                </Border.Effect>
+            </Border>
+        </Grid>
+
         <!-- Toenungsebene: dunkle Grundfarbe, Deckkraft = Transparenz-Regler.
              Von der App gezeichnet, wirkt daher auf jedem Windows-Build. -->
         <Border Background="#FF1C1C1E" Opacity="{Binding Opacity}" />
