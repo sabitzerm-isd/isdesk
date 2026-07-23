@@ -53,10 +53,17 @@ public static class FolderContents
 
     /// Anzeigename: .lnk/.url/.appref-ms → Dateiname ohne Extension,
     /// sonst Dateiname mit Extension; Ordner → Ordnername.
+    /// CLSID-Ordner ("Papierkorb.{645FF040-…}") → nur der Name vor der Kennung.
     public static string GetDisplayName(string path)
     {
         if (Directory.Exists(path))
-            return new DirectoryInfo(path).Name;
+        {
+            var name = new DirectoryInfo(path).Name;
+            var brace = name.IndexOf(".{", StringComparison.Ordinal);
+            if (brace > 0 && name.EndsWith("}", StringComparison.Ordinal))
+                return name[..brace];
+            return name;
+        }
 
         var ext = Path.GetExtension(path);
         foreach (var shortcutExt in ShortcutExtensions)

@@ -218,6 +218,13 @@ public partial class FenceWindow : Window
             {
                 try { WebLinkFactory.CreateUrlFile(tab.FolderPath, url, name); }
                 catch (Exception ex) { ConfirmDialog.Info($"Link konnte nicht angelegt werden:\n{ex.Message}", this); }
+                return;
+            }
+
+            foreach (var (clsid, display) in ShellDropHelper.GetVirtualItems(e.Data))
+            {
+                try { ShellDropHelper.CreateClsidFolder(tab.FolderPath, clsid, display); }
+                catch (Exception ex) { ConfirmDialog.Info($"„{display}“ konnte nicht abgelegt werden:\n{ex.Message}", this); }
             }
             return;
         }
@@ -456,7 +463,8 @@ public partial class FenceWindow : Window
     private static bool IsDroppable(IDataObject data)
         => data.GetDataPresent(DataFormats.FileDrop)
            || data.GetDataPresent("UniformResourceLocatorW")
-           || data.GetDataPresent("UniformResourceLocator");
+           || data.GetDataPresent("UniformResourceLocator")
+           || data.GetDataPresent("Shell IDList Array"); // virtuelle Objekte (Papierkorb …)
 
     private void Window_DragOver(object sender, DragEventArgs e)
     {
@@ -498,6 +506,14 @@ public partial class FenceWindow : Window
             {
                 try { WebLinkFactory.CreateUrlFile(tab.FolderPath, url, name); }
                 catch (Exception ex) { ConfirmDialog.Info($"Link konnte nicht angelegt werden:\n{ex.Message}", this); }
+                return;
+            }
+
+            // Virtuelle System-Objekte (Papierkorb, Dieser PC …) als CLSID-Ordner ablegen.
+            foreach (var (clsid, display) in ShellDropHelper.GetVirtualItems(e.Data))
+            {
+                try { ShellDropHelper.CreateClsidFolder(tab.FolderPath, clsid, display); }
+                catch (Exception ex) { ConfirmDialog.Info($"„{display}“ konnte nicht abgelegt werden:\n{ex.Message}", this); }
             }
             return;
         }
