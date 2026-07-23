@@ -184,6 +184,29 @@
                  MouseDoubleClick="IconList_MouseDoubleClick"
                  PreviewMouseLeftButtonDown="IconList_PreviewMouseLeftButtonDown"
                  MouseMove="IconList_MouseMove">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Neuer Tab" Click="AddTab_Click" />
+                    <MenuItem Header="Bereich umbenennen…" Click="RenameFence_Click" />
+                    <Separator />
+                    <MenuItem StaysOpenOnClick="True">
+                        <MenuItem.Header>
+                            <StackPanel Orientation="Horizontal" Width="210">
+                                <TextBlock Text="Transparenz" VerticalAlignment="Center" Width="82" />
+                                <Slider Minimum="0.1" Maximum="1.0" Width="120" VerticalAlignment="Center"
+                                        Value="{Binding Opacity, Mode=TwoWay}" />
+                            </StackPanel>
+                        </MenuItem.Header>
+                    </MenuItem>
+                    <MenuItem Header="Hintergrund-Blur" IsCheckable="True" IsChecked="{Binding Blur, Mode=TwoWay}" />
+                    <Separator />
+                    <MenuItem Header="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
+                    <MenuItem Header="Neuer Bereich" Click="NewFence_Click" />
+                    <MenuItem Header="Bereich entfernen…" Click="RemoveFence_Click" />
+                    <Separator />
+                    <MenuItem Header="ISDesk beenden" Click="ExitApp_Click" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal" />

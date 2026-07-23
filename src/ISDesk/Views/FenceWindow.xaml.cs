@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using ISDesk.Interop;
+using ISDesk.Services;
 using ISDesk.ViewModels;
 using Microsoft.VisualBasic.FileIO;
 
@@ -16,6 +17,8 @@ public partial class FenceWindow : Window
     private readonly FenceViewModel _vm;
     private Point _dragStart;
     private IconItemViewModel? _dragItem;
+
+    public FenceManager? Manager { get; set; }
 
     public FenceWindow(FenceViewModel vm)
     {
@@ -87,6 +90,52 @@ public partial class FenceWindow : Window
             "Tab entfernen", MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (result == MessageBoxResult.OK)
             _vm.RemoveTab(tab);
+    }
+
+    // --- Bereichs-Kontextmenue ---
+
+    private void RenameFence_Click(object sender, RoutedEventArgs e)
+    {
+        var name = InputDialog.Ask("Neuer Name des Bereichs:", _vm.Title, this);
+        if (!string.IsNullOrWhiteSpace(name))
+            _vm.Title = name;
+    }
+
+    private void NewFence_Click(object sender, RoutedEventArgs e)
+    {
+        var name = InputDialog.Ask("Name des neuen Bereichs:", "Neuer Bereich", this);
+        if (!string.IsNullOrWhiteSpace(name))
+            Manager?.CreateFence(name, new Point(Left + 40, Top + 40));
+    }
+
+    private void RemoveFence_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            $"Bereich „{_vm.Title}“ entfernen?\n\nDer zugehoerige Ordner bleibt erhalten.",
+            "Bereich entfernen", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (result == MessageBoxResult.OK)
+            Manager?.RemoveFence(_vm);
+    }
+
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = Path.Combine(_vm.BaseFolder, _vm.Title);
+        if (!Directory.Exists(folder))
+            folder = _vm.ActiveTab?.FolderPath ?? folder;
+        try
+        {
+            if (Directory.Exists(folder))
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Ordner oeffnen fehlgeschlagen: {ex.Message}");
+        }
+    }
+
+    private void ExitApp_Click(object sender, RoutedEventArgs e)
+    {
+        Application.Current.Shutdown();
     }
 
     private void IconList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
