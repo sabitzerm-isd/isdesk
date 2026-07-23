@@ -174,6 +174,7 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         }
 
         Items.Clear();
+        var hasRecycleBin = false;
         foreach (var path in ordered)
         {
             var item = new IconItemViewModel(path, FolderContents.GetDisplayName(path), Directory.Exists(path));
@@ -181,6 +182,40 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             LoadIconAsync(item);
             if (!item.IsFolder)
                 WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
+            if (path.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase))
+                hasRecycleBin = true;
+        }
+
+        if (hasRecycleBin && !_binSubscribed)
+        {
+            _binSubscribed = true;
+            RecycleBinMonitor.Ensure();
+            RecycleBinMonitor.StateChanged += OnRecycleBinStateChanged;
+        }
+    }
+
+    private bool _binSubscribed;
+
+    /// Fuellstand des Papierkorbs hat gewechselt → Icons der Papierkorb-Objekte
+    /// dieses Tabs neu laden (ueber den normalen Debounce-/Reload-Weg).
+    private void OnRecycleBinStateChanged()
+    {
+        try
+        {
+            lock (_sync)
+            {
+                foreach (var dir in Directory.EnumerateDirectories(_config.FolderPath))
+                {
+                    if (dir.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase))
+                        _changedPaths.Add(dir);
+                }
+                _debounce?.Stop();
+                _debounce?.Start();
+            }
+        }
+        catch (Exception)
+        {
+            // Ordner nicht lesbar → beim naechsten Wechsel erneut
         }
     }
 
@@ -294,6 +329,11 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        if (_binSubscribed)
+        {
+            RecycleBinMonitor.StateChanged -= OnRecycleBinStateChanged;
+            _binSubscribed = false;
+        }
         if (_watcher != null)
         {
             _watcher.EnableRaisingEvents = false;
