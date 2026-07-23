@@ -34,6 +34,17 @@ public sealed class ShellIconProvider
         return icon;
     }
 
+    /// Gecachte Icons eines Pfads verwerfen (z. B. nachdem einer .url-Datei
+    /// nachtraeglich ihr Favicon zugewiesen wurde).
+    public void Invalidate(string path)
+    {
+        foreach (var key in _cache.Keys)
+        {
+            if (key.EndsWith("|" + path, StringComparison.OrdinalIgnoreCase))
+                _cache.TryRemove(key, out _);
+        }
+    }
+
     private static ImageSource? LoadIcon(string path, int size)
     {
         IntPtr hbm = IntPtr.Zero;

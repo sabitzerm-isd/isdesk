@@ -95,6 +95,10 @@
                 <Border.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Umbenennen…" Click="RenameTab_Click" />
+                        <MenuItem Header="In anderen Bereich verschieben" IsEnabled="{Binding CanRemove}"
+                                  SubmenuOpened="MoveTabMenu_SubmenuOpened">
+                            <MenuItem Header="…" />
+                        </MenuItem>
                         <MenuItem Header="Tab entfernen" Click="RemoveTab_Click" IsEnabled="{Binding CanRemove}" />
                     </ContextMenu>
                 </Border.ContextMenu>

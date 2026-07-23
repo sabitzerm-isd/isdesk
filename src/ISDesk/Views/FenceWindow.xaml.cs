@@ -189,7 +189,7 @@ public partial class FenceWindow : Window
     /// aktivieren (so kann man auch direkt in dessen Flaeche fallen lassen).
     private void Tab_DragOver(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (!IsDroppable(e.Data))
         {
             e.Effects = DragDropEffects.None;
             e.Handled = true;
@@ -197,19 +197,30 @@ public partial class FenceWindow : Window
         }
 
         var ctrl = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;
-        e.Effects = ctrl ? DragDropEffects.Copy : DragDropEffects.Move;
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? (ctrl ? DragDropEffects.Copy : DragDropEffects.Move)
+            : DragDropEffects.Link;
         e.Handled = true;
 
         if ((sender as FrameworkElement)?.DataContext is TabViewModel tab && !tab.IsActive)
             _vm.ActiveTab = tab;
     }
 
-    /// Ablegen auf einem Tab-Reiter: Dateien in den Ordner DIESES Tabs verschieben.
+    /// Ablegen auf einem Tab-Reiter: Dateien (oder Browser-Links) in DIESEN Tab.
     private void Tab_Drop(object sender, DragEventArgs e)
     {
         e.Handled = true; // nicht zusaetzlich vom Fenster-Drop verarbeiten
         if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            if (WebLinkFactory.TryGetUrl(e.Data, out var url, out var name))
+            {
+                try { WebLinkFactory.CreateUrlFile(tab.FolderPath, url, name); }
+                catch (Exception ex) { ConfirmDialog.Info($"Link konnte nicht angelegt werden:\n{ex.Message}", this); }
+            }
+            return;
+        }
 
         var sources = (string[])e.Data.GetData(DataFormats.FileDrop);
         var copy = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;
@@ -242,6 +253,34 @@ public partial class FenceWindow : Window
         var name = InputDialog.Ask("Neuer Name des Tabs:", tab.Title, this);
         if (!string.IsNullOrWhiteSpace(name))
             _vm.RenameTab(tab, name);
+    }
+
+    /// Untermenue "In anderen Bereich verschieben" beim Oeffnen mit den
+    /// aktuellen Bereichen fuellen.
+    private void MoveTabMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menu) return;
+        if (menu.DataContext is not TabViewModel tab) return;
+
+        menu.Items.Clear();
+        var targets = Manager?.Windows
+            .Where(w => !ReferenceEquals(w.ViewModel, _vm))
+            .OrderBy(w => w.ViewModel.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        if (targets is not { Count: > 0 })
+        {
+            menu.Items.Add(new MenuItem { Header = "(kein weiterer Bereich vorhanden)", IsEnabled = false });
+            return;
+        }
+
+        foreach (var target in targets)
+        {
+            var targetVm = target.ViewModel;
+            var item = new MenuItem { Header = targetVm.Title };
+            item.Click += (_, _) => Manager?.MoveTab(_vm, tab, targetVm);
+            menu.Items.Add(item);
+        }
     }
 
     private void RemoveTab_Click(object sender, RoutedEventArgs e)
@@ -365,12 +404,19 @@ public partial class FenceWindow : Window
 
     // --- Drag & Drop: hinein ---
 
+    private static bool IsDroppable(IDataObject data)
+        => data.GetDataPresent(DataFormats.FileDrop)
+           || data.GetDataPresent("UniformResourceLocatorW")
+           || data.GetDataPresent("UniformResourceLocator");
+
     private void Window_DragOver(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (IsDroppable(e.Data))
         {
             var ctrl = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;
-            e.Effects = ctrl ? DragDropEffects.Copy : DragDropEffects.Move;
+            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+                ? (ctrl ? DragDropEffects.Copy : DragDropEffects.Move)
+                : DragDropEffects.Link; // URL aus dem Browser
         }
         else
         {
@@ -383,7 +429,17 @@ public partial class FenceWindow : Window
     {
         e.Handled = true;
         if (_vm.ActiveTab is not { } tab) return;
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        // Browser-Link (Chrome/Edge/Firefox): .url-Verknuepfung mit Favicon anlegen.
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            if (WebLinkFactory.TryGetUrl(e.Data, out var url, out var name))
+            {
+                try { WebLinkFactory.CreateUrlFile(tab.FolderPath, url, name); }
+                catch (Exception ex) { ConfirmDialog.Info($"Link konnte nicht angelegt werden:\n{ex.Message}", this); }
+            }
+            return;
+        }
 
         var sources = (string[])e.Data.GetData(DataFormats.FileDrop);
         var copy = (e.KeyStates & DragDropKeyStates.ControlKey) == DragDropKeyStates.ControlKey;

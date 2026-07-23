@@ -104,6 +104,39 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         tab.Title = newTitle; // nur Anzeige/Config, Ordner bleibt
     }
 
+    /// Nimmt einen Tab aus diesem Bereich heraus, OHNE ihn zu zerstoeren
+    /// (fuer das Verschieben in einen anderen Bereich — Watcher laeuft weiter).
+    public void DetachTab(TabViewModel tab)
+    {
+        var idx = Tabs.IndexOf(tab);
+        if (idx < 0) return;
+
+        var removingActive = ReferenceEquals(_activeTab, tab);
+        Tabs.RemoveAt(idx);
+        _config.Tabs.Remove(tab.Config);
+        UpdateTabFlags();
+
+        if (removingActive && Tabs.Count > 0)
+        {
+            _activeTab = null; // erzwingt Wechsel im Setter
+            ActiveTab = Tabs[Math.Clamp(idx, 0, Tabs.Count - 1)];
+        }
+        else
+        {
+            _config.ActiveTab = _activeTab != null ? Math.Max(0, Tabs.IndexOf(_activeTab)) : 0;
+            Persist();
+        }
+    }
+
+    /// Haengt einen (anderswo geloesten) Tab an diesen Bereich an und aktiviert ihn.
+    public void AttachTab(TabViewModel tab)
+    {
+        _config.Tabs.Add(tab.Config);
+        Tabs.Add(tab);
+        UpdateTabFlags();
+        ActiveTab = tab; // persistiert
+    }
+
     private void UpdateTabFlags()
     {
         foreach (var tab in Tabs)

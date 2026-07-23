@@ -136,6 +136,21 @@ public sealed class FenceManager
         }
     }
 
+    /// Verschiebt einen Tab samt Ordner-Zuordnung in einen anderen Bereich
+    /// (auf der Platte aendert sich nichts, nur die Zuordnung wandert).
+    public void MoveTab(FenceViewModel from, TabViewModel tab, FenceViewModel to)
+    {
+        if (ReferenceEquals(from, to)) return;
+        if (from.Tabs.Count <= 1)
+        {
+            ConfirmDialog.Info("Der letzte Tab eines Bereichs kann nicht verschoben werden.", null);
+            return;
+        }
+        from.DetachTab(tab);
+        to.AttachTab(tab);
+        _config.SaveDebounced();
+    }
+
     /// Icon-Groesse fuer ALLE Tabs ALLER Bereiche setzen.
     public void SetIconSizeAll(int size)
     {
