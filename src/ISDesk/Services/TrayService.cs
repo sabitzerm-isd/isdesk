@@ -28,6 +28,9 @@ public sealed class TrayService : IDisposable
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add("Neuer Bereich", null, (_, _) => NewFence());
         menu.Items.Add("Alle Bereiche neu ausrichten", null, (_, _) => _manager.RealignAll());
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add("Sicherung erstellen…", null, (_, _) => _manager.Backup?.CreateBackupInteractive(null));
+        menu.Items.Add("Sicherung wiederherstellen…", null, (_, _) => _manager.Backup?.RestoreBackupInteractive(null));
 
         _autostartItem = new WinForms.ToolStripMenuItem("Autostart")
         {
@@ -50,8 +53,13 @@ public sealed class TrayService : IDisposable
     private void NewFence()
     {
         var name = InputDialog.Ask("Name des neuen Bereichs:", "Neuer Bereich", null);
-        if (!string.IsNullOrWhiteSpace(name))
-            _manager.CreateFence(name, null);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        _manager.CreateFence(name, null);
+        // Bereiche liegen hinter allen Fenstern — bei belegtem Bildschirm sonst unsichtbar.
+        _icon.ShowBalloonTip(3000, "ISDesk",
+            $"Bereich „{name}“ wurde auf dem Desktop angelegt (liegt hinter den offenen Fenstern).",
+            WinForms.ToolTipIcon.Info);
     }
 
     private static Icon? LoadTrayIcon()

@@ -14,6 +14,7 @@ public sealed class ConfigService
     private readonly string _path;
     private readonly System.Timers.Timer _debounceTimer;
     private readonly object _sync = new();
+    private bool _suppressSaves;
 
     public AppConfig Config { get; private set; } = new();
 
@@ -62,10 +63,22 @@ public sealed class ConfigService
         }
     }
 
+    /// Blockiert alle weiteren Saves — noetig waehrend einer Wiederherstellung,
+    /// damit die alte In-Memory-Config die zurueckgespielte Datei nicht ueberschreibt.
+    public void SuppressSaves()
+    {
+        lock (_sync)
+        {
+            _suppressSaves = true;
+            _debounceTimer.Stop();
+        }
+    }
+
     public void Save()
     {
         lock (_sync)
         {
+            if (_suppressSaves) return;
             var dir = Path.GetDirectoryName(_path)!;
             Directory.CreateDirectory(dir);
             var tmp = _path + ".tmp";

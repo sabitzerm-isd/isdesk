@@ -50,8 +50,21 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     public int IconSize
     {
         get => _config.IconSize;
-        set { if (_config.IconSize != value) { _config.IconSize = value; OnChanged(); _persist(); } }
+        set
+        {
+            if (_config.IconSize != value)
+            {
+                _config.IconSize = value;
+                OnChanged();
+                OnChanged(nameof(CellWidth));
+                _persist();
+                Reload(); // Icons in neuer Groesse laden
+            }
+        }
     }
+
+    /// Breite einer Icon-Kachel, abgeleitet aus der Icon-Groesse.
+    public double CellWidth => IconSize + 52;
 
     public ObservableCollection<IconItemViewModel> Items { get; } = new();
 

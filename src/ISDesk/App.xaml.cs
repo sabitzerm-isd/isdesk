@@ -42,9 +42,44 @@ public partial class App : Application
         if (_config.Config.Fences.Count == 0)
             CreateWelcomeFence();
 
+        _manager.Backup = new BackupService(_config, _manager);
         _manager.OpenAll();
 
         _tray = new TrayService(_manager, _autostart);
+    }
+
+    /// Startet die App neu (nach einer Wiederherstellung). Gibt den
+    /// Single-Instance-Mutex vorher frei, damit die neue Instanz starten darf.
+    internal void RestartForRestore()
+    {
+        _tray?.Dispose();
+        _tray = null;
+
+        try
+        {
+            _singleInstanceMutex?.ReleaseMutex();
+            _singleInstanceMutex?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LogCrash(ex, "RestartForRestore/Mutex");
+        }
+        _singleInstanceMutex = null;
+
+        var exe = Environment.ProcessPath;
+        if (exe != null)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                LogCrash(ex, "RestartForRestore/Start");
+            }
+        }
+        Shutdown();
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -85,10 +85,10 @@ public partial class FenceWindow : Window
     private void RemoveTab_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
-        var result = MessageBox.Show(
-            $"Tab „{tab.Title}“ entfernen?\n\nDer zugehoerige Ordner bleibt auf der Platte erhalten.",
-            "Tab entfernen", MessageBoxButton.OKCancel, MessageBoxImage.Question);
-        if (result == MessageBoxResult.OK)
+        var (confirmed, _) = ConfirmDialog.Show(
+            $"Tab „{tab.Title}“ entfernen?\n\nDer zugehörige Ordner bleibt auf der Platte erhalten.",
+            this, okText: "Entfernen");
+        if (confirmed)
             _vm.RemoveTab(tab);
     }
 
@@ -110,11 +110,48 @@ public partial class FenceWindow : Window
 
     private void RemoveFence_Click(object sender, RoutedEventArgs e)
     {
-        var result = MessageBox.Show(
-            $"Bereich „{_vm.Title}“ entfernen?\n\nDer zugehoerige Ordner bleibt erhalten.",
-            "Bereich entfernen", MessageBoxButton.OKCancel, MessageBoxImage.Question);
-        if (result == MessageBoxResult.OK)
-            Manager?.RemoveFence(_vm);
+        var (confirmed, deleteFolders) = ConfirmDialog.Show(
+            $"Bereich „{_vm.Title}“ entfernen?",
+            this, okText: "Entfernen",
+            checkboxText: "Zugehörige Ordner in den Papierkorb verschieben");
+        if (confirmed)
+            Manager?.RemoveFence(_vm, deleteFolders);
+    }
+
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SettingsDialog(_vm, Manager?.Backup, this);
+        dialog.ShowDialog();
+    }
+
+    /// Legt im aktiven Tab eine .lnk-Verknuepfung auf einen frei gewaehlten Ordner an.
+    private void AddFolderLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.ActiveTab is not { } tab) return;
+
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Ordner auswählen, auf den die Verknüpfung zeigen soll"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        var target = dialog.FolderName;
+        var name = Path.GetFileName(target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (string.IsNullOrEmpty(name)) name = target.Replace(":", "").Replace(@"\", "");
+
+        try
+        {
+            var lnkPath = Path.Combine(tab.FolderPath, name + ".lnk");
+            var n = 2;
+            while (File.Exists(lnkPath))
+                lnkPath = Path.Combine(tab.FolderPath, $"{name} ({n++}).lnk");
+
+            ShortcutFactory.CreateLnk(lnkPath, target);
+        }
+        catch (Exception ex)
+        {
+            ConfirmDialog.Info($"Verknüpfung konnte nicht angelegt werden:\n{ex.Message}", this);
+        }
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)

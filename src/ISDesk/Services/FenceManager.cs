@@ -3,6 +3,7 @@ using System.Windows;
 using ISDesk.Models;
 using ISDesk.ViewModels;
 using ISDesk.Views;
+using Microsoft.VisualBasic.FileIO;
 
 namespace ISDesk.Services;
 
@@ -12,6 +13,9 @@ public sealed class FenceManager
     private readonly List<FenceWindow> _windows = new();
 
     public FenceManager(ConfigService config) => _config = config;
+
+    /// Wird von App nach der Konstruktion gesetzt (Sicherung/Wiederherstellung).
+    public BackupService? Backup { get; set; }
 
     public IReadOnlyList<FenceWindow> Windows => _windows;
 
@@ -60,13 +64,57 @@ public sealed class FenceManager
         return OpenFence(fenceConfig);
     }
 
-    /// Schliesst das Fenster, entfernt den Bereich aus der Config (der Ordner bleibt erhalten), persistiert.
-    public void RemoveFence(FenceViewModel vm)
+    /// Schliesst das Fenster und entfernt den Bereich aus der Config. Auf Wunsch
+    /// wandern die zugehoerigen Ordner in den Papierkorb — aber ausschliesslich
+    /// Ordner UNTERHALB des Basisordners; extern verknuepfte Ordner bleiben immer.
+    public void RemoveFence(FenceViewModel vm, bool deleteFolders = false)
     {
         var window = _windows.FirstOrDefault(w => w.ViewModel.Id == vm.Id);
         window?.Close();
         _config.Config.Fences.RemoveAll(f => f.Id == vm.Id);
         _config.SaveDebounced();
+
+        if (!deleteFolders) return;
+
+        var baseFolder = Path.GetFullPath(_config.Config.BaseFolder);
+        var toRecycle = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tab in vm.Config.Tabs)
+        {
+            string folder;
+            try { folder = Path.GetFullPath(tab.FolderPath); }
+            catch (Exception) { continue; }
+
+            if (!IsUnder(folder, baseFolder)) continue;
+
+            // Standardlayout Basis\Bereich\Tab → ganzen Bereichsordner entfernen,
+            // liegt der Tab-Ordner direkt unter der Basis → nur ihn selbst.
+            var parent = Path.GetDirectoryName(folder);
+            toRecycle.Add(parent != null && IsUnder(parent, baseFolder) ? parent : folder);
+        }
+
+        foreach (var dir in toRecycle)
+        {
+            try
+            {
+                if (Directory.Exists(dir))
+                    FileSystem.DeleteDirectory(dir, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            }
+            catch (Exception ex)
+            {
+                App.LogCrash(ex, "RemoveFence/DeleteFolder");
+            }
+        }
+    }
+
+    private static bool IsUnder(string path, string baseFolder)
+        => path.Length > baseFolder.Length
+           && path.StartsWith(baseFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    /// Schliesst alle Fenster OHNE zu speichern (fuer die Wiederherstellung).
+    public void CloseAllWithoutSave()
+    {
+        foreach (var window in _windows.ToList())
+            window.Close();
     }
 
     /// Holt alle Fenster wieder in einen sichtbaren Bildschirmbereich.
