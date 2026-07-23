@@ -56,10 +56,14 @@ public static class DesktopPinning
 
     private static IntPtr ZOrderHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_WINDOWPOSCHANGING)
+        // Nur im Normalmodus dauerhaft nach unten zwingen. Im Desktop-Modus wird
+        // TOPMOST einmal beim Umschalten gesetzt — wuerde es hier bei jeder
+        // Positionsaenderung erneut erzwungen, laegen die Bereiche ueber ihren
+        // eigenen Kontextmenues.
+        if (msg == WM_WINDOWPOSCHANGING && !_desktopMode)
         {
             var wp = Marshal.PtrToStructure<WINDOWPOS>(lParam);
-            wp.hwndInsertAfter = _desktopMode ? HWND_TOPMOST : HWND_BOTTOM;
+            wp.hwndInsertAfter = HWND_BOTTOM;
             Marshal.StructureToPtr(wp, lParam, false);
         }
         return IntPtr.Zero;

@@ -55,7 +55,7 @@ public sealed class TrayService : IDisposable
         var name = InputDialog.Ask("Name des neuen Bereichs:", "Neuer Bereich", null);
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        _manager.CreateFence(name, null);
+        _manager.CreateFence(name);
         // Bereiche liegen hinter allen Fenstern — bei belegtem Bildschirm sonst unsichtbar.
         _icon.ShowBalloonTip(3000, "ISDesk",
             $"Bereich „{name}“ wurde auf dem Desktop angelegt (liegt hinter den offenen Fenstern).",

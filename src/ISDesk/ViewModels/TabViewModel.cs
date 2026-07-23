@@ -130,10 +130,51 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<IconItemViewModel> Items { get; } = new();
 
+    /// Symbol vor dem Tab-Titel (Galerie-Dateiname oder absoluter PNG-Pfad).
+    public string? IconPath
+    {
+        get => _config.IconPath;
+        set
+        {
+            if (_config.IconPath != value)
+            {
+                _config.IconPath = value;
+                OnChanged();
+                OnChanged(nameof(IconImage));
+                _persist();
+            }
+        }
+    }
+
+    public System.Windows.Media.ImageSource? IconImage => IconLibrary.Load(_config.IconPath);
+
     public void Reload()
     {
+        // Manuelle Reihenfolge anwenden: bekannte Dateien in gespeicherter Ordnung,
+        // neue hinten anfuegen, verschwundene aus der Ordnung entfernen.
+        var entries = FolderContents.ListVisibleEntries(_config.FolderPath);
+        var byName = entries.ToDictionary(e => Path.GetFileName(e.TrimEnd('\\', '/')),
+            e => e, StringComparer.OrdinalIgnoreCase);
+
+        var ordered = new List<string>();
+        foreach (var name in _config.Order)
+            if (byName.TryGetValue(name, out var path))
+                ordered.Add(path);
+
+        var known = new HashSet<string>(_config.Order, StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries)
+            if (!known.Contains(Path.GetFileName(entry.TrimEnd('\\', '/'))))
+                ordered.Add(entry);
+
+        var newOrder = ordered.Select(e => Path.GetFileName(e.TrimEnd('\\', '/'))).ToList();
+        if (!newOrder.SequenceEqual(_config.Order, StringComparer.OrdinalIgnoreCase))
+        {
+            _config.Order = newOrder;
+            _persist();
+        }
+
         Items.Clear();
-        foreach (var path in FolderContents.ListVisibleEntries(_config.FolderPath))
+        foreach (var path in ordered)
         {
             var item = new IconItemViewModel(path, FolderContents.GetDisplayName(path), Directory.Exists(path));
             Items.Add(item);
@@ -141,6 +182,30 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             if (!item.IsFolder)
                 WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
         }
+    }
+
+    /// Verschiebt ein Icon in der manuellen Reihenfolge vor das Ziel-Icon
+    /// (beforePath = null → ans Ende).
+    public void ReorderTo(string sourcePath, string? beforePath)
+    {
+        var sourceName = Path.GetFileName(sourcePath.TrimEnd('\\', '/'));
+        var order = _config.Order;
+        var comparer = StringComparer.OrdinalIgnoreCase;
+
+        var oldIndex = order.FindIndex(n => comparer.Equals(n, sourceName));
+        if (oldIndex < 0) return;
+        order.RemoveAt(oldIndex);
+
+        var insertAt = order.Count;
+        if (beforePath != null)
+        {
+            var beforeName = Path.GetFileName(beforePath.TrimEnd('\\', '/'));
+            var idx = order.FindIndex(n => comparer.Equals(n, beforeName));
+            if (idx >= 0) insertAt = idx;
+        }
+        order.Insert(insertAt, sourceName);
+        _persist();
+        Reload();
     }
 
     private async void LoadIconAsync(IconItemViewModel item)

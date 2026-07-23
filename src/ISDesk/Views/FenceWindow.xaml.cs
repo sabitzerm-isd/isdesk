@@ -336,7 +336,26 @@ public partial class FenceWindow : Window
     {
         var name = InputDialog.Ask("Name des neuen Bereichs:", "Neuer Bereich", this);
         if (!string.IsNullOrWhiteSpace(name))
-            Manager?.CreateFence(name, new Point(Left + 40, Top + 40));
+            Manager?.CreateFence(name, this); // Manager waehlt eine freie Stelle daneben
+    }
+
+    private void PickFenceIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var (ok, value) = IconPickerDialog.Show(this);
+        if (ok) _vm.IconPath = value;
+    }
+
+    private void PickTabIcon_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        var (ok, value) = IconPickerDialog.Show(this);
+        if (ok) tab.IconPath = value;
+    }
+
+    private void DetachTab_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        Manager?.DetachTabToNewFence(_vm, tab);
     }
 
     private void RemoveFence_Click(object sender, RoutedEventArgs e)
@@ -459,6 +478,18 @@ public partial class FenceWindow : Window
     {
         e.Handled = true;
         if (_vm.ActiveTab is not { } tab) return;
+
+        // Internes Umsortieren: Icon stammt aus DIESEM Tab → nur Reihenfolge aendern.
+        if (e.Data.GetDataPresent("ISDesk.SourcePath")
+            && e.Data.GetData("ISDesk.SourcePath") is string internalSource
+            && string.Equals(Path.GetDirectoryName(internalSource.TrimEnd('\\', '/')),
+                tab.FolderPath, StringComparison.OrdinalIgnoreCase))
+        {
+            var targetItem = FindItem(e.OriginalSource as DependencyObject);
+            if (targetItem == null || !string.Equals(targetItem.Path, internalSource, StringComparison.OrdinalIgnoreCase))
+                tab.ReorderTo(internalSource, targetItem?.Path);
+            return;
+        }
 
         // Browser-Link (Chrome/Edge/Firefox): .url-Verknuepfung mit Favicon anlegen.
         if (!e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -589,6 +620,7 @@ public partial class FenceWindow : Window
         if (Math.Abs(pos.X - _dragStart.X) < 4 && Math.Abs(pos.Y - _dragStart.Y) < 4) return;
 
         var data = new DataObject(DataFormats.FileDrop, new[] { _dragItem.Path });
+        data.SetData("ISDesk.SourcePath", _dragItem.Path); // fuer internes Umsortieren
         _dragItem = null;
         try { DragDrop.DoDragDrop(IconList, data, DragDropEffects.Move | DragDropEffects.Copy); }
         catch (Exception ex) { Debug.WriteLine($"Drag fehlgeschlagen: {ex.Message}"); }

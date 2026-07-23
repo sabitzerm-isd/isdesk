@@ -109,6 +109,7 @@
                 <Border.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Umbenennen…" Click="RenameTab_Click" />
+                        <MenuItem Header="Symbol wählen…" Click="PickTabIcon_Click" />
                         <MenuItem Header="Farbe">
                             <MenuItem Header="Blau" Tag="#2D7DFF" Click="TabColor_Click">
                                 <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2D7DFF" /></MenuItem.Icon>
@@ -139,10 +140,25 @@
                                   SubmenuOpened="MoveTabMenu_SubmenuOpened">
                             <MenuItem Header="…" />
                         </MenuItem>
+                        <MenuItem Header="Als eigenen Bereich abtrennen" Click="DetachTab_Click" IsEnabled="{Binding CanRemove}" />
                         <MenuItem Header="Tab entfernen" Click="RemoveTab_Click" IsEnabled="{Binding CanRemove}" />
                     </ContextMenu>
                 </Border.ContextMenu>
-                <TextBlock Text="{Binding Title}" FontSize="11.5" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="{Binding IconImage}" Width="13" Height="13"
+                           Margin="0,0,5,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IconImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <TextBlock Text="{Binding Title}" FontSize="11.5" VerticalAlignment="Center">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="#CCFFFFFF" />
@@ -153,7 +169,8 @@
                             </Style.Triggers>
                         </Style>
                     </TextBlock.Style>
-                </TextBlock>
+                    </TextBlock>
+                </StackPanel>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -231,6 +248,7 @@
             <ContextMenu>
                 <MenuItem Header="Neuer Bereich…" Click="NewFence_Click" />
                 <MenuItem Header="Bereich umbenennen…" Click="RenameFence_Click" />
+                <MenuItem Header="Symbol wählen…" Click="PickFenceIcon_Click" />
                 <MenuItem Header="Bereich entfernen…" Click="RemoveFence_Click" />
                 <Separator />
                 <MenuItem Header="Neuer Tab…" Click="AddTab_Click" />
@@ -296,11 +314,26 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="TitleText" Text="{Binding Title}"
-                           FontWeight="SemiBold" FontSize="12.5"
-                           Foreground="#DDFFFFFF"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="{Binding IconImage}" Width="16" Height="16"
+                           Margin="0,0,7,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IconImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <TextBlock x:Name="TitleText" Text="{Binding Title}"
+                               FontWeight="SemiBold" FontSize="12.5"
+                               Foreground="#DDFFFFFF"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
                 <TextBox x:Name="TitleEditBox" Visibility="Collapsed"
                          FontWeight="SemiBold" FontSize="12.5"
                          VerticalAlignment="Center" Padding="3,1" Margin="-4,0,0,0"

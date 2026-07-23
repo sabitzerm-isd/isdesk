@@ -38,7 +38,8 @@ public sealed class FenceManager
     }
 
     /// Legt Ordner <BaseFolder>\<title> + Standard-Tab "Allgemein" an, oeffnet das Fenster, persistiert.
-    public FenceWindow CreateFence(string title, Point? at)
+    /// Der neue Bereich wird an einer FREIEN Stelle platziert (nicht ueber dem Ausloeser).
+    public FenceWindow CreateFence(string title, FenceWindow? near = null)
     {
         var folder = MakeUniqueFolder(_config.Config.BaseFolder, SanitizeLeaf(title));
         Directory.CreateDirectory(folder);
@@ -47,14 +48,16 @@ public sealed class FenceManager
 
         // Neue Bereiche erben das aktuelle Erscheinungsbild der bestehenden.
         var template = _config.Config.Fences.FirstOrDefault();
+        const double width = 400, height = 260;
+        var at = FindFreePosition(near, width, height);
         var fenceConfig = new FenceConfig
         {
             Id = Guid.NewGuid(),
             Title = title,
-            X = at?.X ?? 120,
-            Y = at?.Y ?? 120,
-            Width = 400,
-            Height = 260,
+            X = at.X,
+            Y = at.Y,
+            Width = width,
+            Height = height,
             Opacity = template?.Opacity ?? _config.Config.DefaultOpacity,
             TitleBarOpacity = template?.TitleBarOpacity ?? 0.15,
             Blur = template?.Blur ?? _config.Config.DefaultBlur,
@@ -66,6 +69,75 @@ public sealed class FenceManager
         _config.Config.Fences.Add(fenceConfig);
         _config.SaveDebounced();
         return OpenFence(fenceConfig);
+    }
+
+    /// Trennt einen Tab ab und macht daraus einen eigenen Bereich daneben.
+    public void DetachTabToNewFence(FenceViewModel from, TabViewModel tab)
+    {
+        if (from.Tabs.Count <= 1)
+        {
+            ConfirmDialog.Info("Der letzte Tab eines Bereichs kann nicht abgetrennt werden.", null);
+            return;
+        }
+
+        var sourceWindow = _windows.FirstOrDefault(w => ReferenceEquals(w.ViewModel, from));
+        from.DetachTab(tab);
+        tab.Dispose(); // Watcher stoppen — der neue Bereich baut einen frischen auf
+
+        var template = from.Config;
+        const double width = 400, height = 260;
+        var at = FindFreePosition(sourceWindow, width, height);
+        var fenceConfig = new FenceConfig
+        {
+            Id = Guid.NewGuid(),
+            Title = tab.Title,
+            X = at.X, Y = at.Y, Width = width, Height = height,
+            Opacity = template.Opacity,
+            TitleBarOpacity = template.TitleBarOpacity,
+            Blur = template.Blur,
+            Locked = template.Locked,
+            IconPath = tab.IconPath,
+            ActiveTab = 0
+        };
+        fenceConfig.Tabs.Add(tab.Config);
+
+        _config.Config.Fences.Add(fenceConfig);
+        _config.SaveDebounced();
+        OpenFence(fenceConfig);
+    }
+
+    /// Freie Position fuer ein neues Fenster: rechts, darunter, links, darueber vom
+    /// Anker — die erste Stelle, die keinen bestehenden Bereich schneidet und im
+    /// Arbeitsbereich liegt; sonst Kaskade.
+    private Point FindFreePosition(FenceWindow? near, double width, double height)
+    {
+        const double gap = 16;
+        double ax = near?.Left ?? 120, ay = near?.Top ?? 120;
+        double aw = near?.ActualWidth ?? 0, ah = near?.ActualHeight ?? 0;
+
+        var wa = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)ax, (int)ay)).WorkingArea;
+
+        var candidates = new List<Point>
+        {
+            new(ax + aw + gap, ay),          // rechts
+            new(ax, ay + ah + gap),          // darunter
+            new(ax - width - gap, ay),       // links
+            new(ax, ay - height - gap),      // darueber
+        };
+        for (var i = 1; i <= 6; i++)
+            candidates.Add(new Point(ax + 40 * i, ay + 40 * i)); // Kaskade als Fallback
+
+        foreach (var c in candidates)
+        {
+            if (c.X < wa.Left || c.Y < wa.Top || c.X + width > wa.Right || c.Y + height > wa.Bottom)
+                continue;
+            var rect = new Rect(c.X, c.Y, width, height);
+            var overlaps = _windows.Any(w =>
+                rect.IntersectsWith(new Rect(w.Left, w.Top, w.ActualWidth, w.ActualHeight)));
+            if (!overlaps) return c;
+        }
+        return new Point(ax + 40, ay + 40); // Notfall: leicht versetzt
     }
 
     /// Schliesst das Fenster und entfernt den Bereich aus der Config. Auf Wunsch

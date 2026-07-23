@@ -206,6 +206,24 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         set { if (Math.Abs(_config.TitleBarOpacity - value) > double.Epsilon) { _config.TitleBarOpacity = value; OnChanged(); Persist(); } }
     }
 
+    /// Symbol in der Titelzeile (Galerie-Dateiname oder absoluter PNG-Pfad).
+    public string? IconPath
+    {
+        get => _config.IconPath;
+        set
+        {
+            if (_config.IconPath != value)
+            {
+                _config.IconPath = value;
+                OnChanged();
+                OnChanged(nameof(IconImage));
+                Persist();
+            }
+        }
+    }
+
+    public System.Windows.Media.ImageSource? IconImage => Services.IconLibrary.Load(_config.IconPath);
+
     public double X
     {
         get => _config.X;

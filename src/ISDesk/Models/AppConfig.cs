@@ -21,6 +21,9 @@ public sealed class FenceConfig
     public bool Blur { get; set; } = true;
     public bool Locked { get; set; }
     public int ActiveTab { get; set; }
+
+    /// Symbol in der Titelzeile: Galerie-Dateiname (Assets\TabIcons) oder absoluter PNG-Pfad.
+    public string? IconPath { get; set; }
     public List<TabConfig> Tabs { get; set; } = new();
 
     /// Fenster-Geometrie je Bildschirm-Konfiguration (Schluessel = Display-Fingerprint,
@@ -45,4 +48,11 @@ public sealed class TabConfig
 
     /// Hintergrundfarbe des Tab-Reiters als "#RRGGBB"; null = Standard-Optik.
     public string? Color { get; set; }
+
+    /// Symbol vor dem Tab-Titel: Galerie-Dateiname oder absoluter PNG-Pfad.
+    public string? IconPath { get; set; }
+
+    /// Manuelle Icon-Reihenfolge (Dateinamen). Neue Dateien werden hinten angefuegt,
+    /// verschwundene automatisch entfernt — es wird NICHT automatisch sortiert.
+    public List<string> Order { get; set; } = new();
 }
