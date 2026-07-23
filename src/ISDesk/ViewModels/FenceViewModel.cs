@@ -179,8 +179,20 @@ public sealed class FenceViewModel : INotifyPropertyChanged
     public string Title
     {
         get => _config.Title;
-        set { if (_config.Title != value) { _config.Title = value; OnChanged(); Persist(); } }
+        set
+        {
+            if (_config.Title != value)
+            {
+                _config.Title = value;
+                OnChanged();
+                OnChanged(nameof(IsAblage));
+                Persist();
+            }
+        }
     }
+
+    /// Der Ablage-Bereich zeigt einen Refresh-Button (Regeln ausfuehren).
+    public bool IsAblage => string.Equals(_config.Title, "Ablage", StringComparison.OrdinalIgnoreCase);
 
     public double Opacity
     {

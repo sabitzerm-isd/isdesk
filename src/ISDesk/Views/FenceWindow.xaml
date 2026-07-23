@@ -344,6 +344,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="{Binding IconImage}" Width="16" Height="16"
@@ -372,10 +373,48 @@
                          BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
                          KeyDown="TitleEditBox_KeyDown"
                          LostKeyboardFocus="TitleEditBox_LostFocus" />
+                <!-- Refresh (nur Ablage-Bereich): Regeln ausfuehren + Desktop einsammeln -->
+                <Button Grid.Column="1" Click="RefreshRules_Click"
+                        ToolTip="Regeln jetzt ausführen (Desktop einsammeln, falsch liegende Dateien in ihre Tabs)">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Width" Value="26" />
+                            <Setter Property="Height" Value="22" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="12" Foreground="#BBFFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                        <Condition Binding="{Binding IsAblage}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
                 <!-- Live-Suche: sucht ueber ALLE Bereiche und Tabs, waehrend man tippt.
                      Sichtbarkeit steuert Code-Behind (nur bei breiten Fenstern, sonst
                      blockiert die Box die Greif-Flaeche der Titelzeile). -->
-                <Grid Grid.Column="1" x:Name="SearchContainer" VerticalAlignment="Center"
+                <Grid Grid.Column="2" x:Name="SearchContainer" VerticalAlignment="Center"
                       Margin="0,0,4,0" Visibility="Collapsed">
                     <Border CornerRadius="6" Background="#26000000" BorderBrush="#33FFFFFF" BorderThickness="1">
                         <Grid>
@@ -401,7 +440,7 @@
                         </Grid>
                     </Border>
                 </Grid>
-                <ToggleButton Grid.Column="2" Style="{StaticResource LockButtonStyle}"
+                <ToggleButton Grid.Column="3" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
                               ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
             </Grid>

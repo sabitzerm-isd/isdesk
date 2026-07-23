@@ -64,6 +64,46 @@ public sealed class DesktopSweeper : IDisposable
         }
     }
 
+    /// Manueller Anstoss (Refresh-Button): Desktop einsammeln (falls Option aktiv).
+    public void SweepNow()
+    {
+        if (_config.Config.DesktopSweep) Sweep();
+    }
+
+    /// Wendet die Endungs-Regeln auf ALLE Bereichs-Tabs an: Dateien, die laut
+    /// Regel in einen anderen Tab gehoeren, werden dorthin verschoben.
+    public void ApplyRulesEverywhere()
+    {
+        try
+        {
+            foreach (var fence in _config.Config.Fences.ToList())
+            {
+                foreach (var tab in fence.Tabs.ToList())
+                {
+                    if (!Directory.Exists(tab.FolderPath)) continue;
+                    foreach (var file in new DirectoryInfo(tab.FolderPath).EnumerateFiles())
+                    {
+                        try
+                        {
+                            var target = LookupRuleFolder(file);
+                            if (target == null) continue;
+                            if (string.Equals(target, tab.FolderPath, StringComparison.OrdinalIgnoreCase)) continue;
+                            MoveInto(file, target);
+                        }
+                        catch (Exception)
+                        {
+                            // gesperrt o. ae. → beim naechsten Refresh
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "ApplyRulesEverywhere");
+        }
+    }
+
     private void Sweep()
     {
         try

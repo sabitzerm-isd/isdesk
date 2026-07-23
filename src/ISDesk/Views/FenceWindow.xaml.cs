@@ -428,6 +428,9 @@ public partial class FenceWindow : Window
             Manager?.CreateFence(name, this); // Manager waehlt eine freie Stelle daneben
     }
 
+    private void RefreshRules_Click(object sender, RoutedEventArgs e)
+        => Manager?.RunRulesNow();
+
     private void PickFenceIcon_Click(object sender, RoutedEventArgs e)
     {
         var (ok, value) = IconPickerDialog.Show(this);

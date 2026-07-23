@@ -24,6 +24,19 @@ public sealed class FenceManager
 
     public void PersistNow() => _config.SaveDebounced();
 
+    /// Refresh-Button der Ablage: Regeln bereichsuebergreifend anwenden und
+    /// (falls aktiviert) den Desktop einsammeln — im Hintergrund.
+    public void RunRulesNow()
+    {
+        var sweeper = Sweeper;
+        if (sweeper == null) return;
+        Task.Run(() =>
+        {
+            sweeper.ApplyRulesEverywhere();
+            sweeper.SweepNow();
+        });
+    }
+
     public string? AutoBackupFolder
     {
         get => _config.Config.AutoBackupFolder;
