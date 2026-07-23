@@ -1,0 +1,9 @@
+## Visual Studio / .NET build output
+bin/
+obj/
+.vs/
+*.user
+
+## Rider / VS Code
+.idea/
+.vscode/
