@@ -222,12 +222,10 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <!-- Schloss nur bei Maus ueber dem Bereich zeigen (auch im gesperrten Zustand) -->
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                     <Setter Property="Visibility" Value="Visible" />
                 </DataTrigger>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Visibility" Value="Visible" />
-                </Trigger>
             </Style.Triggers>
         </Style>
 
