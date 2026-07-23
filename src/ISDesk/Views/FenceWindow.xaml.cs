@@ -485,9 +485,8 @@ public partial class FenceWindow : Window
         if (errors.Count > 0)
         {
             var verb = copy ? "kopiert" : "verschoben";
-            MessageBox.Show(
-                $"{errors.Count} Element(e) konnten nicht {verb} werden:\n\n" + string.Join("\n", errors),
-                "ISDesk", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConfirmDialog.Info(
+                $"{errors.Count} Element(e) konnten nicht {verb} werden:\n\n" + string.Join("\n", errors), this);
         }
     }
 
@@ -634,8 +633,7 @@ public partial class FenceWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Umbenennen fehlgeschlagen:\n{ex.Message}", "ISDesk",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConfirmDialog.Info($"Umbenennen fehlgeschlagen:\n{ex.Message}", this);
         }
     }
 
@@ -643,10 +641,10 @@ public partial class FenceWindow : Window
     {
         if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
 
-        var result = MessageBox.Show(
-            $"„{item.DisplayName}“ in den Papierkorb verschieben?", "ISDesk",
-            MessageBoxButton.OKCancel, MessageBoxImage.Question);
-        if (result != MessageBoxResult.OK) return;
+        var (confirmed, _) = ConfirmDialog.Show(
+            $"„{item.DisplayName}“ in den Papierkorb verschieben?",
+            this, okText: "In den Papierkorb");
+        if (!confirmed) return;
 
         try
         {
@@ -657,8 +655,7 @@ public partial class FenceWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Loeschen fehlgeschlagen:\n{ex.Message}", "ISDesk",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ConfirmDialog.Info($"Löschen fehlgeschlagen:\n{ex.Message}", this);
         }
     }
 
