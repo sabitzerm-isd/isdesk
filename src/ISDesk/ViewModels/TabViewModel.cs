@@ -242,6 +242,7 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<(string OldName, string NewName)> _pendingRenames = new();
 
     private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
     {
@@ -249,7 +250,10 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         {
             _changedPaths.Add(e.FullPath);
             if (e is RenamedEventArgs renamed)
+            {
                 _changedPaths.Add(renamed.OldFullPath);
+                _pendingRenames.Add((Path.GetFileName(renamed.OldFullPath), Path.GetFileName(renamed.FullPath)));
+            }
             _debounce?.Stop();
             _debounce?.Start();
         }
@@ -259,18 +263,33 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     {
         // Geaenderte Dateien koennten beim ersten Laden ein falsches/generisches
         // Icon geliefert haben (Datei mitten im Verschieben) → Cache verwerfen.
+        List<(string OldName, string NewName)> renames;
         lock (_sync)
         {
             foreach (var path in _changedPaths)
                 ShellIconProvider.Instance.Invalidate(path);
             _changedPaths.Clear();
+            renames = new List<(string, string)>(_pendingRenames);
+            _pendingRenames.Clear();
+        }
+
+        void Apply()
+        {
+            // Umbenannte Dateien behalten ihren Platz in der manuellen Reihenfolge.
+            foreach (var (oldName, newName) in renames)
+            {
+                var idx = _config.Order.FindIndex(n =>
+                    string.Equals(n, oldName, StringComparison.OrdinalIgnoreCase));
+                if (idx >= 0) _config.Order[idx] = newName;
+            }
+            Reload();
         }
 
         var app = Application.Current;
         if (app != null)
-            app.Dispatcher.Invoke(Reload);
+            app.Dispatcher.Invoke(Apply);
         else
-            Reload();
+            Apply();
     }
 
     public void Dispose()

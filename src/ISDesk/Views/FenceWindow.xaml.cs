@@ -650,12 +650,23 @@ public partial class FenceWindow : Window
     private void IconRename_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
-        var dir = Path.GetDirectoryName(item.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var trimmed = item.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var dir = Path.GetDirectoryName(trimmed);
         if (dir is null) return;
 
-        var currentName = Path.GetFileName(item.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var newName = InputDialog.Ask("Neuer Name:", currentName, this);
-        if (string.IsNullOrWhiteSpace(newName) || newName == currentName) return;
+        // Nur der ANZEIGE-Name wird bearbeitet — die Dateiendung (.url/.lnk/…)
+        // bleibt automatisch erhalten, sonst verliert die Datei Typ und Icon.
+        var fileName = Path.GetFileName(trimmed);
+        var extension = item.IsFolder ? "" : Path.GetExtension(fileName);
+        var stem = item.IsFolder ? fileName : Path.GetFileNameWithoutExtension(fileName);
+
+        var input = InputDialog.Ask("Neuer Name:", stem, this);
+        if (string.IsNullOrWhiteSpace(input)) return;
+
+        var newName = input.Trim();
+        if (extension.Length > 0 && !newName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+            newName += extension;
+        if (string.Equals(newName, fileName, StringComparison.Ordinal)) return;
 
         try
         {
