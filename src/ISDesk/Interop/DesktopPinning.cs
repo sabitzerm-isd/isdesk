@@ -42,6 +42,11 @@ public static class DesktopPinning
     private static bool _desktopMode;
     private static WinEventDelegate? _foregroundProc; // Referenz halten, sonst sammelt der GC den Delegate ein
 
+    /// Holt alle Bereiche EINMALIG in den Vordergrund (bleiben oben, bis der Nutzer
+    /// in eine andere App klickt — dann sinken sie via Foreground-Hook zurueck).
+    /// Fuer „Bereiche zeigen" per Tray/Hotkey, z. B. waehrend eines Teams-Anrufs.
+    public static void BringToFrontTemporarily() => SetDesktopMode(true);
+
     public static void Attach(Window window)
     {
         var hwnd = new WindowInteropHelper(window).EnsureHandle();

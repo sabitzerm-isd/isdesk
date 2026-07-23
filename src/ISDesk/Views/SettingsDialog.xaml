@@ -8,8 +8,8 @@
         ShowInTaskbar="False"
         Topmost="True"
         ResizeMode="NoResize"
-        WindowStartupLocation="Manual"
-        Width="400" SizeToContent="Height">
+        WindowStartupLocation="CenterScreen"
+        Width="620" Height="470">
 
     <Window.Resources>
         <Style TargetType="TextBlock" x:Key="LabelStyle">
@@ -21,12 +21,18 @@
             <Setter Property="Foreground" Value="#88FFFFFF" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,14,0,6" />
+            <Setter Property="Margin" Value="0,16,0,8" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="HintStyle">
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
         <Style TargetType="Button">
             <Setter Property="MinWidth" Value="84" />
             <Setter Property="Height" Value="28" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Margin" Value="0,0,8,0" />
             <Setter Property="Foreground" Value="#F2FFFFFF" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -47,116 +53,165 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Linke Navigation -->
+        <Style TargetType="RadioButton" x:Key="NavStyle">
+            <Setter Property="Foreground" Value="#DDFFFFFF" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="6" Padding="12,8" Background="Transparent">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#18FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2E6EA5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <Border Background="#F21B1E26" Padding="20">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <TextBlock Grid.Row="0" Text="Optionen"
-                   Foreground="#EEFFFFFF" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4" />
-
-        <!-- Bereich -->
-        <TextBlock Grid.Row="1" Text="BEREICH" Style="{StaticResource SectionStyle}" />
-        <Grid Grid.Row="2">
+    <Border Background="#F21B1E26">
+        <Grid Margin="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="168" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="36" />
-                <RowDefinition Height="36" />
-                <RowDefinition Height="32" />
-                <RowDefinition Height="32" />
-                <RowDefinition Height="32" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Titel" Style="{StaticResource LabelStyle}" />
-            <TextBox Grid.Row="0" Grid.Column="1" Height="28" Padding="6,3" FontSize="13"
-                     VerticalAlignment="Center" VerticalContentAlignment="Center"
-                     Background="#22000000" Foreground="White"
-                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
-                     Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+            <!-- Linke Spalte: Titel + Navigation -->
+            <StackPanel Grid.Row="0" Grid.Column="0" Background="#22000000" Margin="0">
+                <TextBlock Text="Optionen" Foreground="#EEFFFFFF" FontSize="15" FontWeight="SemiBold"
+                           Margin="16,18,16,14" />
+                <StackPanel Margin="8,0">
+                    <RadioButton x:Name="NavAllgemein" Style="{StaticResource NavStyle}" Content="Allgemein"
+                                 IsChecked="True" Checked="Nav_Changed" />
+                    <RadioButton x:Name="NavBereich" Style="{StaticResource NavStyle}" Content="Dieser Bereich"
+                                 Checked="Nav_Changed" />
+                </StackPanel>
+            </StackPanel>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Icon-Größe" Style="{StaticResource LabelStyle}" />
-            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="IconSizeBox"
-                      Width="110" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center"
-                      SelectionChanged="IconSize_SelectionChanged">
-                <ComboBoxItem Content="Klein (24)" Tag="24" />
-                <ComboBoxItem Content="Mittel (32)" Tag="32" />
-                <ComboBoxItem Content="Groß (48)" Tag="48" />
-            </ComboBox>
+            <!-- Rechte Spalte: Inhalt der gewaehlten Kategorie -->
+            <ScrollViewer Grid.Row="0" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="24,18,24,8">
+                <Grid>
+                    <!-- ===== ALLGEMEIN (zentrale Einstellungen) ===== -->
+                    <StackPanel x:Name="PanelAllgemein">
+                        <TextBlock Text="LESEZEICHEN" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                        <TextBlock Style="{StaticResource HintStyle}"
+                                   Text="Legt alle Google-Chrome-Lesezeichen im Bereich „Lesezeichen“ ab – nach Ordnern in Tabs gegliedert. Erneutes Ausführen holt nur neu hinzugekommene Lesezeichen." />
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BookmarkButton" Content="Chrome-Lesezeichen importieren / abgleichen"
+                                    MinWidth="0" Click="ImportBookmarks_Click" />
+                        </StackPanel>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Transparenz" Style="{StaticResource LabelStyle}" />
-            <Slider Grid.Row="2" Grid.Column="1" Minimum="0.1" Maximum="1.0"
-                    VerticalAlignment="Center"
-                    Value="{Binding Opacity, Mode=TwoWay}" />
+                        <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
+                        <CheckBox x:Name="SweepCheck"
+                                  Content="Ablage aktivieren – Dateien vom Desktop automatisch einsammeln"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" TextBlock.LineHeight="16"
+                                  Checked="Sweep_Checked" Unchecked="Sweep_Unchecked" />
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                                   Text="Bekannte Dateien wandern in ihren gelernten Bereich, alles andere in „Ablage“. Endungs-Regeln pro Tab per Rechtsklick auf den Tab." />
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Titelleiste" Style="{StaticResource LabelStyle}" />
-            <Slider Grid.Row="3" Grid.Column="1" Minimum="0.0" Maximum="1.0"
-                    VerticalAlignment="Center"
-                    Value="{Binding TitleBarOpacity, Mode=TwoWay}" />
+                        <TextBlock Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
+                        <TextBlock Style="{StaticResource HintStyle}"
+                                   Text="Sichert Konfiguration und alle Bereichs-Ordner als ZIP – z. B. vor dem Neuaufsetzen." />
+                        <Grid Margin="0,2,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Pfad" Style="{StaticResource LabelStyle}" />
+                            <TextBox Grid.Column="1" x:Name="BackupPathBox" Height="28" Padding="6,3" FontSize="12"
+                                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
+                                     TextChanged="BackupPath_TextChanged" />
+                            <Button Grid.Column="2" Content="…" MinWidth="34" Margin="6,0,0,0" Click="BrowseBackupPath_Click" />
+                        </Grid>
+                        <WrapPanel>
+                            <Button Content="Automatische Sicherung" MinWidth="0" Margin="0,0,8,8" Click="AutoBackup_Click"
+                                    ToolTip="Ein Klick: Sicherung mit Zeitstempel in den hinterlegten Ordner." />
+                            <Button Content="Sicherung erstellen…" MinWidth="0" Margin="0,0,8,8" Click="CreateBackup_Click" />
+                            <Button Content="Wiederherstellen…" MinWidth="0" Margin="0,0,8,8" Click="RestoreBackup_Click" />
+                        </WrapPanel>
+                    </StackPanel>
 
-            <CheckBox Grid.Row="4" Grid.Column="1" Content="Hintergrund-Blur"
-                      Foreground="#DDFFFFFF" FontSize="12.5" VerticalAlignment="Center"
-                      IsChecked="{Binding Blur, Mode=TwoWay}" />
+                    <!-- ===== DIESER BEREICH ===== -->
+                    <StackPanel x:Name="PanelBereich" Visibility="Collapsed">
+                        <TextBlock Text="ERSCHEINUNGSBILD (gilt für alle Bereiche)" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="38" />
+                                <RowDefinition Height="38" />
+                                <RowDefinition Height="34" />
+                                <RowDefinition Height="34" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Titel" Style="{StaticResource LabelStyle}" />
+                            <TextBox Grid.Row="0" Grid.Column="1" Height="28" Padding="6,3" FontSize="13"
+                                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
+                                     Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Icon-Größe" Style="{StaticResource LabelStyle}" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="IconSizeBox"
+                                      Width="120" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                      SelectionChanged="IconSize_SelectionChanged">
+                                <ComboBoxItem Content="Klein (24)" Tag="24" />
+                                <ComboBoxItem Content="Mittel (32)" Tag="32" />
+                                <ComboBoxItem Content="Groß (48)" Tag="48" />
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Transparenz" Style="{StaticResource LabelStyle}" />
+                            <Slider Grid.Row="2" Grid.Column="1" Minimum="0.1" Maximum="1.0"
+                                    VerticalAlignment="Center" Value="{Binding Opacity, Mode=TwoWay}" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Titelleiste" Style="{StaticResource LabelStyle}" />
+                            <Slider Grid.Row="3" Grid.Column="1" Minimum="0.0" Maximum="1.0"
+                                    VerticalAlignment="Center" Value="{Binding TitleBarOpacity, Mode=TwoWay}" />
+                        </Grid>
+                        <CheckBox Content="Hintergrund-Blur" Margin="110,4,0,0"
+                                  Foreground="#DDFFFFFF" FontSize="12.5"
+                                  IsChecked="{Binding Blur, Mode=TwoWay}" />
+                        <CheckBox Content="Tab-Zähler anzeigen (nur dieser Bereich)" Margin="110,8,0,0"
+                                  Foreground="#DDFFFFFF" FontSize="12.5"
+                                  IsChecked="{Binding ShowTabCounts, Mode=TwoWay}" />
+
+                        <TextBlock Text="BEREICH" Style="{StaticResource SectionStyle}" />
+                        <WrapPanel>
+                            <Button Content="Symbol wählen…" MinWidth="0" Margin="0,0,8,8" Click="PickFenceIcon_Click" />
+                            <Button Content="Ordner im Explorer öffnen" MinWidth="0" Margin="0,0,8,8" Click="OpenFolder_Click" />
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,4,0,0"
+                                   Text="Tab-Optionen (Symbol, Farbe, automatische Dateiendungen, verschieben) per Rechtsklick auf den jeweiligen Tab-Reiter." />
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- Fusszeile -->
+            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#18000000">
+                <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Foreground="#66FFFFFF" FontSize="11" Margin="16,0" />
+                <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0,10,16,10"
+                        HorizontalAlignment="Right" Click="Close_Click" />
+            </Grid>
         </Grid>
-
-        <!-- Ablage -->
-        <TextBlock Grid.Row="3" Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
-        <CheckBox Grid.Row="4" x:Name="SweepCheck"
-                  Content="Ablage aktivieren – Dateien vom Desktop automatisch einsammeln"
-                  Foreground="#DDFFFFFF" FontSize="12.5"
-                  Checked="Sweep_Checked" Unchecked="Sweep_Unchecked"
-                  ToolTip="Bekannte Dateien wandern zurück in ihren gelernten Bereich, alles andere in den Bereich „Ablage“." />
-
-        <!-- Sicherung -->
-        <TextBlock Grid.Row="5" Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
-        <TextBlock Grid.Row="6" Foreground="#99FFFFFF" FontSize="11.5" TextWrapping="Wrap"
-                   Text="Sichert die Konfiguration und alle Bereichs-Ordner in eine ZIP-Datei – z. B. bevor der Rechner neu aufgesetzt wird." />
-        <Grid Grid.Row="7" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="110" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Sicherungspfad" Style="{StaticResource LabelStyle}" />
-            <TextBox Grid.Column="1" x:Name="BackupPathBox" Height="28" Padding="6,3" FontSize="12"
-                     VerticalAlignment="Center" VerticalContentAlignment="Center"
-                     Background="#22000000" Foreground="White"
-                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
-                     TextChanged="BackupPath_TextChanged" />
-            <Button Grid.Column="2" Content="…" MinWidth="34" Margin="6,0,0,0" Click="BrowseBackupPath_Click" />
-        </Grid>
-        <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,8,0,0">
-            <Button Content="Automatische Sicherung" Click="AutoBackup_Click"
-                    ToolTip="Ein Klick: Sicherung mit Zeitstempel in den hinterlegten Ordner." />
-            <Button Content="Sicherung erstellen…" Click="CreateBackup_Click" />
-            <Button Content="Sicherung wiederherstellen…" Click="RestoreBackup_Click" />
-        </StackPanel>
-
-        <!-- Fusszeile -->
-        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,16,0,0">
-            <Button Content="Ordner im Explorer öffnen" Click="OpenFolder_Click" />
-        </StackPanel>
-        <Grid Grid.Row="10" Margin="0,16,0,0">
-            <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
-                       Foreground="#66FFFFFF" FontSize="11" />
-            <Button Content="Schließen" IsDefault="True" IsCancel="True" Margin="0"
-                    HorizontalAlignment="Right" Click="Close_Click" />
-        </Grid>
-    </Grid>
     </Border>
 </Window>

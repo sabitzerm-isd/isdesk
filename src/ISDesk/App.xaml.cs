@@ -47,6 +47,7 @@ public partial class App : Application
         _manager.Backup = new BackupService(_config, _manager);
         PlacementRegistry.Init(_config);
         _manager.Sweeper = new DesktopSweeper(_config, _manager.GetAblageFolder);
+        _manager.Bookmarks = new BookmarkImportService(_config, _manager);
         _manager.OpenAll();
         _manager.ApplyLayoutsForCurrentDisplays();
         if (_config.Config.DesktopSweep)

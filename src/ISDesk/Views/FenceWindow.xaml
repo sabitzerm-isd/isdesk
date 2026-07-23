@@ -362,9 +362,9 @@
                          BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
                          KeyDown="TitleEditBox_KeyDown"
                          LostKeyboardFocus="TitleEditBox_LostFocus" />
-                <!-- Refresh (nur Ablage-Bereich): Regeln ausfuehren + Desktop einsammeln -->
+                <!-- Refresh (Ablage: Regeln, Lesezeichen: Chrome-Abgleich) -->
                 <Button Grid.Column="1" Click="RefreshRules_Click"
-                        ToolTip="Regeln jetzt ausführen (Desktop einsammeln, falsch liegende Dateien in ihre Tabs)">
+                        ToolTip="Aktualisieren (Ablage: Regeln ausführen · Lesezeichen: neue Chrome-Lesezeichen holen)">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Width" Value="26" />
@@ -391,7 +391,7 @@
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
-                                        <Condition Binding="{Binding IsAblage}" Value="True" />
+                                        <Condition Binding="{Binding IsRefreshable}" Value="True" />
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="Visibility" Value="Visible" />
                                 </MultiDataTrigger>
@@ -464,6 +464,7 @@
                  HorizontalContentAlignment="Stretch"
                  MouseDoubleClick="IconList_MouseDoubleClick"
                  PreviewMouseLeftButtonDown="IconList_PreviewMouseLeftButtonDown"
+                 PreviewMouseLeftButtonUp="IconList_PreviewMouseLeftButtonUp"
                  MouseMove="IconList_MouseMove"
                  PreviewMouseRightButtonUp="IconList_MouseRightButtonUp">
             <ListBox.ItemsPanel>

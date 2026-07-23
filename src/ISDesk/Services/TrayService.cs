@@ -23,9 +23,11 @@ public sealed class TrayService : IDisposable
             Visible = true,
             Icon = LoadTrayIcon()
         };
-        _icon.DoubleClick += (_, _) => NewFence();
+        // Doppelklick aufs Tray: Bereiche kurz nach vorn (praktisch waehrend Vollbild-Apps/Teams).
+        _icon.DoubleClick += (_, _) => Interop.DesktopPinning.BringToFrontTemporarily();
 
         var menu = new WinForms.ContextMenuStrip();
+        menu.Items.Add("Bereiche in den Vordergrund", null, (_, _) => Interop.DesktopPinning.BringToFrontTemporarily());
         menu.Items.Add("Neuer Bereich", null, (_, _) => NewFence());
         menu.Items.Add("Alle Bereiche neu ausrichten", null, (_, _) => _manager.RealignAll());
         menu.Items.Add(new WinForms.ToolStripSeparator());

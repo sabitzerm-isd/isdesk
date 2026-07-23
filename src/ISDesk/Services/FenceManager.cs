@@ -20,6 +20,9 @@ public sealed class FenceManager
     /// Wird von App gesetzt (Desktop-Einsammler fuer die Ablage).
     public DesktopSweeper? Sweeper { get; set; }
 
+    /// Wird von App gesetzt (Chrome-Lesezeichen-Import).
+    public BookmarkImportService? Bookmarks { get; set; }
+
     public bool DesktopSweepEnabled => _config.Config.DesktopSweep;
 
     public void PersistNow() => _config.SaveDebounced();
@@ -77,6 +80,50 @@ public sealed class FenceManager
         var window = CreateFence("Ablage");
         window.ViewModel.IconPath = "download.png";
     }
+
+    /// Sorgt dafuer, dass der Bereich "Lesezeichen" existiert und alle uebergebenen
+    /// Tabs (Chrome-Ordner) enthaelt. Neue Tabs werden angelegt und ins offene
+    /// Fenster gespiegelt; der aktive Tab bleibt.
+    public void EnsureBookmarksFence(string fenceFolder, List<string> tabNames)
+    {
+        var cfg = _config.Config.Fences.FirstOrDefault(f =>
+            string.Equals(f.Title, BookmarkImportService.FenceTitle, StringComparison.OrdinalIgnoreCase));
+
+        if (cfg == null)
+        {
+            cfg = new FenceConfig
+            {
+                Id = Guid.NewGuid(),
+                Title = BookmarkImportService.FenceTitle,
+                Width = 620, Height = 380,
+                Opacity = _config.Config.DefaultOpacity,
+                TitleBarOpacity = 0.15,
+                Blur = _config.Config.DefaultBlur,
+                IconPath = "web2.png",
+                ActiveTab = 0
+            };
+            _config.Config.Fences.Add(cfg);
+        }
+
+        foreach (var tab in tabNames)
+        {
+            var folder = Path.Combine(fenceFolder, SanitizeLeaf(tab));
+            if (!cfg.Tabs.Any(t => string.Equals(t.FolderPath, folder, StringComparison.OrdinalIgnoreCase)))
+                cfg.Tabs.Add(new TabConfig { Title = tab, FolderPath = folder, IconSize = 32 });
+        }
+        if (cfg.Tabs.Count == 0)
+            cfg.Tabs.Add(new TabConfig { Title = "Leiste", FolderPath = fenceFolder, IconSize = 32 });
+
+        _config.SaveDebounced();
+
+        // Wenn der Bereich schon offen ist, neue Tabs live nachziehen; sonst oeffnen.
+        var open = _windows.FirstOrDefault(w => w.ViewModel.Id == cfg.Id);
+        if (open == null) OpenFence(cfg);
+        else open.ViewModel.SyncTabsFromConfig();
+    }
+
+    /// Loest den Chrome-Abgleich aus (Refresh-Button des Lesezeichen-Bereichs).
+    public int SyncBookmarks() => Bookmarks?.SyncChrome() ?? 0;
 
     public IReadOnlyList<FenceWindow> Windows => _windows;
 

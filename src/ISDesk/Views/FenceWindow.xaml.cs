@@ -431,7 +431,19 @@ public partial class FenceWindow : Window
     }
 
     private void RefreshRules_Click(object sender, RoutedEventArgs e)
-        => Manager?.RunRulesNow();
+    {
+        if (_vm.IsBookmarks)
+        {
+            var added = Manager?.SyncBookmarks() ?? 0;
+            ConfirmDialog.Info(added > 0
+                ? $"{added} neue Lesezeichen hinzugefügt."
+                : "Keine neuen Lesezeichen gefunden.", this);
+        }
+        else
+        {
+            Manager?.RunRulesNow();
+        }
+    }
 
     private void PickFenceIcon_Click(object sender, RoutedEventArgs e)
     {
@@ -522,7 +534,20 @@ public partial class FenceWindow : Window
     private void IconList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;
+        if (_vm.IsBookmarks) return; // dort oeffnet bereits der Einzelklick
         if (FindItem(e.OriginalSource as DependencyObject) is { } item)
+            Launch(item.Path);
+    }
+
+    /// Nur im Lesezeichen-Bereich: Einzelklick oeffnet (sofern nicht gezogen wurde).
+    private void IconList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_vm.IsBookmarks) return;
+        var item = FindItem(e.OriginalSource as DependencyObject);
+        if (item == null) return;
+
+        var pos = e.GetPosition(null);
+        if (Math.Abs(pos.X - _dragStart.X) < 4 && Math.Abs(pos.Y - _dragStart.Y) < 4)
             Launch(item.Path);
     }
 

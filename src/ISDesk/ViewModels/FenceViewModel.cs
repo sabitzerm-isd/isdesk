@@ -194,6 +194,26 @@ public sealed class FenceViewModel : INotifyPropertyChanged
     /// Der Ablage-Bereich zeigt einen Refresh-Button (Regeln ausfuehren).
     public bool IsAblage => string.Equals(_config.Title, "Ablage", StringComparison.OrdinalIgnoreCase);
 
+    /// Der Lesezeichen-Bereich: Refresh gleicht Chrome ab, Einzelklick oeffnet.
+    public bool IsBookmarks => string.Equals(_config.Title, "Lesezeichen", StringComparison.OrdinalIgnoreCase);
+
+    /// Bereiche mit Refresh-Button (Ablage: Regeln, Lesezeichen: Chrome-Abgleich).
+    public bool IsRefreshable => IsAblage || IsBookmarks;
+
+    /// Zieht Tabs, die in der Konfiguration neu dazugekommen sind, in die Ansicht nach.
+    public void SyncTabsFromConfig()
+    {
+        foreach (var tabConfig in _config.Tabs)
+        {
+            if (Tabs.Any(t => ReferenceEquals(t.Config, tabConfig))) continue;
+            var tab = new TabViewModel(tabConfig, _persist);
+            Tabs.Add(tab);
+            tab.Reload();
+            tab.StartWatching();
+        }
+        UpdateTabFlags();
+    }
+
     public double Opacity
     {
         get => _config.Opacity;

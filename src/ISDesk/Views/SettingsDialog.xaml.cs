@@ -8,8 +8,10 @@ using ISDesk.ViewModels;
 
 namespace ISDesk.Views;
 
-/// Optionen eines Bereichs (Titel, Icon-Groesse, Transparenz, Blur) plus
-/// Sicherung/Wiederherstellung aller Bereiche. Aenderungen wirken sofort.
+/// Optionen: links Navigation, rechts der Inhalt der gewaehlten Kategorie.
+/// „Allgemein" = zentrale Einstellungen (Lesezeichen, Ablage, Sicherung),
+/// „Dieser Bereich" = Optik/Icon/Zaehler des Bereichs. Erscheint mittig auf
+/// dem Hauptbildschirm.
 public partial class SettingsDialog : Window
 {
     private readonly FenceViewModel _vm;
@@ -35,31 +37,27 @@ public partial class SettingsDialog : Window
         IconSizeBox.SelectedItem ??= IconSizeBox.Items[1]; // Mittel (32)
         SweepCheck.IsChecked = manager?.DesktopSweepEnabled ?? false;
         BackupPathBox.Text = manager?.AutoBackupFolder ?? "";
-        _initialized = true;
-
-        if (centerOn != null)
-        {
-            Loaded += (_, _) =>
-            {
-                Left = centerOn.Left + (centerOn.ActualWidth - ActualWidth) / 2;
-                Top = centerOn.Top + (centerOn.ActualHeight - ActualHeight) / 2;
-                DialogPlacement.ClampToWorkArea(this);
-            };
-        }
-        else
-        {
-            WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Loaded += (_, _) => DialogPlacement.ClampToWorkArea(this);
-        }
-
+        BookmarkButton.IsEnabled = manager?.Bookmarks?.ChromeAvailable ?? false;
+        if (!BookmarkButton.IsEnabled) BookmarkButton.Content = "Chrome nicht gefunden";
         VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
+        _initialized = true;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        WindowBackdrop.Apply(this, 0.95, true);
+        WindowBackdrop.Apply(this, 0.97, true);
     }
+
+    private void Nav_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_initialized && PanelAllgemein == null) return;
+        if (PanelAllgemein == null || PanelBereich == null) return;
+        PanelAllgemein.Visibility = NavAllgemein.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PanelBereich.Visibility = NavBereich.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // --- Bereich ---
 
     private void IconSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -67,16 +65,39 @@ public partial class SettingsDialog : Window
         if (IconSizeBox.SelectedItem is not ComboBoxItem item || item.Tag is not string tag) return;
         if (!int.TryParse(tag, out var size)) return;
 
-        // Optionen gelten fuer alle Bereiche (Nutzer-Vorgabe)
-        if (_manager != null)
+        if (_manager != null) _manager.SetIconSizeAll(size);
+        else foreach (var tab in _vm.Tabs) tab.IconSize = size;
+    }
+
+    private void PickFenceIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var (ok, value) = IconPickerDialog.Show(this);
+        if (ok) _vm.IconPath = value;
+    }
+
+    private void OpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = _vm.ActiveTab?.FolderPath;
+        try
         {
-            _manager.SetIconSizeAll(size);
+            if (folder != null && Directory.Exists(folder))
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
         }
-        else
+        catch (Exception ex)
         {
-            foreach (var tab in _vm.Tabs)
-                tab.IconSize = size;
+            Debug.WriteLine($"Ordner oeffnen fehlgeschlagen: {ex.Message}");
         }
+    }
+
+    // --- Allgemein ---
+
+    private void ImportBookmarks_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager?.Bookmarks is not { } bookmarks) return;
+        var added = bookmarks.SyncChrome();
+        ConfirmDialog.Info(added > 0
+            ? $"{added} neue Lesezeichen in den Bereich „Lesezeichen“ übernommen."
+            : "Keine neuen Lesezeichen gefunden (alles bereits vorhanden).", this);
     }
 
     private void Sweep_Checked(object sender, RoutedEventArgs e)
@@ -110,20 +131,6 @@ public partial class SettingsDialog : Window
 
     private void RestoreBackup_Click(object sender, RoutedEventArgs e)
         => _manager?.Backup?.RestoreBackupInteractive(this);
-
-    private void OpenFolder_Click(object sender, RoutedEventArgs e)
-    {
-        var folder = _vm.ActiveTab?.FolderPath;
-        try
-        {
-            if (folder != null && Directory.Exists(folder))
-                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Ordner oeffnen fehlgeschlagen: {ex.Message}");
-        }
-    }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }
