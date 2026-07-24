@@ -1,0 +1,497 @@
+<Window x:Class="MSDesk.Views.FenceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="CanResize"
+        WindowStartupLocation="Manual"
+        MinWidth="180" MinHeight="120"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        AllowDrop="True"
+        DragOver="Window_DragOver"
+        Drop="Window_Drop">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Icon-Kachel: Bild + Name -->
+        <DataTemplate x:Key="IconItemTemplate">
+            <StackPanel Margin="2,4" Background="Transparent"
+                        Width="{Binding DataContext.ActiveTab.CellWidth, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=84}">
+                <Image Source="{Binding Icon}"
+                       Width="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
+                       Height="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
+                       HorizontalAlignment="Center" Margin="0,4"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <TextBlock Text="{Binding DisplayName}" FontSize="11"
+                           Foreground="#F2FFFFFF"
+                           TextAlignment="Center" HorizontalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="30">
+                    <TextBlock.Effect>
+                        <DropShadowEffect BlurRadius="3" ShadowDepth="0" Opacity="0.6" Color="Black" />
+                    </TextBlock.Effect>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Icon-Container: Hover/Selektion, kein Fokus-Rechteck -->
+        <Style x:Key="IconItemContainerStyle" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
+                            </Trigger>
+                            <!-- Live-Suche: Treffer blau hervorheben -->
+                            <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4D2D7DFF" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!-- Live-Suche: Nicht-Treffer abdunkeln -->
+                <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                    <Setter Property="Opacity" Value="0.25" />
+                </DataTrigger>
+                <!-- Lesezeichen: Hand-Cursor zeigt, dass ein Klick oeffnet -->
+                <DataTrigger Binding="{Binding DataContext.IsBookmarks, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Cursor" Value="Hand" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Tab: nimmt Icons per Drag & Drop entgegen; optionale eigene Hintergrundfarbe
+             (Farbebene unter der Hover-/Aktiv-Ebene, damit die Trigger unveraendert wirken) -->
+        <DataTemplate x:Key="TabItemTemplate">
+            <Grid Margin="2,0,0,0">
+                <Border CornerRadius="6" Background="{Binding PillBrush}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                    <Setter Property="Opacity" Value="1.0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+                <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Cursor="Hand"
+                        AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#18FFFFFF" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                <Setter Property="Background" Value="#2EFFFFFF" />
+                            </DataTrigger>
+                            <!-- Live-Suche: Tabs mit Treffern blau markieren -->
+                            <DataTrigger Binding="{Binding HasSearchMatch}" Value="True">
+                                <Setter Property="Background" Value="#4D2D7DFF" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Umbenennen…" Click="RenameTab_Click">
+                            <MenuItem.Icon><TextBlock Text="&#xE8AC;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Symbol wählen…" Click="PickTabIcon_Click">
+                            <MenuItem.Icon><TextBlock Text="&#xE91B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Automatische Dateiendungen…" Click="TabAutoExtensions_Click">
+                            <MenuItem.Icon><TextBlock Text="&#xE71C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Farbe">
+                            <MenuItem Header="Blau" Tag="#2D7DFF" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2D7DFF" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Grün" Tag="#2FA84F" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#2FA84F" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Rot" Tag="#D0453E" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#D0453E" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Orange" Tag="#E8842C" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#E8842C" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Violett" Tag="#8C5BD8" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#8C5BD8" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Türkis" Tag="#1FA8A0" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#1FA8A0" /></MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Grau" Tag="#6B7280" Click="TabColor_Click">
+                                <MenuItem.Icon><Border Width="12" Height="12" CornerRadius="3" Background="#6B7280" /></MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Benutzerdefiniert…" Click="TabColorCustom_Click" />
+                            <MenuItem Header="Standard (keine Farbe)" Click="TabColorDefault_Click" />
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="In anderen Bereich verschieben" IsEnabled="{Binding CanRemove}"
+                                  SubmenuOpened="MoveTabMenu_SubmenuOpened">
+                            <MenuItem.Icon><TextBlock Text="&#xE8DE;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                            <MenuItem Header="…" />
+                        </MenuItem>
+                        <MenuItem Header="Als eigenen Bereich abtrennen" Click="DetachTab_Click" IsEnabled="{Binding CanRemove}">
+                            <MenuItem.Icon><TextBlock Text="&#xE7C4;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Tab entfernen" Click="RemoveTab_Click" IsEnabled="{Binding CanRemove}">
+                            <MenuItem.Icon><TextBlock Text="&#xE74D;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="{Binding IconImage}" Width="13" Height="13"
+                           Margin="0,0,5,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IconImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <TextBlock Text="{Binding Title}" FontSize="11.5" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#CCFFFFFF" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                    <Setter Property="Foreground" Value="White" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                    </TextBlock>
+                    <!-- Dateianzahl je Tab (nur wenn im Bereich aktiviert) -->
+                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                               FontSize="11.5" VerticalAlignment="Center" Foreground="#99FFFFFF">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DataContext.ShowTabCounts, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Fixier-Button: bei Maus ueber dem Fenster sichtbar, im gesperrten Zustand immer -->
+        <Style x:Key="LockButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                            <TextBlock x:Name="Glyph" Text="&#xE785;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12" Foreground="#99FFFFFF"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Glyph" Property="Text" Value="&#xE72E;" />
+                                <Setter TargetName="Glyph" Property="Foreground" Value="#7DB7FF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!-- Schloss nur bei Maus ueber dem Bereich zeigen (auch im gesperrten Zustand) -->
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- "+"-Button: nur bei Maus ueber dem Fenster sichtbar -->
+        <Style x:Key="AddTabButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Foreground" Value="#DDFFFFFF" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid" Background="Transparent">
+        <!-- Bereichs-Menue: verfuegbar auf der GESAMTEN Flaeche (Titelzeile, Tabs, Icon-Flaeche);
+             Icons haben ihr eigenes Menue, das hier Vorrang hat. -->
+        <Grid.ContextMenu>
+            <!-- Bewusst kurz gehalten: nur was DIESEN Bereich betrifft. Alles
+                 Uebergreifende (Optik, Automatik, Sicherung, Beenden) sitzt in
+                 den Optionen bzw. im Tray-Menue. -->
+            <ContextMenu>
+                <MenuItem Header="Neuer Tab…" Click="AddTab_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Ordner-Verknüpfung hinzufügen…" Click="AddFolderLink_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE8B7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="Bereich umbenennen…" Click="RenameFence_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE8AC;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Symbol wählen…" Click="PickFenceIcon_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE91B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Bereich fixieren" IsCheckable="True" IsChecked="{Binding Locked, Mode=TwoWay}">
+                    <MenuItem.Icon><TextBlock Text="&#xE72E;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="Ordner im Explorer öffnen" Click="OpenFolder_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xEC50;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Optionen…" Click="OpenSettings_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE713;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="Bereich entfernen…" Click="RemoveFence_Click">
+                    <MenuItem.Icon><TextBlock Text="&#xE74D;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+            </ContextMenu>
+        </Grid.ContextMenu>
+        <!-- Frosted-Glass: weichgezeichneter Wallpaper-Ausschnitt (selbst gerechnet,
+             da DWM-Blur fuer inaktive Fenster auf neuen Win11-Builds tot ist). -->
+        <Grid ClipToBounds="True">
+            <Border x:Name="BlurLayer" Margin="-40">
+                <Border.Effect>
+                    <BlurEffect Radius="45" KernelType="Gaussian" />
+                </Border.Effect>
+            </Border>
+        </Grid>
+
+        <!-- Toenungsebene: Grundfarbe = Tab-Farbe (dunkel abgetoent) bzw. Anthrazit,
+             Deckkraft = Transparenz-Regler. Von der App gezeichnet (build-unabhaengig). -->
+        <Border Background="{Binding ActiveTab.AreaBrush, FallbackValue=#FF1C1C1E}"
+                Opacity="{Binding Opacity}" />
+
+        <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="34" />
+            <RowDefinition Height="28" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Titelzeile: Ziehen = Verschieben, Doppelklick = Umbenennen.
+             Hintergrund als eigene Ebene, damit die Deckkraft separat regelbar ist,
+             ohne Titeltext und Schloss mit auszublenden. -->
+        <Border Grid.Row="0" Background="Transparent"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                MouseMove="Window_DragMouseMove"
+                MouseLeftButtonUp="Window_DragMouseUp"
+                LostMouseCapture="Window_DragLostCapture">
+            <Grid>
+            <Border Background="#FF000000" Opacity="{Binding TitleBarOpacity}" />
+            <Grid Margin="12,0,6,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="{Binding IconImage}" Width="16" Height="16"
+                           Margin="0,0,7,0" VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IconImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                    <TextBlock x:Name="TitleText" Text="{Binding Title}"
+                               FontWeight="SemiBold" FontSize="12.5"
+                               Foreground="#DDFFFFFF"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBox x:Name="TitleEditBox" Visibility="Collapsed"
+                         FontWeight="SemiBold" FontSize="12.5"
+                         VerticalAlignment="Center" Padding="3,1" Margin="-4,0,0,0"
+                         Background="#33000000" Foreground="White"
+                         BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
+                         KeyDown="TitleEditBox_KeyDown"
+                         LostKeyboardFocus="TitleEditBox_LostFocus" />
+                <!-- Refresh (Ablage: Regeln, Lesezeichen: Chrome- + Firefox-Abgleich) -->
+                <Button Grid.Column="1" Click="RefreshRules_Click"
+                        ToolTip="Aktualisieren (Ablage: Regeln ausführen · Lesezeichen: neue Chrome- und Firefox-Lesezeichen holen)">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Width" Value="26" />
+                            <Setter Property="Height" Value="22" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="12" Foreground="#BBFFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                        <Condition Binding="{Binding IsRefreshable}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <!-- Live-Suche: sucht ueber ALLE Bereiche und Tabs, waehrend man tippt.
+                     Sichtbarkeit steuert Code-Behind (nur bei breiten Fenstern, sonst
+                     blockiert die Box die Greif-Flaeche der Titelzeile). -->
+                <Grid Grid.Column="2" x:Name="SearchContainer" VerticalAlignment="Center"
+                      Margin="0,0,4,0" Visibility="Collapsed">
+                    <Border CornerRadius="6" Background="#26000000" BorderBrush="#33FFFFFF" BorderThickness="1">
+                        <Grid>
+                            <TextBox x:Name="SearchBox" Width="90" FontSize="11.5" Padding="6,2"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="White" CaretBrush="White"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="SearchBox_TextChanged"
+                                     KeyDown="SearchBox_KeyDown" />
+                            <TextBlock Text="Suchen…" FontSize="11.5" Foreground="#77FFFFFF"
+                                       Margin="8,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                </Grid>
+                <ToggleButton Grid.Column="3" Style="{StaticResource LockButtonStyle}"
+                              IsChecked="{Binding Locked, Mode=TwoWay}"
+                              ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
+            </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Tab-Leiste (leere Flaeche dient auch als Greif-Flaeche zum Verschieben) -->
+        <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True"
+                   Background="Transparent" MouseLeftButtonDown="TabBar_MouseLeftButtonDown"
+                   MouseMove="Window_DragMouseMove"
+                   MouseLeftButtonUp="Window_DragMouseUp"
+                   LostMouseCapture="Window_DragLostCapture">
+            <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
+                    Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
+            <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabItemTemplate}"
+                          VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DockPanel>
+
+        <!-- Inhalt: Icon-Raster des aktiven Tabs -->
+        <ListBox Grid.Row="2" x:Name="IconList"
+                 ItemsSource="{Binding ActiveTab.Items}"
+                 ItemTemplate="{StaticResource IconItemTemplate}"
+                 ItemContainerStyle="{StaticResource IconItemContainerStyle}"
+                 Background="Transparent" BorderThickness="0"
+                 Padding="4"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 VirtualizingPanel.IsVirtualizing="False"
+                 HorizontalContentAlignment="Stretch"
+                 MouseDoubleClick="IconList_MouseDoubleClick"
+                 PreviewMouseLeftButtonDown="IconList_PreviewMouseLeftButtonDown"
+                 PreviewMouseLeftButtonUp="IconList_PreviewMouseLeftButtonUp"
+                 MouseMove="IconList_MouseMove"
+                 PreviewMouseRightButtonUp="IconList_MouseRightButtonUp">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+        </ListBox>
+        </Grid>
+    </Grid>
+</Window>
