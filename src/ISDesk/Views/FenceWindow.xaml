@@ -329,7 +329,10 @@
              Hintergrund als eigene Ebene, damit die Deckkraft separat regelbar ist,
              ohne Titeltext und Schloss mit auszublenden. -->
         <Border Grid.Row="0" Background="Transparent"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                MouseMove="Window_DragMouseMove"
+                MouseLeftButtonUp="Window_DragMouseUp"
+                LostMouseCapture="Window_DragLostCapture">
             <Grid>
             <Border Background="#FF000000" Opacity="{Binding TitleBarOpacity}" />
             <Grid Margin="12,0,6,0">
@@ -442,7 +445,10 @@
 
         <!-- Tab-Leiste (leere Flaeche dient auch als Greif-Flaeche zum Verschieben) -->
         <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True"
-                   Background="Transparent" MouseLeftButtonDown="TabBar_MouseLeftButtonDown">
+                   Background="Transparent" MouseLeftButtonDown="TabBar_MouseLeftButtonDown"
+                   MouseMove="Window_DragMouseMove"
+                   MouseLeftButtonUp="Window_DragMouseUp"
+                   LostMouseCapture="Window_DragLostCapture">
             <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
                     Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
             <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabItemTemplate}"

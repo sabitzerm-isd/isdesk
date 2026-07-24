@@ -133,3 +133,46 @@ public class GridSnapBehaviorTests
         Assert.Null(GridSnapBehavior.SnapEdge(500, new[] { 520, 480 }, 12));
     }
 }
+
+public class GridSnapSizeMatchTests
+{
+    private static readonly IReadOnlyList<GridSnapBehavior.Box> Empty = new List<GridSnapBehavior.Box>();
+
+    [Fact]
+    public void RechteKante_rastet_auf_Breite_des_Nachbarn()
+    {
+        // Nachbar rechts daneben, 400 breit; meiner startet bei 100 und wird auf ~495 gezogen
+        var neighbour = new GridSnapBehavior.Box(600, 0, 1000, 200); // Breite 400
+        var me = new GridSnapBehavior.Box(100, 0, 495, 200);         // aktuell 395 breit
+
+        var result = GridSnapBehavior.ResolveResize(me, edge: 2 /* WMSZ_RIGHT */,
+            new[] { neighbour }, gridPx: 20, snapPx: 8, reachPx: 8, minWidth: 180, minHeight: 120);
+
+        // 100 + 400 = 500 liegt 5 px entfernt -> muss einrasten (gleiche Breite wie Nachbar)
+        Assert.Equal(500, result.R);
+        Assert.Equal(400, result.Width);
+    }
+
+    [Fact]
+    public void Untere_Kante_rastet_auf_Hoehe_des_Nachbarn()
+    {
+        var neighbour = new GridSnapBehavior.Box(0, 300, 200, 500); // Hoehe 200
+        var me = new GridSnapBehavior.Box(0, 0, 200, 195);          // aktuell 195 hoch
+
+        var result = GridSnapBehavior.ResolveResize(me, edge: 6 /* WMSZ_BOTTOM */,
+            new[] { neighbour }, gridPx: 20, snapPx: 8, reachPx: 8, minWidth: 180, minHeight: 120);
+
+        Assert.Equal(200, result.Height);
+    }
+
+    [Fact]
+    public void Ohne_Nachbarn_gilt_weiterhin_das_Raster()
+    {
+        var me = new GridSnapBehavior.Box(0, 0, 393, 200);
+
+        var result = GridSnapBehavior.ResolveResize(me, edge: 2, Empty,
+            gridPx: 20, snapPx: 8, reachPx: 8, minWidth: 180, minHeight: 120);
+
+        Assert.Equal(400, result.R); // 393 -> naechstes Vielfaches von 20
+    }
+}

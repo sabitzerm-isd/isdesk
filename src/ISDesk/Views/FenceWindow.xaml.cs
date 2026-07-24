@@ -180,6 +180,26 @@ public partial class FenceWindow : Window
         }
     }
 
+    // --- Verschieben: bewusst SELBST gefuehrt statt DragMove() ---
+    //
+    // DragMove() laesst Windows die Zieh-Schleife fuehren; korrigiert man dabei in
+    // WM_MOVING die Position (Einrasten), verschiebt sich der Griffpunkt und das
+    // Fenster rutscht vom Cursor weg. Hier bleibt der Abstand Cursor↔Fensterecke
+    // fest, und das Einrasten wird auf die vom Cursor vorgegebene Rohposition
+    // angewendet — dadurch klebt das Fenster am Cursor und bricht sauber wieder
+    // aus einem Fangpunkt aus.
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out WinPoint point);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct WinPoint { public int X, Y; }
+
+    private bool _isDraggingWindow;
+    private WinPoint _dragCursorStart;   // Bildschirm-Pixel
+    private int _dragLeftStart, _dragTopStart; // Bildschirm-Pixel
+    private IInputElement? _dragCapture;
+
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState != MouseButtonState.Pressed) return;
@@ -191,10 +211,57 @@ public partial class FenceWindow : Window
             return;
         }
 
-        if (_vm.Locked) return; // fixiert: nicht verschieben
+        BeginWindowDrag(sender, e);
+    }
 
-        try { DragMove(); }
-        catch (InvalidOperationException) { /* DragMove kann in Randfaellen werfen */ }
+    private void BeginWindowDrag(object sender, MouseButtonEventArgs e)
+    {
+        if (_vm.Locked) return;              // fixiert: nicht verschieben
+        if (!GetCursorPos(out var cursor)) return;
+
+        var scale = GridSnapBehavior.ScaleOf(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+        _dragCursorStart = cursor;
+        _dragLeftStart = (int)Math.Round(Left * scale);
+        _dragTopStart = (int)Math.Round(Top * scale);
+        _isDraggingWindow = true;
+
+        _dragCapture = sender as IInputElement;
+        _dragCapture?.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Window_DragMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingWindow) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { EndWindowDrag(); return; }
+        if (!GetCursorPos(out var cursor)) return;
+
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var scale = GridSnapBehavior.ScaleOf(hwnd);
+
+        // Rohposition = Startposition + Cursorbewegung (haelt den Griffpunkt fest)
+        var rawLeft = _dragLeftStart + (cursor.X - _dragCursorStart.X);
+        var rawTop = _dragTopStart + (cursor.Y - _dragCursorStart.Y);
+
+        var (left, top) = GridSnapBehavior.SnapMovePixels(hwnd, rawLeft, rawTop,
+            (int)Math.Round(ActualWidth * scale), (int)Math.Round(ActualHeight * scale));
+
+        Left = left / scale;
+        Top = top / scale;
+    }
+
+    private void Window_DragMouseUp(object sender, MouseButtonEventArgs e) => EndWindowDrag();
+
+    /// Sicherheitsnetz: geht die Maus-Erfassung verloren (Alt+Tab, Fokuswechsel),
+    /// darf der Ziehvorgang nicht "haengen" bleiben.
+    private void Window_DragLostCapture(object sender, MouseEventArgs e) => EndWindowDrag();
+
+    private void EndWindowDrag()
+    {
+        if (!_isDraggingWindow) return;
+        _isDraggingWindow = false;
+        _dragCapture?.ReleaseMouseCapture();
+        _dragCapture = null;
     }
 
     // --- Titel direkt in der Titelzeile umbenennen (Doppelklick) ---
@@ -243,9 +310,8 @@ public partial class FenceWindow : Window
     /// Leere Flaeche der Tab-Leiste: zusaetzliche Greif-Flaeche zum Verschieben.
     private void TabBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState != MouseButtonState.Pressed || _vm.Locked) return;
-        try { DragMove(); }
-        catch (InvalidOperationException) { /* Randfaelle */ }
+        if (e.ButtonState != MouseButtonState.Pressed) return;
+        BeginWindowDrag(sender, e);
     }
 
     /// Beim Ziehen ueber einen Tab-Reiter: Effekt anzeigen und den Tab gleich

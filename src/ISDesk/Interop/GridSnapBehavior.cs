@@ -73,7 +73,10 @@ public static class GridSnapBehavior
 
     private static IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg != WM_MOVING && msg != WM_SIZING) return IntPtr.Zero;
+        // WM_MOVING wird NICHT mehr behandelt: das Verschieben fuehrt das Fenster
+        // selbst (siehe FenceWindow), damit es exakt am Cursor haengen bleibt.
+        // Wuerde man hier zusaetzlich korrigieren, verschoebe sich der Griffpunkt.
+        if (msg != WM_SIZING) return IntPtr.Zero;
 
         var grid = GridSize;
         if (grid <= 0) return IntPtr.Zero; // Ausrichten komplett abgeschaltet
@@ -125,14 +128,26 @@ public static class GridSnapBehavior
     {
         int l = me.L, t = me.T, r = me.R, b = me.B;
 
+        // Beim Groessenziehen zaehlen ZWEI Arten von Fangpunkten:
+        //   1. die Kanten der Nachbarn (buendig abschliessen)
+        //   2. deren BREITE/HOEHE (gleich gross werden) — so lassen sich Bereiche
+        //      nebeneinander/uebereinander sauber auf ein Mass bringen.
         if (edge is WMSZ_LEFT or WMSZ_TOPLEFT or WMSZ_BOTTOMLEFT)
-            l = SnapEdge(l, VerticalEdges(others, me, reachPx), snapPx) ?? SnapToGrid(l, gridPx);
+            l = SnapEdge(l, VerticalEdges(others, me, reachPx)
+                            .Concat(others.Where(o => NearVertically(me, o, reachPx)).Select(o => r - o.Width)),
+                         snapPx) ?? SnapToGrid(l, gridPx);
         if (edge is WMSZ_RIGHT or WMSZ_TOPRIGHT or WMSZ_BOTTOMRIGHT)
-            r = SnapEdge(r, VerticalEdges(others, me, reachPx), snapPx) ?? SnapToGrid(r, gridPx);
+            r = SnapEdge(r, VerticalEdges(others, me, reachPx)
+                            .Concat(others.Where(o => NearVertically(me, o, reachPx)).Select(o => l + o.Width)),
+                         snapPx) ?? SnapToGrid(r, gridPx);
         if (edge is WMSZ_TOP or WMSZ_TOPLEFT or WMSZ_TOPRIGHT)
-            t = SnapEdge(t, HorizontalEdges(others, me, reachPx), snapPx) ?? SnapToGrid(t, gridPx);
+            t = SnapEdge(t, HorizontalEdges(others, me, reachPx)
+                            .Concat(others.Where(o => NearHorizontally(me, o, reachPx)).Select(o => b - o.Height)),
+                         snapPx) ?? SnapToGrid(t, gridPx);
         if (edge is WMSZ_BOTTOM or WMSZ_BOTTOMLEFT or WMSZ_BOTTOMRIGHT)
-            b = SnapEdge(b, HorizontalEdges(others, me, reachPx), snapPx) ?? SnapToGrid(b, gridPx);
+            b = SnapEdge(b, HorizontalEdges(others, me, reachPx)
+                            .Concat(others.Where(o => NearHorizontally(me, o, reachPx)).Select(o => t + o.Height)),
+                         snapPx) ?? SnapToGrid(b, gridPx);
 
         // Mindestgroesse grob wahren (WPF-MinWidth/-Height greifen zusaetzlich).
         if (r - l < minWidth)
@@ -220,6 +235,28 @@ public static class GridSnapBehavior
 
     private static bool NearHorizontally(Box a, Box b, int reach)
         => a.L <= b.R + reach && b.L <= a.R + reach;
+
+    /// Fuer das SELBST gefuehrte Verschieben (Fenster klebt am Cursor):
+    /// nimmt die vom Cursor vorgegebene Roh-Position in Bildschirm-Pixeln und
+    /// gibt die ausgerichtete Position zurueck. Die Roh-Position bleibt die
+    /// Referenz — dadurch bricht das Fenster sauber wieder aus dem Fangpunkt aus.
+    public static (int Left, int Top) SnapMovePixels(IntPtr self, int rawLeft, int rawTop,
+        int widthPx, int heightPx)
+    {
+        var grid = GridSize;
+        if (grid <= 0) return (rawLeft, rawTop); // Ausrichten aus → 1:1 dem Cursor folgen
+
+        var scale = DpiScale(self);
+        var gridPx = Math.Max(1, (int)Math.Round(grid * scale));
+        var snapPx = Math.Max(2, (int)Math.Round(EdgeSnapDip * scale));
+        var reachPx = (int)Math.Round(NeighbourReachDip * scale);
+
+        var me = new Box(rawLeft, rawTop, rawLeft + widthPx, rawTop + heightPx);
+        var others = EdgeSnapEnabled ? OtherRects(self) : new List<Box>();
+        return ResolveMove(me, others, gridPx, snapPx, reachPx);
+    }
+
+    public static double ScaleOf(IntPtr hwnd) => DpiScale(hwnd);
 
     // ===================== Fenster-Zugriff =====================
 
