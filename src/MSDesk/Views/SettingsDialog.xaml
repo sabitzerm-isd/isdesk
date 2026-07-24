@@ -7,9 +7,9 @@
         Background="Transparent"
         ShowInTaskbar="False"
         Topmost="True"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Width="620" Height="470">
+        Width="880" Height="700" MinWidth="620" MinHeight="440">
 
     <Window.Resources>
         <Style TargetType="TextBlock" x:Key="LabelStyle">
@@ -98,6 +98,8 @@
                     <RadioButton x:Name="NavAllgemein" Style="{StaticResource NavStyle}" Content="Allgemein"
                                  IsChecked="True" Checked="Nav_Changed" />
                     <RadioButton x:Name="NavBereich" Style="{StaticResource NavStyle}" Content="Dieser Bereich"
+                                 Checked="Nav_Changed" />
+                    <RadioButton x:Name="NavBildschirme" Style="{StaticResource NavStyle}" Content="Bildschirme"
                                  Checked="Nav_Changed" />
                 </StackPanel>
             </StackPanel>
@@ -270,6 +272,108 @@
                         </WrapPanel>
                         <TextBlock Style="{StaticResource HintStyle}" Margin="0,4,0,0"
                                    Text="Tab-Optionen (Symbol, Farbe, automatische Dateiendungen, verschieben) per Rechtsklick auf den jeweiligen Tab-Reiter." />
+                    </StackPanel>
+
+                    <!-- ===== BILDSCHIRME (Kontrolle der gespeicherten Layouts) ===== -->
+                    <StackPanel x:Name="PanelBildschirme" Visibility="Collapsed">
+                        <TextBlock Text="JETZT ANGESCHLOSSEN" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                        <ItemsControl x:Name="MonitorList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#18FFFFFF" CornerRadius="6" Padding="12,9" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="15" Foreground="#AACCFFFF" Margin="0,0,10,0"
+                                                       VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Name}" Foreground="#F2FFFFFF" FontSize="12.5"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Details}" Foreground="#99FFFFFF" FontSize="11.5" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="#3A6EA5" CornerRadius="4" Padding="7,2"
+                                                    VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsPrimary}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="Hauptbildschirm" Foreground="White" FontSize="10.5" />
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="GESPEICHERTE KONFIGURATIONEN" Style="{StaticResource SectionStyle}" />
+                        <TextBlock Style="{StaticResource HintStyle}"
+                                   Text="MSDesk merkt sich die Anordnung der Bereiche je Bildschirm-Konfiguration. Wird ein Monitor an- oder abgesteckt, wird automatisch die passende Anordnung geladen — und die zuletzt genutzte gesichert." />
+                        <ItemsControl x:Name="LayoutList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="6" Padding="12,9" Margin="0,0,0,6">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#14FFFFFF" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                        <Setter Property="Background" Value="#332E6EA5" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Description}" Foreground="#F2FFFFFF"
+                                                               FontSize="12.5" FontWeight="SemiBold" />
+                                                    <Border Background="#3A6EA5" CornerRadius="4" Padding="7,1"
+                                                            Margin="8,0,0,0" VerticalAlignment="Center">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="gerade aktiv" Foreground="White" FontSize="10.5" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Foreground="#99FFFFFF" FontSize="11.5" Margin="0,2,0,0">
+                                                    <Run Text="Anordnung gespeichert für" />
+                                                    <Run Text="{Binding FenceCount, Mode=OneWay}" FontWeight="SemiBold" />
+                                                    <Run Text="Bereich(e)" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Anordnung jetzt sichern" MinWidth="0" Click="SaveLayoutNow_Click"
+                                    ToolTip="Speichert die aktuelle Anordnung aller Bereiche für die oben aktive Bildschirm-Konfiguration." />
+                            <Button Content="Aktualisieren" MinWidth="0" Click="RefreshDisplays_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="LayoutSaveHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Grid>
             </ScrollViewer>

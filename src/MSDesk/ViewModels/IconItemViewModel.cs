@@ -32,6 +32,25 @@ public sealed class IconItemViewModel : INotifyPropertyChanged
     private bool _isDimmed;
     private bool _isFavorite;
     private bool _showFavoriteStar;
+    private string? _note;
+
+    /// Eigene Notiz zum Eintrag — in der Listendarstellung als zweite Spalte
+    /// und zusaetzlich in der Kurzinfo sichtbar. null = keine Notiz.
+    public string? Note
+    {
+        get => _note;
+        set
+        {
+            if (_note != value)
+            {
+                _note = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Note)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasNote)));
+            }
+        }
+    }
+
+    public bool HasNote => !string.IsNullOrWhiteSpace(_note);
 
     /// Als Favorit markiert (nur im Lesezeichen-Bereich verwendet).
     public bool IsFavorite

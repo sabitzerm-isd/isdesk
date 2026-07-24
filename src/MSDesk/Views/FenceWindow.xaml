@@ -26,12 +26,26 @@
             <StackPanel Margin="2,4" Background="Transparent"
                         Width="{Binding DataContext.ActiveTab.CellWidth, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=84}"
                         ToolTipService.InitialShowDelay="600" ToolTipService.ShowDuration="20000">
-                <!-- Vollstaendiger Name als Kurzinfo (die Beschriftung ist gekuerzt) -->
+                <!-- Vollstaendiger Name als Kurzinfo (die Beschriftung ist gekuerzt),
+                     darunter die eigene Notiz, sofern eine hinterlegt ist. -->
                 <StackPanel.ToolTip>
                     <ToolTip>
                         <StackPanel MaxWidth="360">
                             <TextBlock Text="{Binding DisplayName}" Foreground="White"
                                        FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Note}" Foreground="#CCFFFFFF" Margin="0,4,0,0"
+                                       FontSize="12" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNote}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </ToolTip>
                 </StackPanel.ToolTip>
@@ -107,6 +121,90 @@
             </StackPanel>
         </DataTemplate>
 
+        <!-- Listenzeile: kleines Symbol + Name + eigene Notiz.
+             Alternative zur Kachel-Darstellung, pro Tab umschaltbar. -->
+        <DataTemplate x:Key="IconRowTemplate">
+            <Grid Margin="2,0" Background="Transparent" Height="22"
+                  ToolTipService.InitialShowDelay="600" ToolTipService.ShowDuration="20000">
+                <Grid.ToolTip>
+                    <ToolTip>
+                        <StackPanel MaxWidth="360">
+                            <TextBlock Text="{Binding DisplayName}" Foreground="White"
+                                       FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Note}" Foreground="#CCFFFFFF" Margin="0,4,0,0"
+                                       FontSize="12" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasNote}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Grid.ToolTip>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" MinWidth="60" />
+                    <ColumnDefinition Width="1.1*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Image Grid.Column="0" Source="{Binding Icon}" Width="18" Height="18"
+                       Margin="2,0,7,0" VerticalAlignment="Center"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+
+                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="12"
+                           Foreground="#F2FFFFFF" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+
+                <!-- Notizspalte: Klick oeffnet die Eingabe (oeffnet NICHT den Eintrag) -->
+                <TextBlock Grid.Column="2" Text="{Binding Note}" FontSize="11.5"
+                           Foreground="#8FFFFFFF" FontStyle="Italic" VerticalAlignment="Center"
+                           Margin="8,0,4,0" TextTrimming="CharacterEllipsis" />
+
+                <Button Grid.Column="3" Click="EditNote_Click" ToolTip="Notiz bearbeiten">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Width" Value="18" />
+                            <Setter Property="Height" Value="18" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Opacity" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" CornerRadius="4" Background="Transparent">
+                                            <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="10" Foreground="#BBFFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <!-- Stift nur bei Mausberuehrung der Zeile — haelt die Liste ruhig -->
+                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Grid}}" Value="True">
+                                    <Setter Property="Opacity" Value="1" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasNote}" Value="True">
+                                    <Setter Property="Opacity" Value="0.55" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </DataTemplate>
+
         <!-- Icon-Container: Hover/Selektion, kein Fokus-Rechteck -->
         <Style x:Key="IconItemContainerStyle" TargetType="ListBoxItem">
             <Setter Property="Margin" Value="1" />
@@ -117,7 +215,9 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Bd" CornerRadius="6" Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" />
+                            <!-- Stretch in der Liste (volle Zeilenbreite), in der
+                                 Kachelansicht bleibt die feste Kachelbreite massgeblich. -->
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -213,6 +313,10 @@
                         </MenuItem>
                         <MenuItem Header="Automatische Dateiendungen…" Click="TabAutoExtensions_Click">
                             <MenuItem.Icon><TextBlock Text="&#xE71C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Als Liste anzeigen (mit Notizen)" Click="ToggleListView_Click"
+                                  IsCheckable="True" IsChecked="{Binding ListView, Mode=OneWay}">
+                            <MenuItem.Icon><TextBlock Text="&#xE8FD;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="Tab ausblenden" Click="HideTab_Click" IsEnabled="{Binding CanRemove}">
                             <MenuItem.Icon><TextBlock Text="&#xED1A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -446,6 +550,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="{Binding IconImage}" Width="16" Height="16"
@@ -582,7 +687,48 @@
                         </Grid>
                     </Border>
                 </Grid>
-                <ToggleButton Grid.Column="3" Style="{StaticResource LockButtonStyle}"
+                <!-- „+" wandert hierher, wenn die Reiter-Zeile ausgeblendet ist
+                     (nur ein Tab) — so bleibt das Anlegen erreichbar, ohne dass
+                     der Inhalt beim Drueberfahren verspringt. -->
+                <Button Grid.Column="3" Content="+" Click="AddTab_Click" ToolTip="Neuen Tab anlegen">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Width" Value="22" />
+                            <Setter Property="Height" Value="22" />
+                            <Setter Property="Margin" Value="0,0,2,0" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Foreground" Value="#AAFFFFFF" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent">
+                                            <TextBlock Text="+" FontSize="15" Foreground="{TemplateBinding Foreground}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                                                <Setter Property="Foreground" Value="White" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding ShowTabStrip}" Value="False" />
+                                        <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <ToggleButton Grid.Column="4" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
                               ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
             </Grid>
@@ -590,11 +736,25 @@
         </Border>
 
         <!-- Tab-Leiste (leere Flaeche dient auch als Greif-Flaeche zum Verschieben) -->
+        <!-- Reiter-Zeile: bei nur EINEM sichtbaren Tab komplett ausgeblendet.
+             Wichtig fuer ein ruhiges Layout — eine leere Zeile, die beim
+             Drueberfahren das „+" einblendet, wuerde den Inhalt nach unten
+             schieben. Das „+" sitzt in dem Fall in der Titelzeile. -->
         <DockPanel Grid.Row="1" Margin="6,1,6,1" LastChildFill="True"
                    Background="Transparent" MouseLeftButtonDown="TabBar_MouseLeftButtonDown"
                    MouseMove="Window_DragMouseMove"
                    MouseLeftButtonUp="Window_DragMouseUp"
                    LostMouseCapture="Window_DragLostCapture">
+            <DockPanel.Style>
+                <Style TargetType="DockPanel">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ShowTabStrip}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DockPanel.Style>
             <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
                     Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
             <!-- WrapPanel: zu viele Tabs brechen in weitere Zeilen um, statt
@@ -613,7 +773,6 @@
         <!-- Inhalt: Icon-Raster des aktiven Tabs -->
         <ListBox Grid.Row="2" x:Name="IconList"
                  ItemsSource="{Binding ActiveTab.Items}"
-                 ItemTemplate="{StaticResource IconItemTemplate}"
                  ItemContainerStyle="{StaticResource IconItemContainerStyle}"
                  Background="Transparent" BorderThickness="0"
                  Padding="4"
@@ -626,11 +785,32 @@
                  PreviewMouseLeftButtonUp="IconList_PreviewMouseLeftButtonUp"
                  MouseMove="IconList_MouseMove"
                  PreviewMouseRightButtonUp="IconList_MouseRightButtonUp">
-            <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel Orientation="Horizontal" />
-                </ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
+            <!-- Zwei Darstellungen, pro Tab umschaltbar: Kacheln (Standard) und
+                 Liste mit Notizspalte. Umgeschaltet wird ueber das Tab-Menue. -->
+            <ListBox.Style>
+                <Style TargetType="ListBox">
+                    <Setter Property="ItemTemplate" Value="{StaticResource IconItemTemplate}" />
+                    <Setter Property="ItemsPanel">
+                        <Setter.Value>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ActiveTab.ListView}" Value="True">
+                            <Setter Property="ItemTemplate" Value="{StaticResource IconRowTemplate}" />
+                            <Setter Property="ItemsPanel">
+                                <Setter.Value>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ListBox.Style>
         </ListBox>
         </Grid>
     </Grid>

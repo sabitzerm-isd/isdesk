@@ -248,6 +248,21 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     /// sind (nur Lesezeichen). null = kein Stern anbieten.
     public string? FavoritesFolder { get; set; }
 
+    /// Darstellung des Tab-Inhalts: false = Kacheln, true = Liste mit Notizspalte.
+    public bool ListView
+    {
+        get => _config.ListView;
+        set
+        {
+            if (_config.ListView != value)
+            {
+                _config.ListView = value;
+                OnChanged();
+                _persist();
+            }
+        }
+    }
+
     /// Symbol vor dem Tab-Titel (Galerie-Dateiname oder absoluter PNG-Pfad).
     public string? IconPath
     {
@@ -307,6 +322,7 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         foreach (var path in ordered)
         {
             var item = new IconItemViewModel(path, FolderContents.GetDisplayName(path), Directory.Exists(path));
+            item.Note = NoteRegistry.Get(path);
             Items.Add(item);
             LoadIconAsync(item);
             if (FavoritesFolder != null && !item.IsFolder)

@@ -117,9 +117,40 @@ public partial class SettingsDialog : Window
     private void Nav_Changed(object sender, RoutedEventArgs e)
     {
         if (!_initialized && PanelAllgemein == null) return;
-        if (PanelAllgemein == null || PanelBereich == null) return;
+        if (PanelAllgemein == null || PanelBereich == null || PanelBildschirme == null) return;
         PanelAllgemein.Visibility = NavAllgemein.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         PanelBereich.Visibility = NavBereich.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PanelBildschirme.Visibility = NavBildschirme.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        if (NavBildschirme.IsChecked == true) LoadDisplays();
+    }
+
+    // --- Bildschirme ---
+
+    /// Liest die angeschlossenen Bildschirme und die gespeicherten Anordnungen neu ein.
+    private void LoadDisplays()
+    {
+        DisplayConfig.Invalidate(); // koennte sich seit dem Start geaendert haben
+        MonitorList.ItemsSource = DisplayOverview.ConnectedMonitors();
+
+        var config = _manager?.ConfigForDisplayOverview;
+        LayoutList.ItemsSource = config != null
+            ? DisplayOverview.SavedConfigurations(config)
+            : new List<SavedLayoutInfo>();
+    }
+
+    private void RefreshDisplays_Click(object sender, RoutedEventArgs e)
+    {
+        LoadDisplays();
+        LayoutSaveHint.Text = "Aktualisiert.";
+    }
+
+    /// Sichert die aktuelle Anordnung ausdruecklich fuer die aktive Konfiguration.
+    private void SaveLayoutNow_Click(object sender, RoutedEventArgs e)
+    {
+        _manager?.SaveLayoutForCurrentDisplays();
+        LoadDisplays();
+        LayoutSaveHint.Text = "Anordnung für die aktive Bildschirm-Konfiguration gesichert.";
     }
 
     // --- Bereich ---

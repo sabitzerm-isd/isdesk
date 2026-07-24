@@ -675,12 +675,11 @@ public partial class FenceWindow : Window
         var favorites = _vm.EnsureFavoritesTab();
         if (favorites == null) return;
 
-        // Aus dem Favoriten-Tab heraus bedeutet der Stern: wieder entfernen.
-        var source = ReferenceEquals(_vm.ActiveTab, favorites)
-            ? item.Path
-            : item.Path;
+        item.IsFavorite = FavoriteService.Toggle(favorites.FolderPath, item.Path);
 
-        item.IsFavorite = FavoriteService.Toggle(favorites.FolderPath, source);
+        // Steht man im Favoriten-Tab, bedeutet der Stern „wieder entfernen" —
+        // dann muss der Eintrag auch sofort aus der Ansicht verschwinden.
+        if (ReferenceEquals(_vm.ActiveTab, favorites)) favorites.Reload();
     }
 
     /// Nur im Lesezeichen-Bereich: Einzelklick oeffnet (sofern nicht gezogen wurde).
@@ -908,7 +907,37 @@ public partial class FenceWindow : Window
         e.Handled = true;
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         var screen = PointToScreen(e.GetPosition(this));
-        ShellContextMenu.Show(item.Path, hwnd, (int)screen.X, (int)screen.Y);
+
+        // Ganz oben haengt MSDesk einen eigenen Punkt ein; alles Uebrige ist
+        // unveraendert das echte Explorer-Menue.
+        var notizGewaehlt = ShellContextMenu.Show(item.Path, hwnd, (int)screen.X, (int)screen.Y,
+            item.HasNote ? "Notiz bearbeiten…" : "Notiz hinzufügen…");
+        if (notizGewaehlt) AskForNote(item);
+    }
+
+    // --- Notizen ---
+
+    /// Stift in der Listendarstellung.
+    private void EditNote_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
+        e.Handled = true; // nicht als Klick auf den Eintrag werten
+        AskForNote(item);
+    }
+
+    /// Fragt die Notiz ab und uebernimmt sie (leere Eingabe loescht sie).
+    private void AskForNote(IconItemViewModel item)
+    {
+        var eingabe = InputDialog.Ask($"Notiz zu „{item.DisplayName}“:", item.Note ?? "", this);
+        if (eingabe == null) return; // abgebrochen
+        item.Note = NoteRegistry.Set(item.Path, eingabe);
+    }
+
+    /// Tab-Menue: zwischen Kacheln und Liste umschalten.
+    private void ToggleListView_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is TabViewModel tab)
+            tab.ListView = !tab.ListView;
     }
 
     protected override void OnLocationChanged(EventArgs e)

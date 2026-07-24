@@ -10,8 +10,17 @@ namespace MSDesk.Interop;
 /// versteckte NativeWindow als Message-Sink).
 public static class ShellContextMenu
 {
-    private const int MIN_ID = 1;
+    // Die Shell-Befehle beginnen bewusst erst bei 0x1000 — darunter bleibt Platz
+    // fuer eigene Menuepunkte (siehe CMD_EIGENER), die MSDesk selbst behandelt.
+    private const int MIN_ID = 0x1000;
     private const int MAX_ID = 0x7FFF;
+
+    /// Kennung des eigenen, oben eingehaengten Menuepunkts.
+    private const uint CMD_EIGENER = 1;
+
+    private const uint MF_BYPOSITION = 0x0400;
+    private const uint MF_STRING = 0x0000;
+    private const uint MF_SEPARATOR = 0x0800;
 
     private const uint CMF_NORMAL = 0x0000;
     private const uint CMF_EXPLORE = 0x0004;
@@ -35,6 +44,8 @@ public static class ShellContextMenu
     [DllImport("ole32.dll")] private static extern void CoTaskMemFree(IntPtr pv);
 
     [DllImport("user32.dll")] private static extern IntPtr CreatePopupMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, UIntPtr uIDNewItem, string? lpNewItem);
     [DllImport("user32.dll")] private static extern bool DestroyMenu(IntPtr hMenu);
     [DllImport("user32.dll")] private static extern uint TrackPopupMenuEx(IntPtr hMenu, uint flags, int x, int y, IntPtr hwnd, IntPtr lptpm);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -113,19 +124,24 @@ public static class ShellContextMenu
         }
     }
 
+    /// <summary>
     /// Zeigt das Kontextmenue an Bildschirmposition (screenX/screenY) fuer die Datei.
-    public static void Show(string path, IntPtr ownerHwnd, int screenX, int screenY)
+    /// Mit <paramref name="eigenerEintrag"/> wird ganz oben ein zusaetzlicher
+    /// MSDesk-Punkt eingehaengt (z. B. „Notiz…"); Rueckgabe true = er wurde gewaehlt.
+    /// </summary>
+    public static bool Show(string path, IntPtr ownerHwnd, int screenX, int screenY,
+                            string? eigenerEintrag = null)
     {
         IntPtr fullPidl = IntPtr.Zero, contextPtr = IntPtr.Zero, hMenu = IntPtr.Zero;
         IShellFolder? parent = null;
         try
         {
             if (SHParseDisplayName(path, IntPtr.Zero, out fullPidl, 0, out _) != 0 || fullPidl == IntPtr.Zero)
-                return;
+                return false;
 
             var iidFolder = IID_IShellFolder;
             SHBindToParent(fullPidl, ref iidFolder, out parent, out var childPidl);
-            if (parent == null || childPidl == IntPtr.Zero) return;
+            if (parent == null || childPidl == IntPtr.Zero) return false;
 
             var apidl = Marshal.AllocHGlobal(IntPtr.Size);
             Marshal.WriteIntPtr(apidl, childPidl);
@@ -134,7 +150,7 @@ public static class ShellContextMenu
                 var iidCtx = IID_IContextMenu;
                 if (parent.GetUIObjectOf(ownerHwnd, 1, apidl, ref iidCtx, IntPtr.Zero, out contextPtr) != 0
                     || contextPtr == IntPtr.Zero)
-                    return;
+                    return false;
             }
             finally { Marshal.FreeHGlobal(apidl); }
 
@@ -143,7 +159,13 @@ public static class ShellContextMenu
 
             hMenu = CreatePopupMenu();
             if (contextMenu.QueryContextMenu(hMenu, 0, MIN_ID, MAX_ID, CMF_NORMAL | CMF_EXPLORE | CMF_EXTENDEDVERBS) < 0)
-                return;
+                return false;
+
+            if (!string.IsNullOrEmpty(eigenerEintrag))
+            {
+                InsertMenu(hMenu, 0, MF_BYPOSITION | MF_SEPARATOR, UIntPtr.Zero, null);
+                InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, new UIntPtr(CMD_EIGENER), eigenerEintrag);
+            }
 
             MenuMessageSink? sink = contextMenu2 != null ? new MenuMessageSink(contextMenu2) : null;
             sink?.AssignHandle(ownerHwnd);
@@ -160,6 +182,13 @@ public static class ShellContextMenu
             {
                 sink?.ReleaseHandle();
                 PostMessage(ownerHwnd, 0, IntPtr.Zero, IntPtr.Zero); // WM_NULL: Menue sauber beenden
+            }
+
+            // Eigener Punkt: nicht an die Shell weiterreichen, sondern melden.
+            if (cmd == CMD_EIGENER)
+            {
+                Marshal.ReleaseComObject(contextMenu);
+                return true;
             }
 
             if (cmd >= MIN_ID)
@@ -187,5 +216,7 @@ public static class ShellContextMenu
             if (parent != null) Marshal.ReleaseComObject(parent);
             if (fullPidl != IntPtr.Zero) CoTaskMemFree(fullPidl);
         }
+
+        return false; // regulaeres Ende bzw. Fehler: kein eigener Punkt gewaehlt
     }
 }

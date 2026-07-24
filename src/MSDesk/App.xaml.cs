@@ -71,6 +71,12 @@ public partial class App : Application
 
         _manager.Backup = new BackupService(_config, _manager);
         PlacementRegistry.Init(_config);
+        NoteRegistry.Init(_config);
+
+        // Tabs ohne eigenes Symbol bekommen automatisch eins, das zum Namen passt.
+        // Von Hand gesetzte Symbole bleiben unangetastet.
+        if (TabIconRules.ApplyMissing(_config.Config) > 0) _config.SaveDebounced();
+
         _manager.Sweeper = new DesktopSweeper(_config, _manager.GetAblageFolder);
         _manager.Bookmarks = new BookmarkImportService(_config, _manager);
         _manager.OpenAll();

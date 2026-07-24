@@ -482,6 +482,12 @@ public sealed class FenceManager
         DisplayConfig.Invalidate();
         var key = DisplayConfig.Current;
 
+        // Zuerst die BISHERIGE Anordnung sichern: beim Abstecken eines Monitors
+        // wuerde sie sonst verloren gehen, weil danach nur noch die neue
+        // Konfiguration geschrieben wird.
+        if (_currentLayoutKey != null && !string.Equals(_currentLayoutKey, key, StringComparison.Ordinal))
+            StoreLayout(_currentLayoutKey);
+
         foreach (var window in _windows)
         {
             var cfg = window.ViewModel.Config;
@@ -497,7 +503,41 @@ public sealed class FenceManager
             window.Height = cfg.Height;
             cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
         }
+        _currentLayoutKey = key;
         _config.SaveDebounced();
+    }
+
+    /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
+    public Models.AppConfig ConfigForDisplayOverview => _config.Config;
+
+    /// Bildschirm-Konfiguration, deren Anordnung gerade aktiv ist.
+    private string? _currentLayoutKey;
+
+    /// <summary>
+    /// Sichert die aktuelle Anordnung aller Bereiche ausdruecklich fuer die
+    /// gerade aktive Bildschirm-Konfiguration — wird sofort geschrieben, damit
+    /// das Ergebnis in den Optionen unmittelbar nachpruefbar ist.
+    /// </summary>
+    public void SaveLayoutForCurrentDisplays()
+    {
+        DisplayConfig.Invalidate();
+        _currentLayoutKey = DisplayConfig.Current;
+        StoreLayout(_currentLayoutKey);
+        _config.Save();
+    }
+
+    /// Schreibt die aktuelle Fenster-Geometrie aller Bereiche unter dem Schluessel fest.
+    private void StoreLayout(string key)
+    {
+        foreach (var window in _windows)
+        {
+            var cfg = window.ViewModel.Config;
+            cfg.X = window.Left;
+            cfg.Y = window.Top;
+            cfg.Width = window.Width;
+            cfg.Height = window.Height;
+            cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
+        }
     }
 
     /// Holt alle Fenster wieder in einen sichtbaren Bildschirmbereich.
@@ -514,6 +554,10 @@ public sealed class FenceManager
 
     public void ShutdownAll()
     {
+        // Anordnung noch VOR dem Schliessen festhalten (danach sind die
+        // Fensterkoordinaten nicht mehr aussagekraeftig).
+        if (_currentLayoutKey != null) StoreLayout(_currentLayoutKey);
+
         foreach (var window in _windows.ToList())
             window.Close();
         _config.Save();

@@ -231,8 +231,7 @@ public sealed class FenceViewModel : INotifyPropertyChanged
             string.Equals(t.Title, Services.FavoriteService.TabTitle, StringComparison.OrdinalIgnoreCase));
         if (existing != null) return existing;
 
-        var folder = Path.Combine(_baseFolder, SanitizeLeaf(_config.Title),
-            Services.FavoriteService.TabTitle);
+        var folder = FavoritesFolderPath;
         Directory.CreateDirectory(folder);
 
         var cfg = new TabConfig
@@ -253,24 +252,33 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         return tab;
     }
 
-    /// Teilt allen Tabs mit, wo die Favoriten liegen (aktiviert die Sterne).
+    /// <summary>
+    /// Teilt allen Tabs mit, wo die Favoriten liegen (aktiviert die Sterne) —
+    /// einschliesslich des Favoriten-Tabs selbst: dort ist der Stern gefuellt
+    /// und ein Klick nimmt den Eintrag wieder heraus.
+    /// </summary>
     private void ApplyFavoritesFolder(string folder)
     {
         foreach (var tab in Tabs)
-        {
-            tab.FavoritesFolder = string.Equals(tab.FolderPath, folder, StringComparison.OrdinalIgnoreCase)
-                ? null          // im Favoriten-Tab selbst keinen Stern anbieten
-                : folder;
-        }
+            tab.FavoritesFolder = folder;
     }
 
-    /// Beim Öffnen: falls es schon einen Favoriten-Tab gibt, die Sterne aktivieren.
+    /// Wo die Favoriten liegen (bzw. liegen wuerden) — auch bevor der Tab existiert.
+    private string FavoritesFolderPath =>
+        Path.Combine(_baseFolder, SanitizeLeaf(_config.Title), Services.FavoriteService.TabTitle);
+
+    /// <summary>
+    /// Aktiviert die Sterne im Lesezeichen-Bereich — bewusst AUCH dann, wenn es
+    /// den Favoriten-Tab noch gar nicht gibt. Sonst entstuende eine Sackgasse:
+    /// der Stern waere unsichtbar, bis der Tab existiert, und der Tab entsteht
+    /// erst durch einen Klick auf den Stern. Angelegt wird erst beim Klick.
+    /// </summary>
     private void InitFavoritesIfPresent()
     {
         if (!IsBookmarks) return;
         var favorites = Tabs.FirstOrDefault(t =>
             string.Equals(t.Title, Services.FavoriteService.TabTitle, StringComparison.OrdinalIgnoreCase));
-        if (favorites != null) ApplyFavoritesFolder(favorites.FolderPath);
+        ApplyFavoritesFolder(favorites?.FolderPath ?? FavoritesFolderPath);
     }
 
     /// Zieht Tabs, die in der Konfiguration neu dazugekommen sind, in die Ansicht nach

@@ -39,6 +39,11 @@ public sealed class AppConfig
 
     /// Fehlende Website-Symbole beim Anzeigen automatisch aus dem Netz holen.
     public bool AutoFavicons { get; set; } = true;
+
+    /// Eigene Notizen zu Eintraegen: Dateiname (klein) → Notiztext.
+    /// Bewusst ueber den Dateinamen (wie <see cref="Placements"/>), damit die
+    /// Notiz erhalten bleibt, wenn ein Eintrag in einen anderen Tab wandert.
+    public Dictionary<string, string> Notes { get; set; } = new();
 }
 
 public sealed class FenceConfig
@@ -103,4 +108,7 @@ public sealed class TabConfig
     /// Automatik-Regel des Desktop-Einsammlers: Dateien mit diesen Endungen
     /// (ohne Punkt, z. B. "sza") landen automatisch in diesem Tab.
     public List<string> AutoExtensions { get; set; } = new();
+
+    /// Darstellung: false = Kacheln (grosse Symbole), true = Liste mit Notizspalte.
+    public bool ListView { get; set; }
 }
