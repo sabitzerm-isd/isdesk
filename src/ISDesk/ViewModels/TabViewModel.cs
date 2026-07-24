@@ -289,7 +289,8 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             LoadIconAsync(item);
             if (!item.IsFolder)
             {
-                WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
+                if (VisualSettings.AutoFavicons)
+                    WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
                 PlacementRegistry.Learn(path, _config.FolderPath); // Platz-Gedaechtnis
             }
             if (path.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase))

@@ -25,6 +25,14 @@ public sealed class AppConfig
     /// Rastergroesse (Pixel) beim Verschieben/Groessenziehen von Bereichen.
     /// 0 = Ausrichten komplett aus (dann auch kein Kanten-Einrasten).
     public int GridSize { get; set; } = 20;
+
+    /// Globaler Hauptschalter fuer den Milchglas-Effekt. Aus = kein Bereich
+    /// zeichnet ihn (spart Speicher und Rechenzeit), unabhaengig von der
+    /// Einstellung des einzelnen Bereichs.
+    public bool BlurEnabled { get; set; } = true;
+
+    /// Fehlende Website-Symbole beim Anzeigen automatisch aus dem Netz holen.
+    public bool AutoFavicons { get; set; } = true;
 }
 
 public sealed class FenceConfig

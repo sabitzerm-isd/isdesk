@@ -47,10 +47,12 @@ public partial class FenceWindow : Window
         LocationChanged += (_, _) => UpdateBlurCrop();
         SizeChanged += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); UpdateSearchVisibility(); };
         WallpaperService.Changed += UpdateBlurCrop;
+        VisualSettings.BlurChanged += UpdateBlurCrop;
         SearchService.TermChanged += SyncSearchBox;
         Closed += (_, _) =>
         {
             WallpaperService.Changed -= UpdateBlurCrop;
+            VisualSettings.BlurChanged -= UpdateBlurCrop;
             SearchService.TermChanged -= SyncSearchBox;
         };
         Loaded += (_, _) => { UpdateRootClip(); UpdateBlurCrop(); UpdateSearchVisibility(); };
@@ -103,7 +105,7 @@ public partial class FenceWindow : Window
     /// (Fill-Modus: Bild skaliert auf Monitorgroesse, mittig beschnitten).
     private void UpdateBlurCrop()
     {
-        if (!_vm.Blur || WallpaperService.Current is not { } wallpaper)
+        if (!VisualSettings.BlurEnabled || !_vm.Blur || WallpaperService.Current is not { } wallpaper)
         {
             BlurLayer.Background = null;
             return;

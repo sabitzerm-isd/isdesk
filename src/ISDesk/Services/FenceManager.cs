@@ -27,6 +27,32 @@ public sealed class FenceManager
 
     public void PersistNow() => _config.SaveDebounced();
 
+    /// Globaler Milchglas-Schalter (Hauptschalter ueber die Pro-Bereich-Einstellung).
+    public bool BlurEnabled
+    {
+        get => _config.Config.BlurEnabled;
+        set
+        {
+            if (_config.Config.BlurEnabled == value) return;
+            _config.Config.BlurEnabled = value;
+            VisualSettings.SetBlurEnabled(value); // zeichnet alle Bereiche neu
+            _config.SaveDebounced();
+        }
+    }
+
+    /// Fehlende Website-Symbole automatisch nachladen.
+    public bool AutoFavicons
+    {
+        get => _config.Config.AutoFavicons;
+        set
+        {
+            if (_config.Config.AutoFavicons == value) return;
+            _config.Config.AutoFavicons = value;
+            VisualSettings.SetAutoFavicons(value);
+            _config.SaveDebounced();
+        }
+    }
+
     /// Refresh-Button der Ablage: Regeln bereichsuebergreifend anwenden und
     /// (falls aktiviert) den Desktop einsammeln — im Hintergrund.
     public void RunRulesNow()

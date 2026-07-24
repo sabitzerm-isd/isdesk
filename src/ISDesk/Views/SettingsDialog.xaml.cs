@@ -48,6 +48,9 @@ public partial class SettingsDialog : Window
         GridSizeBox.IsEnabled = grid > 0;
         SelectGridSize(grid > 0 ? grid : 20);
 
+        BlurCheck.IsChecked = manager?.BlurEnabled ?? true;
+        FaviconCheck.IsChecked = manager?.AutoFavicons ?? true;
+
         VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
 
@@ -204,6 +207,28 @@ public partial class SettingsDialog : Window
         if (!_initialized || _manager == null) return;
         if (GridSnapCheck.IsChecked != true) return;
         _manager.GridSize = SelectedGridSize();
+    }
+
+    // --- Darstellung und Leistung ---
+
+    private void Blur_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.BlurEnabled = true;
+    }
+
+    private void Blur_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.BlurEnabled = false;
+    }
+
+    private void Favicon_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.AutoFavicons = true;
+    }
+
+    private void Favicon_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.AutoFavicons = false;
     }
 
     private void Sweep_Checked(object sender, RoutedEventArgs e)

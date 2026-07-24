@@ -143,6 +143,18 @@
                         <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
                                    Text="Beim Verschieben und beim Ziehen an den Rändern rasten Bereiche auf dem Raster ein. Zusätzlich fangen sie sich magnetisch an den Kanten benachbarter Bereiche – so lassen sie sich lückenlos aneinanderreihen und bündig ausrichten." />
 
+                        <TextBlock Text="DARSTELLUNG UND LEISTUNG" Style="{StaticResource SectionStyle}" />
+                        <CheckBox x:Name="BlurCheck" Content="Milchglas-Effekt hinter den Bereichen"
+                                  Foreground="#DDFFFFFF" FontSize="12.5"
+                                  Checked="Blur_Checked" Unchecked="Blur_Unchecked" />
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                                   Text="Ausgeschaltet bleiben die Bereiche durchscheinend, aber ohne Weichzeichnung – das spart deutlich Arbeitsspeicher und Rechenzeit, weil jeder Bereich den Effekt sonst einzeln zeichnet." />
+                        <CheckBox x:Name="FaviconCheck" Content="Website-Symbole automatisch nachladen"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,8,0,0"
+                                  Checked="Favicon_Checked" Unchecked="Favicon_Unchecked" />
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                                   Text="Holt fehlende Symbole von Lesezeichen aus dem Internet. Ausgeschaltet entstehen beim Öffnen eines Lesezeichen-Tabs keine Netzwerkzugriffe; bereits geholte Symbole bleiben erhalten." />
+
                         <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
                         <CheckBox x:Name="SweepCheck"
                                   Content="Desktop dauerhaft überwachen und sofort einsammeln"
