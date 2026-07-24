@@ -86,10 +86,21 @@ public partial class FenceWindow : Window
     {
         if (e.Key == Key.Escape)
         {
-            SearchBox.Text = "";
-            SearchService.SetTerm("");
+            ClearSearch();
             e.Handled = true;
         }
+    }
+
+    private void SearchClear_Click(object sender, RoutedEventArgs e)
+    {
+        ClearSearch();
+        SearchBox.Focus(); // weitertippen ohne erneutes Anklicken
+    }
+
+    private void ClearSearch()
+    {
+        SearchBox.Text = "";
+        SearchService.SetTerm("");
     }
 
     /// Suchboxen aller Bereiche zeigen denselben Begriff (ausser der, in der getippt wird).

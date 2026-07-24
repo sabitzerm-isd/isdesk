@@ -423,13 +423,18 @@
                       Margin="0,0,4,0" Visibility="Collapsed">
                     <Border CornerRadius="6" Background="#26000000" BorderBrush="#33FFFFFF" BorderThickness="1">
                         <Grid>
-                            <TextBox x:Name="SearchBox" Width="90" FontSize="11.5" Padding="6,2"
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" x:Name="SearchBox" Width="90" FontSize="11.5" Padding="6,2"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="White" CaretBrush="White"
                                      VerticalContentAlignment="Center"
                                      TextChanged="SearchBox_TextChanged"
                                      KeyDown="SearchBox_KeyDown" />
-                            <TextBlock Text="Suchen…" FontSize="11.5" Foreground="#77FFFFFF"
+                            <TextBlock Grid.Column="0" Text="Suchen…" FontSize="11.5" Foreground="#77FFFFFF"
                                        Margin="8,0" VerticalAlignment="Center" IsHitTestVisible="False">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
@@ -442,6 +447,42 @@
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+
+                            <!-- Suche loeschen: erscheint nur, solange etwas im Feld steht -->
+                            <Button Grid.Column="1" Click="SearchClear_Click" ToolTip="Suche löschen (Esc)">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Width" Value="20" />
+                                        <Setter Property="Height" Value="18" />
+                                        <Setter Property="Margin" Value="0,0,3,0" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <!-- sichtbar, sobald etwas im Feld steht (Trigger unten blendet bei leer aus) -->
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Bd" CornerRadius="4" Background="Transparent">
+                                                        <TextBlock x:Name="X" Text="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                                                   FontSize="10" Foreground="#99FFFFFF"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF" />
+                                                            <Setter TargetName="X" Property="Foreground" Value="White" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text.Length, ElementName=SearchBox}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
                     </Border>
                 </Grid>
