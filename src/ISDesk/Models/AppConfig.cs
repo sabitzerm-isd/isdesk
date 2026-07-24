@@ -26,6 +26,9 @@ public sealed class AppConfig
     /// 0 = Ausrichten komplett aus (dann auch kein Kanten-Einrasten).
     public int GridSize { get; set; } = 20;
 
+    /// Kanten-Einrasten an benachbarten Bereichen (unabhaengig vom Raster).
+    public bool EdgeSnap { get; set; } = true;
+
     /// Globaler Hauptschalter fuer den Milchglas-Effekt. Aus = kein Bereich
     /// zeichnet ihn (spart Speicher und Rechenzeit), unabhaengig von der
     /// Einstellung des einzelnen Bereichs.

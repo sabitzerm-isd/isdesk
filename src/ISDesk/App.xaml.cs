@@ -38,7 +38,8 @@ public partial class App : Application
 
         _config = new ConfigService();
         _config.Load();
-        Interop.GridSnapBehavior.GridSize = _config.Config.GridSize; // Raster/Kanten-Einrasten
+        Interop.GridSnapBehavior.GridSize = _config.Config.GridSize; // Raster
+        Interop.GridSnapBehavior.EdgeSnapEnabled = _config.Config.EdgeSnap; // Kanten-Einrasten
         VisualSettings.Init(_config.Config.BlurEnabled, _config.Config.AutoFavicons);
         _manager = new FenceManager(_config);
         _autostart = new AutostartService();

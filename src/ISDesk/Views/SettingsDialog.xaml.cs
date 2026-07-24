@@ -50,6 +50,9 @@ public partial class SettingsDialog : Window
 
         BlurCheck.IsChecked = manager?.BlurEnabled ?? true;
         FaviconCheck.IsChecked = manager?.AutoFavicons ?? true;
+        EdgeSnapCheck.IsChecked = manager?.EdgeSnapEnabled ?? true;
+        WidthBox.Text = ((int)Math.Round(vm.Width)).ToString();
+        HeightBox.Text = ((int)Math.Round(vm.Height)).ToString();
 
         VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
@@ -124,6 +127,59 @@ public partial class SettingsDialog : Window
 
         if (_manager != null) _manager.SetIconSizeAll(size);
         else foreach (var tab in _vm.Tabs) tab.IconSize = size;
+    }
+
+    // --- Groesse exakt setzen / angleichen ---
+
+    private void ApplySize_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+        double? width = int.TryParse(WidthBox.Text.Trim(), out var w) ? w : null;
+        double? height = int.TryParse(HeightBox.Text.Trim(), out var h) ? h : null;
+        if (width == null && height == null)
+        {
+            ConfirmDialog.Info("Bitte Breite und/oder Höhe als Zahl eingeben.", this);
+            return;
+        }
+        _manager.SetGeometry(_vm, null, null, width, height);
+        WidthBox.Text = ((int)Math.Round(_vm.Width)).ToString();
+        HeightBox.Text = ((int)Math.Round(_vm.Height)).ToString();
+    }
+
+    private void SizeToAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+        var (confirmed, _) = ConfirmDialog.Show(
+            $"Alle anderen Bereiche auf {(int)Math.Round(_vm.Width)} × {(int)Math.Round(_vm.Height)} setzen?",
+            this, okText: "Übertragen");
+        if (!confirmed) return;
+
+        var changed = _manager.ApplySizeToAll(_vm);
+        ConfirmDialog.Info($"{changed} Bereich(e) angepasst.", this);
+    }
+
+    private void SnapAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+        if (GridSnapCheck.IsChecked != true)
+        {
+            ConfirmDialog.Info("Dafür muss „Am Raster ausrichten“ eingeschaltet sein.", this);
+            return;
+        }
+        var changed = _manager.SnapAllToGrid();
+        ConfirmDialog.Info(changed > 0
+            ? $"{changed} Bereich(e) am Raster ausgerichtet."
+            : "Alle Bereiche liegen bereits exakt am Raster.", this);
+    }
+
+    private void EdgeSnap_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.EdgeSnapEnabled = true;
+    }
+
+    private void EdgeSnap_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized && _manager != null) _manager.EdgeSnapEnabled = false;
     }
 
     private void PickFenceIcon_Click(object sender, RoutedEventArgs e)

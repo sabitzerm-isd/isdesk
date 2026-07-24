@@ -140,8 +140,14 @@
                                 <ComboBoxItem Content="Grob (40 px)" Tag="40" />
                             </ComboBox>
                         </StackPanel>
+                        <CheckBox x:Name="EdgeSnapCheck" Content="An Kanten benachbarter Bereiche einrasten"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,8,0,0"
+                                  Checked="EdgeSnap_Checked" Unchecked="EdgeSnap_Unchecked" />
                         <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Beim Verschieben und beim Ziehen an den Rändern rasten Bereiche auf dem Raster ein. Zusätzlich fangen sie sich magnetisch an den Kanten benachbarter Bereiche – so lassen sie sich lückenlos aneinanderreihen und bündig ausrichten." />
+                                   Text="Beim Verschieben und Größenziehen rasten Bereiche auf dem Raster ein; das Kanten-Einrasten dockt sie zusätzlich bündig an direkte Nachbarn an. Wenn sich das Verschieben „klebrig“ anfühlt, schalte das Kanten-Einrasten ab." />
+                        <Button Content="Alle Bereiche jetzt am Raster ausrichten" MinWidth="0" Margin="0,4,0,0"
+                                Click="SnapAll_Click"
+                                ToolTip="Rundet Position und Größe aller Bereiche auf das Raster – bringt gewachsene Layouts in einem Schritt in Ordnung." />
 
                         <TextBlock Text="DARSTELLUNG UND LEISTUNG" Style="{StaticResource SectionStyle}" />
                         <CheckBox x:Name="BlurCheck" Content="Milchglas-Effekt hinter den Bereichen"
@@ -233,6 +239,22 @@
                         <CheckBox Content="Tab-Zähler anzeigen (nur dieser Bereich)" Margin="110,8,0,0"
                                   Foreground="#DDFFFFFF" FontSize="12.5"
                                   IsChecked="{Binding ShowTabCounts, Mode=TwoWay}" />
+
+                        <TextBlock Text="GRÖSSE (exakt)" Style="{StaticResource SectionStyle}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Breite" Style="{StaticResource LabelStyle}" Width="60" />
+                            <TextBox x:Name="WidthBox" Width="80" Height="28" Padding="6,3" FontSize="12.5"
+                                     VerticalContentAlignment="Center" Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White" />
+                            <TextBlock Text="Höhe" Style="{StaticResource LabelStyle}" Width="50" Margin="16,0,0,0" />
+                            <TextBox x:Name="HeightBox" Width="80" Height="28" Padding="6,3" FontSize="12.5"
+                                     VerticalContentAlignment="Center" Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White" />
+                            <Button Content="Übernehmen" MinWidth="0" Margin="12,0,0,0" Click="ApplySize_Click" />
+                        </StackPanel>
+                        <Button Content="Diese Größe auf ALLE Bereiche übertragen" MinWidth="0" Margin="0,8,0,0"
+                                Click="SizeToAll_Click"
+                                ToolTip="Setzt alle anderen Bereiche auf exakt diese Breite und Höhe." />
 
                         <TextBlock Text="BEREICH" Style="{StaticResource SectionStyle}" />
                         <WrapPanel>

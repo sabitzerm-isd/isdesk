@@ -25,12 +25,18 @@ public static class GridSnapBehavior
     /// Rastergroesse in DIP (0 = ausgeschaltet). Wird aus der Konfiguration gesetzt.
     public static int GridSize { get; set; } = 20;
 
-    /// Fangbereich fuer das Kanten-Einrasten in DIP.
-    public const int EdgeSnapDip = 12;
+    /// Kanten-Einrasten an anderen Bereichen (separat abschaltbar — mit vielen
+    /// Bereichen empfinden manche das Fangen als "klebrig").
+    public static bool EdgeSnapEnabled { get; set; } = true;
+
+    /// Fangbereich fuer das Kanten-Einrasten in DIP. Bewusst klein: bei vielen
+    /// Bereichen gibt es sonst fast ueberall einen Fangpunkt.
+    public const int EdgeSnapDip = 8;
 
     /// Wie weit zwei Bereiche quer zur Snap-Richtung auseinanderliegen duerfen,
-    /// damit ihre Kanten noch als "benachbart" gelten (verhindert Fernwirkung).
-    public const int NeighbourReachDip = 80;
+    /// damit ihre Kanten noch als "benachbart" gelten. Klein halten: sonst zaehlt
+    /// bei vielen Bereichen praktisch jeder als Nachbar und liefert Fangpunkte.
+    public const int NeighbourReachDip = 8;
 
     private const int MinWidthDip = 180, MinHeightDip = 120;
 
@@ -79,7 +85,7 @@ public static class GridSnapBehavior
 
         var r = Marshal.PtrToStructure<RECT>(lParam);
         var me = new Box(r.L, r.T, r.R, r.B);
-        var others = OtherRects(hwnd);
+        var others = EdgeSnapEnabled ? OtherRects(hwnd) : new List<Box>();
 
         Box result;
         if (msg == WM_MOVING)

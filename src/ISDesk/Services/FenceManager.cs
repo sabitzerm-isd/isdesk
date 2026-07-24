@@ -27,6 +27,78 @@ public sealed class FenceManager
 
     public void PersistNow() => _config.SaveDebounced();
 
+    /// Rundet Position UND Groesse ALLER Bereiche auf das eingestellte Raster —
+    /// bringt gewachsene, krumme Layouts in einem Schritt in Ordnung.
+    public int SnapAllToGrid()
+    {
+        var grid = _config.Config.GridSize;
+        if (grid <= 0) return 0;
+
+        var changed = 0;
+        foreach (var window in _windows)
+        {
+            var vm = window.ViewModel;
+            double x = Round(vm.X, grid), y = Round(vm.Y, grid);
+            double w = Math.Max(grid * 3, Round(vm.Width, grid));
+            double h = Math.Max(grid * 3, Round(vm.Height, grid));
+
+            if (Same(x, vm.X) && Same(y, vm.Y) && Same(w, vm.Width) && Same(h, vm.Height)) continue;
+
+            window.Left = x; window.Top = y;
+            window.Width = w; window.Height = h;
+            changed++;
+        }
+        _config.SaveDebounced();
+        return changed;
+
+        static double Round(double value, int grid) => Math.Round(value / grid) * grid;
+        static bool Same(double a, double b) => Math.Abs(a - b) < 0.5;
+    }
+
+    /// Uebertraegt die Groesse eines Bereichs auf alle anderen (gleiche Optik).
+    public int ApplySizeToAll(FenceViewModel source)
+    {
+        var changed = 0;
+        foreach (var window in _windows)
+        {
+            if (ReferenceEquals(window.ViewModel, source)) continue;
+            if (Math.Abs(window.Width - source.Width) < 0.5
+                && Math.Abs(window.Height - source.Height) < 0.5) continue;
+
+            window.Width = source.Width;
+            window.Height = source.Height;
+            changed++;
+        }
+        _config.SaveDebounced();
+        return changed;
+    }
+
+    /// Setzt Groesse (und optional Position) eines Bereichs auf exakte Werte.
+    public void SetGeometry(FenceViewModel vm, double? x, double? y, double? width, double? height)
+    {
+        var window = _windows.FirstOrDefault(w => ReferenceEquals(w.ViewModel, vm));
+        if (window == null) return;
+
+        if (x.HasValue) window.Left = x.Value;
+        if (y.HasValue) window.Top = y.Value;
+        if (width.HasValue) window.Width = Math.Max(180, width.Value);
+        if (height.HasValue) window.Height = Math.Max(120, height.Value);
+        _config.SaveDebounced();
+    }
+
+    /// Kanten-Einrasten an anderen Bereichen (separat vom Raster schaltbar).
+    public bool EdgeSnapEnabled
+    {
+        get => _config.Config.EdgeSnap;
+        set
+        {
+            if (_config.Config.EdgeSnap == value) return;
+            _config.Config.EdgeSnap = value;
+            Interop.GridSnapBehavior.EdgeSnapEnabled = value;
+            _config.SaveDebounced();
+        }
+    }
+
     /// Globaler Milchglas-Schalter (Hauptschalter ueber die Pro-Bereich-Einstellung).
     public bool BlurEnabled
     {
