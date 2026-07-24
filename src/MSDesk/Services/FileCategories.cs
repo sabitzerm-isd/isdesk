@@ -28,6 +28,20 @@ public static class FileCategories
             ["archiv"] = Archives, ["archive"] = Archives,
         };
 
+    /// Sonderregel: erfasst Ordner UND Verknuepfungen, die auf einen Ordner
+    /// zeigen (haben keine gemeinsame Dateiendung, brauchen daher ein Schluesselwort).
+    private static readonly string[] FolderRuleNames = { "ordner", "ordners", "verzeichnis", "folder" };
+
+    public static bool IsFolderRule(IEnumerable<string> rules)
+    {
+        foreach (var rule in rules)
+        {
+            if (string.IsNullOrWhiteSpace(rule)) continue;
+            if (FolderRuleNames.Contains(rule.Trim(), StringComparer.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
     /// True, wenn die Endung (ohne Punkt, klein) auf eine der Regeln passt —
     /// direkt oder als Teil einer Kategorie.
     public static bool Matches(IEnumerable<string> rules, string ext)

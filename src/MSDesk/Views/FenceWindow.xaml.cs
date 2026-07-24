@@ -468,9 +468,10 @@ public partial class FenceWindow : Window
 
         var current = string.Join("; ", tab.Config.AutoExtensions);
         var input = InputDialog.Ask(
-            "Dateiendungen für diesen Tab (mit ; getrennt). Einzelne Endungen ohne Punkt " +
-            "(z. B. sza; 7z) oder eine Kategorie: bilder, office, video, audio, archiv.\n" +
-            "Der Desktop-Einsammler legt passende Dateien automatisch hier ab:",
+            "Regeln für diesen Tab (mit ; getrennt). Einzelne Endungen ohne Punkt " +
+            "(z. B. sza; 7z), eine Kategorie (bilder, office, video, audio, archiv) " +
+            "oder „ordner“ für Ordner und Ordner-Verknüpfungen.\n" +
+            "Der Einsammler legt passende Einträge automatisch hier ab:",
             current, this);
         if (input == null) return;
 

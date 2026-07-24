@@ -70,7 +70,7 @@ public sealed class DesktopSweeper : IDisposable
     /// unabhaengig davon, ob die Dauerueberwachung eingeschaltet ist.
     public void SweepNow() => Sweep();
 
-    /// Wendet die Endungs-Regeln auf ALLE Bereichs-Tabs an: Dateien, die laut
+    /// Wendet die Regeln auf ALLE Bereichs-Tabs an: Dateien UND Ordner, die laut
     /// Regel in einen anderen Tab gehoeren, werden dorthin verschoben.
     public void ApplyRulesEverywhere()
     {
@@ -81,7 +81,9 @@ public sealed class DesktopSweeper : IDisposable
                 foreach (var tab in fence.Tabs.ToList())
                 {
                     if (!Directory.Exists(tab.FolderPath)) continue;
-                    foreach (var file in new DirectoryInfo(tab.FolderPath).EnumerateFiles())
+                    // FileSystemInfos statt nur Files: sonst blieben Ordner und
+                    // Ordner-Verknuepfungen von der Regel „ordner" unberuehrt.
+                    foreach (var file in new DirectoryInfo(tab.FolderPath).EnumerateFileSystemInfos())
                     {
                         try
                         {
@@ -140,6 +142,17 @@ public sealed class DesktopSweeper : IDisposable
     /// Tab mit passender Endungs-Regel (TabConfig.AutoExtensions), z. B. sza → HiCAD-Tab.
     private string? LookupRuleFolder(FileSystemInfo entry)
     {
+        // Ordner und Ordner-Verknuepfungen: eigene Regel „ordner" (haben keine
+        // gemeinsame Endung). Hat Vorrang, damit ein Ordner-Tab sie einsammelt,
+        // bevor eine .lnk-Regel greifen wuerde.
+        if (ShortcutFactory.PointsToFolder(entry.FullName))
+        {
+            foreach (var fence in _config.Config.Fences)
+                foreach (var tab in fence.Tabs)
+                    if (FileCategories.IsFolderRule(tab.AutoExtensions) && Directory.Exists(tab.FolderPath))
+                        return tab.FolderPath;
+        }
+
         if ((entry.Attributes & FileAttributes.Directory) == FileAttributes.Directory) return null;
         var ext = Path.GetExtension(entry.Name).TrimStart('.').ToLowerInvariant();
         if (ext.Length == 0) return null;

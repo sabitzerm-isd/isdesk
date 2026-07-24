@@ -44,3 +44,37 @@ public class FileCategoriesTests
         Assert.False(FileCategories.Matches(new[] { "sza" }, ""));
     }
 }
+
+public class FolderRuleTests
+{
+    [Theory]
+    [InlineData("ordner")]
+    [InlineData("Ordner")]
+    [InlineData("verzeichnis")]
+    [InlineData("folder")]
+    public void Ordner_Schluesselwoerter_werden_erkannt(string rule)
+    {
+        Assert.True(FileCategories.IsFolderRule(new[] { rule }));
+    }
+
+    [Fact]
+    public void Ordner_Regel_neben_anderen_Regeln()
+    {
+        Assert.True(FileCategories.IsFolderRule(new[] { "sza", "ordner" }));
+    }
+
+    [Fact]
+    public void Ohne_Ordner_Schluesselwort_keine_Ordner_Regel()
+    {
+        Assert.False(FileCategories.IsFolderRule(new[] { "sza", "bilder" }));
+        Assert.False(FileCategories.IsFolderRule(Array.Empty<string>()));
+    }
+
+    [Fact]
+    public void Ordner_ist_keine_Dateiendung()
+    {
+        // "ordner" darf nicht versehentlich als Endung .ordner gelten
+        Assert.False(FileCategories.MatchesExact(new[] { "ordner" }, "sza"));
+        Assert.False(FileCategories.MatchesCategory(new[] { "ordner" }, "png"));
+    }
+}
