@@ -114,12 +114,22 @@ public sealed class ConfigService
         lock (_sync)
         {
             if (_suppressSaves) return;
-            var dir = Path.GetDirectoryName(_path)!;
-            Directory.CreateDirectory(dir);
-            var tmp = _path + ".tmp";
-            var json = JsonSerializer.Serialize(Config, JsonOptions);
-            File.WriteAllText(tmp, json);
-            File.Move(tmp, _path, overwrite: true);
+            try
+            {
+                var dir = Path.GetDirectoryName(_path)!;
+                Directory.CreateDirectory(dir);
+                var tmp = _path + ".tmp";
+                var json = JsonSerializer.Serialize(Config, JsonOptions);
+                File.WriteAllText(tmp, json);
+                File.Move(tmp, _path, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                // Ohne diese Meldung blieb ein fehlgeschlagenes Speichern voellig
+                // unbemerkt: der Aufruf kommt aus einem Timer-Rueckruf, dessen
+                // Ausnahmen spurlos verschwinden.
+                App.LogCrash(ex, "ConfigService.Save");
+            }
         }
     }
 

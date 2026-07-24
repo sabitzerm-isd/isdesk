@@ -175,6 +175,11 @@ public partial class App : Application
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {
+        // SOFORT sperren — nicht erst nach der Entprellung: Windows schiebt die
+        // Fenster des entfallenen Monitors umgehend zusammen, und diese
+        // Zwischenlage darf die gemerkte Anordnung nicht ueberschreiben.
+        _manager?.SuspendLayoutSaving();
+
         _displayDebounce?.Stop();
         _displayDebounce?.Start();
     }

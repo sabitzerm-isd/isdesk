@@ -482,11 +482,11 @@ public sealed class FenceManager
         DisplayConfig.Invalidate();
         var key = DisplayConfig.Current;
 
-        // Zuerst die BISHERIGE Anordnung sichern: beim Abstecken eines Monitors
-        // wuerde sie sonst verloren gehen, weil danach nur noch die neue
-        // Konfiguration geschrieben wird.
-        if (_currentLayoutKey != null && !string.Equals(_currentLayoutKey, key, StringComparison.Ordinal))
-            StoreLayout(_currentLayoutKey);
+        // Die bisherige Anordnung wird hier BEWUSST NICHT mehr gesichert: Windows
+        // hat die Fenster des entfallenen Monitors zu diesem Zeitpunkt laengst
+        // selbst zusammengeschoben. Sie zu sichern hiesse, die gute Anordnung
+        // durch diese Zwischenlage zu ersetzen. Gesichert wird stattdessen
+        // laufend beim Verschieben (siehe LayoutChanged) sowie beim Beenden.
 
         // Unbekannte Konfiguration (z. B. erstes Abstecken des zweiten Monitors):
         // die Anordnung anteilig auf die neue Flaeche uebertragen, statt die
@@ -520,7 +520,8 @@ public sealed class FenceManager
         };
 
         _currentLayoutKey = key;
-        _config.SaveDebounced();
+        _config.Save();          // sofort, nicht gebuendelt: der Wechsel ist abgeschlossen
+        ResumeLayoutSaving();    // ab jetzt darf wieder laufend gesichert werden
     }
 
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
@@ -537,8 +538,27 @@ public sealed class FenceManager
     /// Bildschirm-Konfiguration festgehalten — gebuendelt, damit waehrend des
     /// Ziehens nicht bei jedem Pixel geschrieben wird.
     /// </summary>
+    private bool _layoutSavingSuspended;
+
+    /// <summary>
+    /// Waehrend eines Bildschirmwechsels darf keine Anordnung gespeichert werden.
+    /// Windows schiebt beim Abstecken die Fenster des entfallenen Monitors selbst
+    /// auf den verbleibenden — diese Zwischenlage wuerde sonst die gemerkte
+    /// Anordnung der bisherigen Konfiguration ueberschreiben und waere fuer immer
+    /// verloren.
+    /// </summary>
+    public void SuspendLayoutSaving()
+    {
+        _layoutSavingSuspended = true;
+        _layoutSaveTimer?.Stop();
+    }
+
+    public void ResumeLayoutSaving() => _layoutSavingSuspended = false;
+
     public void LayoutChanged()
     {
+        if (_layoutSavingSuspended) return;
+
         if (_layoutSaveTimer == null)
         {
             _layoutSaveTimer = new System.Timers.Timer(1500) { AutoReset = false };
@@ -714,17 +734,29 @@ public sealed class FenceManager
     }
 
     /// Fenster ausserhalb aller Bildschirme auf den Primaermonitor (100,100) zuruecksetzen.
+    /// <summary>
+    /// Holt einen Bereich zurueck in den sichtbaren Bildschirmbereich.
+    ///
+    /// Frueher wurde er dabei auf den festen Punkt (100/100) gesetzt — lagen
+    /// mehrere Bereiche daneben, stapelten sie sich dort alle uebereinander.
+    /// Ausserdem wurde in DIP gerechnet, aber gegen Bildschirmgrenzen in
+    /// PIXELN geprueft; bei skalierter Anzeige stimmte das nicht.
+    /// Jetzt wird durchgaengig in DIP gerechnet und nur so weit geschoben, wie
+    /// noetig — die relative Lage bleibt damit erhalten.
+    /// </summary>
     private static void EnsureOnScreen(FenceConfig f)
     {
-        var rect = new System.Drawing.Rectangle(
-            (int)f.X, (int)f.Y, (int)Math.Max(1, f.Width), (int)Math.Max(1, f.Height));
-        foreach (var screen in System.Windows.Forms.Screen.AllScreens)
-        {
-            if (screen.Bounds.IntersectsWith(rect))
-                return;
-        }
-        f.X = 100;
-        f.Y = 100;
+        var virtuell = new LayoutTransfer.Area(
+            System.Windows.SystemParameters.VirtualScreenLeft,
+            System.Windows.SystemParameters.VirtualScreenTop,
+            System.Windows.SystemParameters.VirtualScreenWidth,
+            System.Windows.SystemParameters.VirtualScreenHeight);
+
+        var korrigiert = LayoutTransfer.ClampIntoArea(
+            new LayoutRect { X = f.X, Y = f.Y, Width = f.Width, Height = f.Height }, virtuell);
+
+        f.X = korrigiert.X;
+        f.Y = korrigiert.Y;
     }
 
     private static string SanitizeLeaf(string name)

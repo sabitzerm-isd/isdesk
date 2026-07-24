@@ -53,6 +53,37 @@ public static class LayoutTransfer
         return new LayoutRect { X = Math.Round(x), Y = Math.Round(y), Width = Math.Round(width), Height = Math.Round(height) };
     }
 
+    /// Mindestens sichtbarer Anteil eines Bereichs (DIP), damit er greifbar bleibt.
+    public const double MinVisible = 60;
+
+    /// <summary>
+    /// Schiebt einen Bereich in die Flaeche hinein, statt ihn auf einen festen
+    /// Punkt zu setzen. Wichtig: mehrere Bereiche auf denselben Punkt zu setzen
+    /// ergaebe einen Stapel — genau das passierte frueher.
+    /// Liegt der Bereich ausreichend sichtbar, bleibt er unveraendert.
+    /// </summary>
+    public static LayoutRect ClampIntoArea(LayoutRect item, Area area)
+    {
+        if (area.Width <= 0 || area.Height <= 0) return item;
+
+        var right = area.X + area.Width;
+        var bottom = area.Y + area.Height;
+
+        var sichtbar = item.X + item.Width > area.X + MinVisible
+                       && item.X < right - MinVisible
+                       && item.Y + item.Height > area.Y + MinVisible
+                       && item.Y < bottom - MinVisible;
+        if (sichtbar) return item;
+
+        return new LayoutRect
+        {
+            X = Clamp(item.X, area.X, Math.Max(area.X, right - item.Width)),
+            Y = Clamp(item.Y, area.Y, Math.Max(area.Y, bottom - item.Height)),
+            Width = item.Width,
+            Height = item.Height
+        };
+    }
+
     /// Abstand zwischen zwei Bereichen bei der Neuanordnung (DIP).
     private const double Gap = 8;
 
