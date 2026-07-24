@@ -39,6 +39,15 @@ public partial class SettingsDialog : Window
         BackupPathBox.Text = manager?.AutoBackupFolder ?? "";
         BookmarkButton.IsEnabled = manager?.Bookmarks?.ChromeAvailable ?? false;
         if (!BookmarkButton.IsEnabled) BookmarkButton.Content = "Chrome nicht gefunden";
+        FirefoxButton.IsEnabled = manager?.Bookmarks?.FirefoxAvailable ?? false;
+        if (!FirefoxButton.IsEnabled) FirefoxButton.Content = "Firefox nicht gefunden";
+
+        // Raster/Kanten-Einrasten: 0 = aus, sonst Rastergroesse in Pixeln.
+        var grid = manager?.GridSize ?? 20;
+        GridSnapCheck.IsChecked = grid > 0;
+        GridSizeBox.IsEnabled = grid > 0;
+        SelectGridSize(grid > 0 ? grid : 20);
+
         VersionText.Text = $"ISDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
 
@@ -143,6 +152,58 @@ public partial class SettingsDialog : Window
         ConfirmDialog.Info(added > 0
             ? $"{added} neue Lesezeichen in den Bereich „Lesezeichen“ übernommen."
             : "Keine neuen Lesezeichen gefunden (alles bereits vorhanden).", this);
+    }
+
+    private void ImportFirefoxBookmarks_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager?.Bookmarks is not { } bookmarks) return;
+        var added = bookmarks.SyncFirefox();
+        if (added > 0)
+        {
+            ConfirmDialog.Info($"{added} neue Lesezeichen in den Bereich „Lesezeichen“ übernommen.", this);
+            return;
+        }
+        ConfirmDialog.Info(bookmarks.LastFirefoxNote
+                           ?? "Keine neuen Lesezeichen gefunden (alles bereits vorhanden).", this);
+    }
+
+    // --- Raster / Kanten-Einrasten ---
+
+    private void SelectGridSize(int size)
+    {
+        foreach (ComboBoxItem item in GridSizeBox.Items)
+        {
+            if (item.Tag is string tag && tag == size.ToString())
+            {
+                GridSizeBox.SelectedItem = item;
+                return;
+            }
+        }
+        GridSizeBox.SelectedItem = GridSizeBox.Items[1]; // Normal (20)
+    }
+
+    private int SelectedGridSize()
+        => GridSizeBox.SelectedItem is ComboBoxItem { Tag: string tag } && int.TryParse(tag, out var size)
+            ? size
+            : 20;
+
+    private void GridSnap_Checked(object sender, RoutedEventArgs e)
+    {
+        GridSizeBox.IsEnabled = true;
+        if (_initialized && _manager != null) _manager.GridSize = SelectedGridSize();
+    }
+
+    private void GridSnap_Unchecked(object sender, RoutedEventArgs e)
+    {
+        GridSizeBox.IsEnabled = false;
+        if (_initialized && _manager != null) _manager.GridSize = 0; // Ausrichten aus
+    }
+
+    private void GridSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_initialized || _manager == null) return;
+        if (GridSnapCheck.IsChecked != true) return;
+        _manager.GridSize = SelectedGridSize();
     }
 
     private void Sweep_Checked(object sender, RoutedEventArgs e)

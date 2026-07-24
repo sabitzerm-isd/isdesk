@@ -44,9 +44,21 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         {
             if (!ReferenceEquals(_activeTab, value))
             {
-                if (_activeTab != null) _activeTab.IsActive = false;
+                var previous = _activeTab;
+                if (previous != null) previous.IsActive = false;
                 _activeTab = value;
-                if (_activeTab != null) _activeTab.IsActive = true;
+                if (_activeTab != null)
+                {
+                    _activeTab.IsActive = true;
+                    _activeTab.EnsureLoaded(); // Icons erscheinen beim Umschalten
+                }
+                // Der vorherige Tab gibt Ueberwachung und Icons wieder frei.
+                previous?.Unload();
+
+                // Tab-Zaehler der nicht geladenen Tabs auffrischen (nur wenn angezeigt).
+                if (_config.ShowTabCounts)
+                    foreach (var tab in Tabs) tab.RefreshItemCount();
+
                 _config.ActiveTab = value != null ? Math.Max(0, Tabs.IndexOf(value)) : 0;
                 OnChanged();
                 Persist();
@@ -67,9 +79,7 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         var tab = new TabViewModel(tabConfig, _persist);
         Tabs.Add(tab);
         UpdateTabFlags();
-        tab.Reload();
-        tab.StartWatching();
-        ActiveTab = tab; // persistiert
+        ActiveTab = tab; // laedt den Tab und persistiert
         return tab;
     }
 
@@ -160,15 +170,10 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         return candidate;
     }
 
-    /// Laedt alle Tabs (Icons) und startet die Ordnerueberwachung. Auf UI-Thread aufrufen.
-    public void ActivateAllTabs()
-    {
-        foreach (var tab in Tabs)
-        {
-            tab.Reload();
-            tab.StartWatching();
-        }
-    }
+    /// Laedt NUR den sichtbaren Tab (Icons + Ordnerueberwachung). Die uebrigen Tabs
+    /// laden erst beim Umschalten nach — das spart bei vielen Tabs deutlich
+    /// Speicher, Threads und Handles. Auf UI-Thread aufrufen.
+    public void ActivateVisibleTab() => _activeTab?.EnsureLoaded();
 
     public void DisposeTabs()
     {
@@ -194,24 +199,26 @@ public sealed class FenceViewModel : INotifyPropertyChanged
     /// Der Ablage-Bereich zeigt einen Refresh-Button (Regeln ausfuehren).
     public bool IsAblage => string.Equals(_config.Title, "Ablage", StringComparison.OrdinalIgnoreCase);
 
-    /// Der Lesezeichen-Bereich: Refresh gleicht Chrome ab, Einzelklick oeffnet.
+    /// Der Lesezeichen-Bereich: Refresh gleicht Chrome + Firefox ab, Einzelklick oeffnet.
     public bool IsBookmarks => string.Equals(_config.Title, "Lesezeichen", StringComparison.OrdinalIgnoreCase);
 
-    /// Bereiche mit Refresh-Button (Ablage: Regeln, Lesezeichen: Chrome-Abgleich).
+    /// Bereiche mit Refresh-Button (Ablage: Regeln, Lesezeichen: Browser-Abgleich).
     public bool IsRefreshable => IsAblage || IsBookmarks;
 
-    /// Zieht Tabs, die in der Konfiguration neu dazugekommen sind, in die Ansicht nach.
+    /// Zieht Tabs, die in der Konfiguration neu dazugekommen sind, in die Ansicht nach
+    /// (geladen wird erst beim Anzeigen).
     public void SyncTabsFromConfig()
     {
         foreach (var tabConfig in _config.Tabs)
         {
             if (Tabs.Any(t => ReferenceEquals(t.Config, tabConfig))) continue;
-            var tab = new TabViewModel(tabConfig, _persist);
-            Tabs.Add(tab);
-            tab.Reload();
-            tab.StartWatching();
+            Tabs.Add(new TabViewModel(tabConfig, _persist));
         }
         UpdateTabFlags();
+
+        // Neu importierte Dateien im sichtbaren Tab zeigen.
+        if (_activeTab is { IsLoaded: true }) _activeTab.Reload();
+        else _activeTab?.EnsureLoaded();
     }
 
     public double Opacity

@@ -33,7 +33,7 @@ public partial class FenceWindow : Window
         Height = vm.Height;
 
         _vm.PropertyChanged += OnVmPropertyChanged;
-        Loaded += (_, _) => _vm.ActivateAllTabs();
+        Loaded += (_, _) => _vm.ActivateVisibleTab();
         Closed += (_, _) => _vm.DisposeTabs();
 
         // "Desktop anzeigen" (Win+D) minimiert alle Fenster — Bereiche gehoeren
@@ -150,7 +150,7 @@ public partial class FenceWindow : Window
     {
         base.OnSourceInitialized(e);
         DesktopPinning.Attach(this);
-        // GridSnapBehavior.Attach(this); // Raster vorerst deaktiviert (spaeter verbessern)
+        GridSnapBehavior.Attach(this); // Raster + Kanten-Einrasten (Optionen: Rastergroesse)
         DarkMenuMode.AllowForWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
         ResizeMode = _vm.Locked ? ResizeMode.NoResize : ResizeMode.CanResize;
     }
@@ -434,10 +434,10 @@ public partial class FenceWindow : Window
     {
         if (_vm.IsBookmarks)
         {
-            var added = Manager?.SyncBookmarks() ?? 0;
+            var added = Manager?.SyncBookmarks() ?? 0; // Chrome + Firefox
             ConfirmDialog.Info(added > 0
-                ? $"{added} neue Lesezeichen hinzugefügt."
-                : "Keine neuen Lesezeichen gefunden.", this);
+                ? $"{added} neue Lesezeichen hinzugefügt (Chrome + Firefox)."
+                : "Keine neuen Lesezeichen gefunden (Chrome + Firefox).", this);
         }
         else
         {

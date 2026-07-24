@@ -181,7 +181,7 @@
                     </TextBlock.Style>
                     </TextBlock>
                     <!-- Dateianzahl je Tab (nur wenn im Bereich aktiviert) -->
-                    <TextBlock Text="{Binding Items.Count, StringFormat=' ({0})'}"
+                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
                                FontSize="11.5" VerticalAlignment="Center" Foreground="#99FFFFFF">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -366,9 +366,9 @@
                          BorderBrush="#66FFFFFF" BorderThickness="1" CaretBrush="White"
                          KeyDown="TitleEditBox_KeyDown"
                          LostKeyboardFocus="TitleEditBox_LostFocus" />
-                <!-- Refresh (Ablage: Regeln, Lesezeichen: Chrome-Abgleich) -->
+                <!-- Refresh (Ablage: Regeln, Lesezeichen: Chrome- + Firefox-Abgleich) -->
                 <Button Grid.Column="1" Click="RefreshRules_Click"
-                        ToolTip="Aktualisieren (Ablage: Regeln ausführen · Lesezeichen: neue Chrome-Lesezeichen holen)">
+                        ToolTip="Aktualisieren (Ablage: Regeln ausführen · Lesezeichen: neue Chrome- und Firefox-Lesezeichen holen)">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Width" Value="26" />

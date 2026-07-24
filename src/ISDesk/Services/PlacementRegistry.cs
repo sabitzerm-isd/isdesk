@@ -26,6 +26,50 @@ public static class PlacementRegistry
         _config.SaveDebounced();
     }
 
+    /// Liest einmalig ALLE Tab-Ordner ein und merkt sich, welche Datei wo liegt.
+    /// Noetig, seit Tabs erst beim Anzeigen geladen werden (frueher lernte jeder
+    /// Reload mit): laeuft im Hintergrund, ohne Icons und ohne Ueberwachung.
+    public static void LearnAllTabFolders()
+    {
+        var config = _config;
+        if (config == null) return;
+
+        var folders = config.Config.Fences
+            .SelectMany(f => f.Tabs)
+            .Select(t => t.FolderPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Task.Run(() =>
+        {
+            var found = new List<(string File, string Folder)>();
+            foreach (var folder in folders)
+            {
+                try
+                {
+                    if (!Directory.Exists(folder)) continue;
+                    foreach (var file in Directory.EnumerateFiles(folder))
+                        found.Add((file, folder));
+                }
+                catch (Exception)
+                {
+                    // Ordner gerade nicht lesbar → beim naechsten Start erneut
+                }
+            }
+
+            // Uebernahme auf dem UI-Thread: die Konfiguration wird nur dort veraendert.
+            void Apply()
+            {
+                foreach (var (file, folder) in found) Learn(file, folder);
+            }
+
+            var app = Application.Current;
+            if (app != null) app.Dispatcher.BeginInvoke(Apply);
+            else Apply();
+        });
+    }
+
     /// Gelernter Tab-Ordner fuer einen Dateinamen (null, wenn unbekannt oder Ordner weg).
     public static string? Lookup(string fileName)
     {

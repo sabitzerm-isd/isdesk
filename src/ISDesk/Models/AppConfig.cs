@@ -21,6 +21,10 @@ public sealed class AppConfig
     /// Wurde der Autostart schon einmal eingerichtet? Beim allerersten Start
     /// schaltet ISDesk ihn automatisch ein (im Tray abschaltbar).
     public bool AutostartConfigured { get; set; }
+
+    /// Rastergroesse (Pixel) beim Verschieben/Groessenziehen von Bereichen.
+    /// 0 = Ausrichten komplett aus (dann auch kein Kanten-Einrasten).
+    public int GridSize { get; set; } = 20;
 }
 
 public sealed class FenceConfig

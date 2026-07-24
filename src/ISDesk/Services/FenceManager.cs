@@ -50,6 +50,21 @@ public sealed class FenceManager
         }
     }
 
+    /// Rastergroesse beim Verschieben/Groessenziehen (0 = Ausrichten aus).
+    /// Wirkt sofort auf alle offenen Bereiche.
+    public int GridSize
+    {
+        get => _config.Config.GridSize;
+        set
+        {
+            var size = Math.Max(0, value);
+            if (_config.Config.GridSize == size) return;
+            _config.Config.GridSize = size;
+            Interop.GridSnapBehavior.GridSize = size;
+            _config.SaveDebounced();
+        }
+    }
+
     /// Schaltet die Ablage um: an = Bereich "Ablage" sicherstellen + Einsammler starten.
     public void SetDesktopSweep(bool enabled)
     {
@@ -122,8 +137,16 @@ public sealed class FenceManager
         else open.ViewModel.SyncTabsFromConfig();
     }
 
-    /// Loest den Chrome-Abgleich aus (Refresh-Button des Lesezeichen-Bereichs).
-    public int SyncBookmarks() => Bookmarks?.SyncChrome() ?? 0;
+    /// Loest den Lesezeichen-Abgleich aus (Refresh-Button des Lesezeichen-Bereichs):
+    /// Chrome UND Firefox, Rueckgabe ist die Summe der neuen Links.
+    public int SyncBookmarks()
+    {
+        if (Bookmarks is not { } bookmarks) return 0;
+        var added = 0;
+        if (bookmarks.ChromeAvailable) added += bookmarks.SyncChrome();
+        if (bookmarks.FirefoxAvailable) added += bookmarks.SyncFirefox();
+        return added;
+    }
 
     public IReadOnlyList<FenceWindow> Windows => _windows;
 

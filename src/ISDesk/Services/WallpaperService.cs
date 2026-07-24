@@ -31,6 +31,12 @@ public static class WallpaperService
         }
     }
 
+    private static int GetPrimaryScreenWidth()
+    {
+        try { return System.Windows.Forms.Screen.PrimaryScreen?.Bounds.Width ?? 1920; }
+        catch (Exception) { return 1920; }
+    }
+
     /// Neu laden (z. B. nach Wallpaper- oder Monitorwechsel).
     public static void Reload()
     {
@@ -50,6 +56,9 @@ public static class WallpaperService
                 var img = new BitmapImage();
                 img.BeginInit();
                 img.CacheOption = BitmapCacheOption.OnLoad;
+                // Nur in Bildschirmbreite dekodieren: das Bild wird ohnehin
+                // weichgezeichnet — spart bei 4K-Wallpapern zweistellige MB.
+                img.DecodePixelWidth = Math.Max(800, GetPrimaryScreenWidth());
                 img.UriSource = new Uri(path);
                 img.EndInit();
                 img.Freeze();

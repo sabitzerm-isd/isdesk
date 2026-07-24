@@ -16,8 +16,8 @@ public static class DesktopPinning
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int WM_WINDOWPOSCHANGING = 0x0046;
+    private static readonly IntPtr HWND_TOP = IntPtr.Zero;
     private static readonly IntPtr HWND_BOTTOM = new(1);
-    private static readonly IntPtr HWND_TOPMOST = new(-1);
     private static readonly IntPtr HWND_NOTOPMOST = new(-2);
     private const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
@@ -42,10 +42,21 @@ public static class DesktopPinning
     private static bool _desktopMode;
     private static WinEventDelegate? _foregroundProc; // Referenz halten, sonst sammelt der GC den Delegate ein
 
-    /// Holt alle Bereiche EINMALIG in den Vordergrund (bleiben oben, bis der Nutzer
-    /// in eine andere App klickt — dann sinken sie via Foreground-Hook zurueck).
-    /// Fuer „Bereiche zeigen" per Tray/Hotkey, z. B. waehrend eines Teams-Anrufs.
-    public static void BringToFrontTemporarily() => SetDesktopMode(true);
+    private static System.Timers.Timer? _manualTimer;
+
+    /// Holt alle Bereiche kurz nach vorn (Tray-Menue / Tray-Doppelklick). Sie sinken
+    /// automatisch zurueck, sobald der Nutzer in eine andere App klickt — spaetestens
+    /// aber nach 10 Sekunden. Ohne dieses Zeitlimit koennten Bereiche dauerhaft ueber
+    /// Fenstern liegen, die Windows ohne Fokuswechsel oeffnet (z. B. Teams-Anrufe).
+    public static void BringToFrontTemporarily()
+    {
+        SetDesktopMode(true);
+
+        _manualTimer?.Dispose();
+        _manualTimer = new System.Timers.Timer(10000) { AutoReset = false };
+        _manualTimer.Elapsed += (_, _) => SetDesktopMode(false);
+        _manualTimer.Start();
+    }
 
     public static void Attach(Window window)
     {
@@ -112,10 +123,14 @@ public static class DesktopPinning
         {
             if (active)
             {
-                SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                // BEWUSST HWND_TOP statt HWND_TOPMOST: die Bereiche kommen ueber die
+                // normalen Fenster, bleiben aber UNTER echten Topmost-Fenstern
+                // (Teams-Anrufe, Benachrichtigungen) — die verdecken wir damit nie.
+                SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }
             else
             {
+                // Sicherheitshalber ein evtl. frueher gesetztes Topmost aufheben.
                 SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
                 SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }

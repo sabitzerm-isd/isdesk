@@ -38,6 +38,7 @@ public partial class App : Application
 
         _config = new ConfigService();
         _config.Load();
+        Interop.GridSnapBehavior.GridSize = _config.Config.GridSize; // Raster/Kanten-Einrasten
         _manager = new FenceManager(_config);
         _autostart = new AutostartService();
 
@@ -63,6 +64,9 @@ public partial class App : Application
         _manager.Bookmarks = new BookmarkImportService(_config, _manager);
         _manager.OpenAll();
         _manager.ApplyLayoutsForCurrentDisplays();
+        // Tabs laden erst beim Anzeigen — das Platz-Gedaechtnis lernt die Ordner
+        // deshalb einmalig im Hintergrund (ohne Icons/Ueberwachung).
+        PlacementRegistry.LearnAllTabFolders();
         if (_config.Config.DesktopSweep)
             _manager.Sweeper.Start();
 

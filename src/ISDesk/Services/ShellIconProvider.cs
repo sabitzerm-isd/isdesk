@@ -62,7 +62,11 @@ public sealed class ShellIconProvider
 
         // Fehlschlaege NICHT cachen, damit der naechste Reload erneut versucht.
         if (icon != null)
+        {
+            // Obergrenze, damit der Cache ueber lange Laufzeiten nicht unbegrenzt waechst.
+            if (_cache.Count > 1500) _cache.Clear();
             _cache[key] = icon;
+        }
         return icon;
     }
 

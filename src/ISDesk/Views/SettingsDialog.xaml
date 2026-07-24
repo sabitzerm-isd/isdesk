@@ -119,11 +119,29 @@
 
                         <TextBlock Text="LESEZEICHEN" Style="{StaticResource SectionStyle}" />
                         <TextBlock Style="{StaticResource HintStyle}"
-                                   Text="Legt alle Google-Chrome-Lesezeichen im Bereich „Lesezeichen“ ab – nach Ordnern in Tabs gegliedert. Erneutes Ausführen holt nur neu hinzugekommene Lesezeichen." />
-                        <StackPanel Orientation="Horizontal">
+                                   Text="Legt alle Lesezeichen im Bereich „Lesezeichen“ ab – nach Ordnern in Tabs gegliedert. Erneutes Ausführen holt nur neu hinzugekommene Lesezeichen. Firefox liest ISDesk aus der neuesten Lesezeichen-Sicherung des Profils." />
+                        <WrapPanel>
                             <Button x:Name="BookmarkButton" Content="Chrome-Lesezeichen importieren / abgleichen"
-                                    MinWidth="0" Click="ImportBookmarks_Click" />
+                                    MinWidth="0" Margin="0,0,8,8" Click="ImportBookmarks_Click" />
+                            <Button x:Name="FirefoxButton" Content="Firefox-Lesezeichen importieren / abgleichen"
+                                    MinWidth="0" Margin="0,0,8,8" Click="ImportFirefoxBookmarks_Click" />
+                        </WrapPanel>
+
+                        <TextBlock Text="BEREICHE AUSRICHTEN" Style="{StaticResource SectionStyle}" />
+                        <CheckBox x:Name="GridSnapCheck" Content="Am Raster ausrichten"
+                                  Foreground="#DDFFFFFF" FontSize="12.5"
+                                  Checked="GridSnap_Checked" Unchecked="GridSnap_Unchecked" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Rastergröße" Style="{StaticResource LabelStyle}" Width="90" />
+                            <ComboBox x:Name="GridSizeBox" Width="130" Height="28"
+                                      VerticalAlignment="Center" SelectionChanged="GridSize_SelectionChanged">
+                                <ComboBoxItem Content="Fein (10 px)" Tag="10" />
+                                <ComboBoxItem Content="Normal (20 px)" Tag="20" />
+                                <ComboBoxItem Content="Grob (40 px)" Tag="40" />
+                            </ComboBox>
                         </StackPanel>
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                                   Text="Beim Verschieben und beim Ziehen an den Rändern rasten Bereiche auf dem Raster ein. Zusätzlich fangen sie sich magnetisch an den Kanten benachbarter Bereiche – so lassen sie sich lückenlos aneinanderreihen und bündig ausrichten." />
 
                         <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
                         <CheckBox x:Name="SweepCheck"
