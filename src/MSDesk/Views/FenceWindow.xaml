@@ -9,7 +9,7 @@
         ShowActivated="False"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
-        MinWidth="180" MinHeight="120"
+        MinWidth="110" MinHeight="80"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         AllowDrop="True"

@@ -89,8 +89,8 @@ public sealed class FenceManager
 
         if (x.HasValue) window.Left = x.Value;
         if (y.HasValue) window.Top = y.Value;
-        if (width.HasValue) window.Width = Math.Max(180, width.Value);
-        if (height.HasValue) window.Height = Math.Max(120, height.Value);
+        if (width.HasValue) window.Width = Math.Max(110, width.Value);
+        if (height.HasValue) window.Height = Math.Max(80, height.Value);
         _config.SaveDebounced();
     }
 
@@ -499,7 +499,7 @@ public sealed class FenceManager
             if (cfg.Layouts.TryGetValue(key, out var rect))
             {
                 cfg.X = rect.X; cfg.Y = rect.Y;
-                cfg.Width = Math.Max(rect.Width, 180); cfg.Height = Math.Max(rect.Height, 120);
+                cfg.Width = Math.Max(rect.Width, 110); cfg.Height = Math.Max(rect.Height, 80);
             }
             else if (transfer is var (from, to))
             {
@@ -534,6 +534,36 @@ public sealed class FenceManager
 
     /// Speichert die Konfiguration in Kuerze (gebuendelt, nicht bei jedem Tastendruck).
     public void SaveSoon() => _config.SaveDebounced();
+
+    private System.Timers.Timer? _layoutSaveTimer;
+
+    /// <summary>
+    /// Meldet, dass ein Bereich verschoben oder in der Groesse veraendert wurde.
+    /// Die Anordnung wird kurz darauf automatisch fuer die aktuelle
+    /// Bildschirm-Konfiguration festgehalten — gebuendelt, damit waehrend des
+    /// Ziehens nicht bei jedem Pixel geschrieben wird.
+    /// </summary>
+    public void LayoutChanged()
+    {
+        if (_layoutSaveTimer == null)
+        {
+            _layoutSaveTimer = new System.Timers.Timer(1500) { AutoReset = false };
+            _layoutSaveTimer.Elapsed += (_, _) =>
+            {
+                var app = System.Windows.Application.Current;
+                if (app == null) return;
+                app.Dispatcher.BeginInvoke(() =>
+                {
+                    _currentLayoutKey ??= DisplayConfig.Current;
+                    StoreLayout(_currentLayoutKey);
+                    _config.Save();
+                });
+            };
+        }
+
+        _layoutSaveTimer.Stop();
+        _layoutSaveTimer.Start();
+    }
 
     /// Merkt den im Tray gewaehlten Autostart-Wunsch dauerhaft.
     public void SetAutostartWanted(bool wanted)

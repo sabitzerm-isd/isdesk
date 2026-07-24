@@ -15,8 +15,8 @@ namespace MSDesk.Services;
 /// </summary>
 public static class LayoutTransfer
 {
-    public const double MinWidth = 180;
-    public const double MinHeight = 120;
+    public const double MinWidth = 110;
+    public const double MinHeight = 80;
 
     /// Ein Bereich in einem Koordinatensystem (DIP).
     public readonly record struct Area(double X, double Y, double Width, double Height);

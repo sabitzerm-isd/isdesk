@@ -21,6 +21,25 @@ public sealed class BackupService
         _manager = manager;
     }
 
+    /// Erkennungsmerkmale gaengiger Cloud-Ordner bzw. Netzwerkziele.
+    private static readonly string[] OffMachineMarkers =
+    {
+        "onedrive", "sharepoint", "dropbox", "nextcloud", "owncloud",
+        "google drive", "googledrive", "gdrive", "google", "icloud",
+        "magentacloud", "hidrive", "cloud"
+    };
+
+    /// <summary>
+    /// Liegt der Pfad ausserhalb dieses Rechners (Cloud-Ordner oder
+    /// Netzwerkfreigabe)? Nur dann ueberlebt die Sicherung einen Ausfall.
+    /// </summary>
+    public static bool IsOffMachine(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        if (path.StartsWith(@"\\", StringComparison.Ordinal)) return true; // Netzwerkfreigabe
+        return OffMachineMarkers.Any(marker => path.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
+
     public void CreateBackupInteractive(Window? centerOn)
     {
         var dialog = new SaveFileDialog

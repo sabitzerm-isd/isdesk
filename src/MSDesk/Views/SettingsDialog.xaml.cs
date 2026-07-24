@@ -448,10 +448,7 @@ public partial class SettingsDialog : Window
             return;
         }
 
-        var cloudy = new[] { "onedrive", "sharepoint", "dropbox", "nextcloud", "google drive", "gdrive" }
-            .Any(marker => path.Contains(marker, StringComparison.OrdinalIgnoreCase));
-
-        if (cloudy || path.StartsWith(@"\\", StringComparison.Ordinal))
+        if (BackupService.IsOffMachine(path))
         {
             BackupCloudHint.Foreground = System.Windows.Media.Brushes.LightGreen;
             BackupCloudHint.Text = "Liegt außerhalb dieses Rechners — die Sicherung überlebt damit auch einen Rechnerwechsel.";

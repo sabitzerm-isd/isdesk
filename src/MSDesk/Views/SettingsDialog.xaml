@@ -456,9 +456,10 @@
                             <Button Grid.Column="2" Content="…" MinWidth="34" Margin="6,0,0,0" Click="BrowseBackupPath_Click" />
                         </Grid>
                         <WrapPanel>
-                            <Button Content="Automatische Sicherung" MinWidth="0" Margin="0,0,8,8" Click="AutoBackup_Click"
-                                    ToolTip="Ein Klick: Sicherung mit Zeitstempel in den hinterlegten Ordner." />
-                            <Button Content="Sicherung erstellen…" MinWidth="0" Margin="0,0,8,8" Click="CreateBackup_Click" />
+                            <Button Content="Jetzt in diesen Ordner sichern" MinWidth="0" Margin="0,0,8,8" Click="AutoBackup_Click"
+                                    ToolTip="Legt sofort eine Sicherung mit Zeitstempel im oben eingetragenen Ordner an, ohne weitere Rückfrage. Es werden nur die neuesten drei behalten." />
+                            <Button Content="Sicherung speichern unter…" MinWidth="0" Margin="0,0,8,8" Click="CreateBackup_Click"
+                                    ToolTip="Öffnet den Speichern-Dialog, um Ort und Dateinamen einmalig selbst zu wählen — z. B. für eine Sicherung auf einen USB-Stick." />
                             <Button Content="Wiederherstellen…" MinWidth="0" Margin="0,0,8,8" Click="RestoreBackup_Click" />
                         </WrapPanel>
                     </StackPanel>
@@ -630,7 +631,7 @@
 
                         <TextBlock Text="GESPEICHERTE KONFIGURATIONEN" Style="{StaticResource SectionStyle}" />
                         <TextBlock Style="{StaticResource HintStyle}"
-                                   Text="MSDesk merkt sich die Anordnung der Bereiche je Bildschirm-Konfiguration. Wird ein Monitor an- oder abgesteckt, wird automatisch die passende Anordnung geladen — und die zuletzt genutzte gesichert." />
+                                   Text="Die Anordnung wird automatisch gesichert, sobald du einen Bereich verschiebst oder in der Größe änderst. Wird ein Monitor an- oder abgesteckt, lädt MSDesk die passende Anordnung — und sichert vorher die bisherige." />
                         <ItemsControl x:Name="LayoutList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -690,7 +691,7 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Content="Anordnung jetzt sichern" MinWidth="0" Click="SaveLayoutNow_Click"
-                                    ToolTip="Speichert die aktuelle Anordnung aller Bereiche für die oben aktive Bildschirm-Konfiguration." />
+                                    ToolTip="Normalerweise nicht nötig — das Sichern läuft automatisch. Dieser Knopf schreibt sofort, ohne die kurze Wartezeit." />
                             <Button Content="Aktualisieren" MinWidth="0" Click="RefreshDisplays_Click" />
                         </StackPanel>
                         <TextBlock x:Name="LayoutSaveHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0" />

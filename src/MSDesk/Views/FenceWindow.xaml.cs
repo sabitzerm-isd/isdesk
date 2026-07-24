@@ -949,6 +949,7 @@ public partial class FenceWindow : Window
         base.OnLocationChanged(e);
         _vm.X = Left;
         _vm.Y = Top;
+        Manager?.LayoutChanged(); // Anordnung automatisch sichern
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -956,5 +957,6 @@ public partial class FenceWindow : Window
         base.OnRenderSizeChanged(sizeInfo);
         _vm.Width = ActualWidth;
         _vm.Height = ActualHeight;
+        Manager?.LayoutChanged();
     }
 }

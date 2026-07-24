@@ -49,7 +49,9 @@ public static class GridSnapBehavior
     /// bei vielen Bereichen praktisch jeder als Nachbar und liefert Fangpunkte.
     public const int NeighbourReachDip = 8;
 
-    private const int MinWidthDip = 180, MinHeightDip = 120;
+    // Bewusst klein: kleine Bereiche (z. B. nur der Papierkorb) sollen sich auch
+    // wirklich schmal ziehen lassen. Eine Icon-Spalte braucht rund 90 px.
+    private const int MinWidthDip = 110, MinHeightDip = 80;
 
     private const int WM_SIZING = 0x0214;
     private const int WM_MOVING = 0x0216;

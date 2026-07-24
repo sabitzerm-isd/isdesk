@@ -38,8 +38,18 @@ public static class AlignmentGuides
     private static readonly IntPtr HWND_TOPMOST = new(-1);
     private const uint SWP_NOACTIVATE = 0x0010;
     private const uint SWP_SHOWWINDOW = 0x0040;
+    private const uint SWP_HIDEWINDOW = 0x0080;
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
 
     private static readonly List<Window> Lines = new();
+
+    /// Fensterhandles zu <see cref="Lines"/>. Ein- und Ausblenden laeuft
+    /// ausschliesslich ueber Win32: WPF haelt die Fenster fuer verborgen (sie
+    /// wurden nie ueber WPF eingeblendet), ein Window.Hide() bliebe deshalb
+    /// wirkungslos — genau daran blieben die Linien nach dem Verschieben stehen.
+    private static readonly List<IntPtr> Handles = new();
 
     /// Blendet die Linien fuer die uebergebenen Fangpunkte ein (Bildschirm-Pixel).
     public static void Show(IReadOnlyList<GridSnapBehavior.Guide> guides)
@@ -49,8 +59,7 @@ public static class AlignmentGuides
             for (var i = 0; i < guides.Count; i++)
             {
                 var guide = guides[i];
-                var window = LineAt(i);
-                var hwnd = new WindowInteropHelper(window).EnsureHandle();
+                var hwnd = LineAt(i);
 
                 var (x, y, w, h) = guide.Vertical
                     ? (guide.Position - Thickness / 2, guide.From, Thickness, Math.Max(1, guide.To - guide.From))
@@ -63,7 +72,7 @@ public static class AlignmentGuides
 
             // Nicht mehr benoetigte Linien verbergen (statt sie zu schliessen —
             // beim naechsten Ziehen sind sie sofort wieder da).
-            for (var i = guides.Count; i < Lines.Count; i++) Lines[i].Hide();
+            for (var i = guides.Count; i < Handles.Count; i++) HideHandle(Handles[i]);
         }
         catch (Exception ex)
         {
@@ -74,23 +83,33 @@ public static class AlignmentGuides
     /// Alle Linien ausblenden (Ende des Verschiebens).
     public static void Hide()
     {
-        foreach (var line in Lines) line.Hide();
+        foreach (var handle in Handles) HideHandle(handle);
     }
+
+    private static void HideHandle(IntPtr hwnd)
+        => SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_HIDEWINDOW);
 
     /// Gibt die Linienfenster frei (beim Beenden).
     public static void Dispose()
     {
         foreach (var line in Lines.ToList()) line.Close();
         Lines.Clear();
+        Handles.Clear();
     }
 
-    private static Window LineAt(int index)
+    private static IntPtr LineAt(int index)
     {
-        while (Lines.Count <= index) Lines.Add(CreateLine());
-        return Lines[index];
+        while (Lines.Count <= index)
+        {
+            var (window, hwnd) = CreateLine();
+            Lines.Add(window);
+            Handles.Add(hwnd);
+        }
+        return Handles[index];
     }
 
-    private static Window CreateLine()
+    private static (Window Window, IntPtr Handle) CreateLine()
     {
         var window = new Window
         {
@@ -111,8 +130,12 @@ public static class AlignmentGuides
         var style = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
 
+        // Einmal ueber WPF anzeigen, damit der Inhalt (die Farbfläche) wirklich
+        // gezeichnet wird — danach laeuft Ein- und Ausblenden ausschliesslich
+        // ueber SetWindowPos. WPF haelt das Fenster durchgehend fuer sichtbar;
+        // genau deshalb funktioniert das native Ausblenden zuverlaessig.
         window.Show();
-        window.Hide();
-        return window;
+        HideHandle(hwnd);
+        return (window, hwnd);
     }
 }

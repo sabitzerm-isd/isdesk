@@ -96,18 +96,11 @@ public partial class SetupDialog : Window
     private void UpdateCloudHint()
     {
         var path = BackupBox.Text ?? "";
-        var cloudy = new[] { "onedrive", "sharepoint", "dropbox", "nextcloud", "google drive", "gdrive" }
-            .Any(marker => path.Contains(marker, StringComparison.OrdinalIgnoreCase));
 
-        if (cloudy)
+        if (BackupService.IsOffMachine(path))
         {
             CloudHint.Foreground = System.Windows.Media.Brushes.LightGreen;
-            CloudHint.Text = "Sieht nach einem Cloud-Ordner aus — die Sicherung überlebt damit auch einen Rechnerwechsel.";
-        }
-        else if (path.StartsWith(@"\\", StringComparison.Ordinal))
-        {
-            CloudHint.Foreground = System.Windows.Media.Brushes.LightGreen;
-            CloudHint.Text = "Netzwerkfreigabe — liegt nicht auf diesem Rechner, das ist gut.";
+            CloudHint.Text = "Liegt außerhalb dieses Rechners — die Sicherung überlebt damit auch einen Rechnerwechsel.";
         }
         else
         {
