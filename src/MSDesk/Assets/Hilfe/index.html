@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MSDesk — Erste Schritte</title>
+<style>
+/* ============================================================
+   MSDesk — Erststart-Anleitung
+   Eine Datei, alles inline, funktioniert ohne Internet.
+   ============================================================ */
+
+:root{
+  --bg:        #1B1E26;
+  --bg-soft:   #21252F;
+  --fg:        rgba(255,255,255,0.95);
+  --fg-mid:    rgba(255,255,255,0.72);
+  --fg-dim:    rgba(255,255,255,0.50);
+  --line:      rgba(255,255,255,0.15);
+  --line-soft: rgba(255,255,255,0.08);
+  --accent:    #7DB7FF;
+  --accent-dp: #3A6EA5;
+  --panel:     rgba(255,255,255,0.035);
+
+  --c-blue:   #3A6EA5;
+  --c-green:  #2FA84F;
+  --c-orange: #E8842C;
+  --c-violet: #8C5BD8;
+  --c-teal:   #1FA8A0;
+  --c-red:    #D0453E;
+  --c-gray:   #6B7280;
+  --c-hl:     #2D7DFF;
+}
+
+*{ box-sizing:border-box; }
+
+html{ -webkit-text-size-adjust:100%; }
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:"Segoe UI","Segoe UI Variable Text",system-ui,-apple-system,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* dezenter Lichtschein oben, wie die Akzentfarbe der App */
+body::before{
+  content:"";
+  position:fixed; inset:0 0 auto 0; height:520px;
+  background:
+    radial-gradient(900px 320px at 22% -10%, rgba(58,110,165,0.30), transparent 70%),
+    radial-gradient(700px 280px at 88% -14%, rgba(125,183,255,0.13), transparent 70%);
+  pointer-events:none; z-index:0;
+}
+
+.wrap{ position:relative; z-index:1; max-width:820px; margin:0 auto; padding:0 26px 96px; }
+
+/* ---------- Kopf ---------- */
+
+.hero{ padding:72px 0 8px; }
+
+.eyebrow{
+  display:inline-block;
+  font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--accent); font-weight:600;
+  padding:5px 11px; border:1px solid rgba(125,183,255,0.32);
+  border-radius:999px; background:rgba(125,183,255,0.07);
+}
+
+h1{
+  font-size:42px; line-height:1.15; font-weight:600;
+  margin:22px 0 0; letter-spacing:-0.02em;
+}
+
+.lead{ font-size:18.5px; line-height:1.6; color:var(--fg-mid); margin:16px 0 0; max-width:64ch; }
+
+/* ---------- Inhaltsverzeichnis ---------- */
+
+.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:34px 0 0; }
+
+.toc a{
+  display:inline-block; font-size:13px; text-decoration:none;
+  color:var(--fg-mid); background:var(--panel);
+  border:1px solid var(--line-soft); border-radius:8px;
+  padding:7px 13px; transition:background .15s, color .15s, border-color .15s;
+}
+.toc a:hover{ background:rgba(125,183,255,0.11); color:var(--accent); border-color:rgba(125,183,255,0.35); }
+
+/* ---------- Abschnitte ---------- */
+
+section{ margin-top:64px; padding-top:34px; border-top:1px solid var(--line); }
+section.first{ border-top:0; }
+
+h2{
+  display:flex; align-items:center; gap:14px;
+  font-size:26px; font-weight:600; letter-spacing:-0.01em;
+  margin:0 0 6px;
+}
+h2 .num{
+  flex:0 0 auto;
+  width:34px; height:34px; border-radius:9px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:600;
+  color:var(--accent); background:rgba(58,110,165,0.22);
+  border:1px solid rgba(125,183,255,0.28);
+}
+
+h3{
+  font-size:18px; font-weight:600; margin:44px 0 8px;
+  letter-spacing:-0.005em;
+}
+h3:first-of-type{ margin-top:30px; }
+
+p{ margin:12px 0; max-width:70ch; }
+.sub{ color:var(--fg-mid); }
+
+strong{ font-weight:600; color:#fff; }
+
+/* Pfad-/Tastenauszeichnung */
+.path, kbd{
+  font-family:inherit; font-size:13.5px; font-weight:600;
+  color:var(--accent); background:rgba(58,110,165,0.18);
+  border:1px solid rgba(125,183,255,0.22);
+  border-radius:6px; padding:1.5px 7px;
+  -webkit-box-decoration-break:clone; box-decoration-break:clone;
+}
+kbd{ color:var(--fg); background:rgba(255,255,255,0.08); border-color:var(--line); white-space:nowrap; }
+
+/* ---------- Listen ---------- */
+
+ul.plain{ list-style:none; margin:14px 0; padding:0; max-width:70ch; }
+ul.plain li{ position:relative; padding-left:22px; margin:9px 0; }
+ul.plain li::before{
+  content:""; position:absolute; left:2px; top:.72em;
+  width:6px; height:6px; border-radius:2px; background:var(--accent-dp);
+}
+
+ol.steps{ list-style:none; counter-reset:s; margin:26px 0 0; padding:0; }
+ol.steps li{
+  counter-increment:s; position:relative;
+  padding:16px 18px 16px 62px; margin:10px 0;
+  background:var(--panel); border:1px solid var(--line-soft); border-radius:11px;
+}
+ol.steps li::before{
+  content:counter(s);
+  position:absolute; left:17px; top:15px;
+  width:28px; height:28px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:600; color:#fff;
+  background:linear-gradient(160deg,#4A82BE,#3A6EA5);
+}
+ol.steps b{ display:block; font-size:16px; font-weight:600; margin-bottom:2px; }
+ol.steps span{ color:var(--fg-mid); font-size:15px; }
+
+/* Tipps */
+ul.tips{ list-style:none; margin:24px 0 0; padding:0; }
+ul.tips li{
+  display:flex; gap:14px; align-items:flex-start;
+  padding:13px 16px; margin:8px 0;
+  background:var(--panel); border:1px solid var(--line-soft); border-radius:10px;
+  font-size:15.5px;
+}
+ul.tips li .dot{
+  flex:0 0 auto; width:8px; height:8px; border-radius:3px;
+  background:var(--accent); margin-top:9px;
+}
+
+/* Hinweiskasten */
+.note{
+  margin:22px 0 0; padding:14px 18px;
+  border-left:3px solid var(--accent-dp);
+  background:rgba(58,110,165,0.10);
+  border-radius:0 10px 10px 0;
+  font-size:15px; color:var(--fg-mid);
+}
+.note b{ color:var(--fg); }
+
+/* ============================================================
+   ABBILDUNGEN — Nachbildungen der Oberflaeche (reines CSS)
+   ============================================================ */
+
+figure{ margin:26px 0 0; }
+
+figcaption{
+  margin-top:11px; padding-left:12px;
+  border-left:2px solid var(--line);
+  font-size:13.5px; color:var(--fg-dim); line-height:1.55;
+}
+
+/* "Desktop" hinter den Bereichen */
+.stage{
+  border-radius:12px; padding:30px 26px;
+  background:
+    radial-gradient(600px 240px at 78% 8%, rgba(125,183,255,0.16), transparent 65%),
+    linear-gradient(145deg,#243349 0%,#26303f 45%,#1E2731 100%);
+  border:1px solid var(--line-soft);
+  overflow:hidden;
+}
+.stage.grid-dots{
+  background-image:
+    radial-gradient(rgba(255,255,255,0.13) 1px, transparent 1px),
+    radial-gradient(600px 240px at 78% 8%, rgba(125,183,255,0.16), transparent 65%),
+    linear-gradient(145deg,#243349 0%,#26303f 45%,#1E2731 100%);
+  background-size:20px 20px, auto, auto;
+}
+.stage.tight{ padding:22px; }
+
+/* --- Der Bereich (Fence) --- */
+.fence{
+  border-radius:9px; overflow:hidden;
+  background:rgba(28,28,30,0.74);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.09);
+  box-shadow:0 18px 40px rgba(0,0,0,0.38);
+  font-size:12.5px;
+}
+.fence.narrow{ max-width:330px; }
+
+/* Titelzeile: 34 px wie in der App */
+.titlebar{
+  height:34px; display:flex; align-items:center; gap:7px;
+  padding:0 6px 0 12px; background:rgba(0,0,0,0.22);
+}
+.tb-icon{
+  width:16px; height:16px; border-radius:4px; flex:0 0 auto;
+  background:linear-gradient(160deg,#5C93CE,#3A6EA5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.tb-title{ font-size:12.5px; font-weight:600; color:rgba(255,255,255,0.87); }
+.tb-fill{ flex:1 1 auto; }
+
+.tb-btn{
+  width:26px; height:22px; flex:0 0 auto; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.72); font-size:13px; line-height:1;
+}
+.tb-btn.hover{ background:rgba(255,255,255,0.13); }
+.tb-btn.on{ color:var(--accent); }
+
+/* Schloss, gezeichnet */
+.lock{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.lock i{ display:block; }
+.lock i:first-child{
+  width:7px; height:5px; border:1.5px solid currentColor; border-bottom:0;
+  border-radius:4px 4px 0 0;
+}
+.lock i:last-child{ width:11px; height:8px; border-radius:2px; background:currentColor; margin-top:1px; }
+
+/* Suchfeld in der Titelzeile */
+.tb-search{
+  flex:0 0 auto; width:100px; height:20px; border-radius:6px;
+  background:rgba(0,0,0,0.24); border:1px solid rgba(255,255,255,0.20);
+  display:flex; align-items:center; padding:0 8px;
+  font-size:11.5px; color:rgba(255,255,255,0.47);
+}
+.tb-search.filled{ border-color:rgba(125,183,255,0.55); color:#fff; }
+
+/* Schreibmarke im Eingabefeld */
+.caret{ display:inline-block; width:1px; height:11px; background:#fff; margin-left:2px; }
+.dlg-input .caret{ height:14px; }
+
+/* Tab-Zeile: 28 px, Pillen mit 6 px Radius */
+.tabbar{ height:28px; display:flex; align-items:center; gap:3px; padding:0 8px; }
+.tab{
+  height:21px; display:inline-flex; align-items:center; gap:5px;
+  padding:0 10px; border-radius:6px; font-size:11.5px;
+  color:rgba(255,255,255,0.80); background:rgba(255,255,255,0.05);
+}
+.tab .tico{ width:11px; height:11px; border-radius:3px; background:rgba(255,255,255,0.45); }
+.tab.is-active{ background:rgba(255,255,255,0.18); color:#fff; font-weight:600; }
+.tab.match{ background:rgba(45,125,255,0.42); color:#fff; }
+.tab.c-green{ background:rgba(47,168,79,0.45); }
+.tab.c-green.is-active{ background:var(--c-green); color:#fff; }
+.tab.c-orange{ background:rgba(232,132,44,0.45); }
+.tab.c-violet{ background:rgba(140,91,216,0.45); }
+.tab-plus{
+  width:22px; height:21px; border-radius:6px; margin-left:2px;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.80); font-size:14px; background:rgba(255,255,255,0.10);
+}
+
+/* Icon-Raster: 32 px Symbol + Beschriftung, Zellbreite 84 px */
+.icongrid{
+  display:flex; flex-wrap:wrap; gap:2px; padding:8px 8px 14px;
+}
+.cell{
+  width:84px; padding:6px 2px 4px; border-radius:6px; text-align:center;
+}
+.cell.hover{ background:rgba(255,255,255,0.13); }
+.cell.sel{ background:rgba(255,255,255,0.20); }
+.cell.match{ background:rgba(45,125,255,0.30); }
+.cell.dim{ opacity:0.25; }
+
+.ic{
+  width:32px; height:32px; border-radius:7px; margin:4px auto 5px;
+  position:relative; display:block;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px rgba(0,0,0,0.35);
+}
+.ic::after{
+  content:""; position:absolute; left:8px; right:8px; top:10px; height:3px;
+  border-radius:2px; background:rgba(255,255,255,0.62);
+  box-shadow:0 6px 0 rgba(255,255,255,0.38);
+}
+.ic.b{ background:linear-gradient(160deg,#5C93CE,#3A6EA5); }
+.ic.g{ background:linear-gradient(160deg,#46C46B,#2FA84F); }
+.ic.o{ background:linear-gradient(160deg,#F0A055,#E8842C); }
+.ic.v{ background:linear-gradient(160deg,#A57BE6,#8C5BD8); }
+.ic.t{ background:linear-gradient(160deg,#35C4BB,#1FA8A0); }
+.ic.r{ background:linear-gradient(160deg,#E06B64,#D0453E); }
+.ic.y{ background:linear-gradient(160deg,#8A93A3,#6B7280); }
+
+.cap{
+  display:block; font-size:11px; line-height:1.35; color:rgba(255,255,255,0.95);
+  text-shadow:0 1px 3px rgba(0,0,0,0.6);
+  overflow-wrap:anywhere;
+}
+
+/* Greif-Hinweise am Rand */
+.handles{ position:relative; }
+.handles::after{
+  content:""; position:absolute; inset:-5px;
+  border:1px dashed rgba(125,183,255,0.55); border-radius:12px; pointer-events:none;
+}
+
+/* --- Kontextmenue --- */
+.menu{
+  width:274px; padding:5px;
+  background:#242833; border:1px solid rgba(255,255,255,0.11);
+  border-radius:8px; box-shadow:0 16px 40px rgba(0,0,0,0.55);
+  font-size:13px;
+}
+.menu .row{
+  display:flex; align-items:center; gap:11px;
+  padding:6px 10px; border-radius:5px; color:rgba(255,255,255,0.90);
+}
+.menu .row.hi{ background:rgba(255,255,255,0.10); }
+.menu .row .g{
+  flex:0 0 auto; width:13px; height:13px; border-radius:3.5px;
+  border:1.2px solid rgba(255,255,255,0.38);
+}
+.menu .row .g.filled{ background:rgba(125,183,255,0.30); border-color:rgba(125,183,255,0.55); }
+.menu .row .arrow{ margin-left:auto; color:rgba(255,255,255,0.45); font-size:15px; line-height:1; }
+.menu .row .check{ margin-left:auto; color:var(--accent); font-size:12px; }
+.menu .row .swatch{ flex:0 0 auto; width:13px; height:13px; border-radius:3.5px; }
+.menu .sep{ height:1px; background:rgba(255,255,255,0.10); margin:5px 9px; }
+
+.menu-pair{ display:flex; align-items:flex-start; gap:0; flex-wrap:wrap; }
+.menu-pair .menu:last-child{ margin-left:-6px; margin-top:101px; width:196px; }
+
+/* --- Dialog-Nachbildung --- */
+.dlg{
+  max-width:430px; border-radius:10px; overflow:hidden;
+  background:#22262F; border:1px solid rgba(255,255,255,0.10);
+  box-shadow:0 18px 44px rgba(0,0,0,0.5);
+}
+.dlg-head{
+  padding:11px 16px; font-size:12.5px; font-weight:600;
+  color:rgba(255,255,255,0.85); background:rgba(0,0,0,0.22);
+}
+.dlg-body{ padding:16px; }
+.dlg-body p{ margin:0 0 12px; font-size:13px; line-height:1.5; color:var(--fg-mid); }
+.dlg-input{
+  height:30px; display:flex; align-items:center; padding:0 9px;
+  border-radius:6px; font-size:13px; color:#fff;
+  background:rgba(0,0,0,0.28); border:1px solid rgba(125,183,255,0.45);
+}
+.dlg-foot{ display:flex; justify-content:flex-end; gap:8px; padding:0 16px 16px; }
+.btn{
+  min-width:88px; height:30px; border-radius:6px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12.5px; color:rgba(255,255,255,0.90);
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.16);
+}
+.btn.primary{ background:var(--accent-dp); border-color:#4A82BE; color:#fff; font-weight:600; }
+
+/* --- Transparenz-Trio --- */
+.trio{ display:flex; gap:14px; flex-wrap:wrap; }
+.trio .fence{ flex:1 1 170px; min-width:160px; }
+.trio .t1{ background:rgba(28,28,30,0.92); backdrop-filter:none; -webkit-backdrop-filter:none; }
+.trio .t2{ background:rgba(28,28,30,0.62); }
+.trio .t3{ background:rgba(28,28,30,0.30); }
+.trio .mini{ padding:10px 12px 14px; font-size:11px; color:rgba(255,255,255,0.72); }
+
+/* --- Optionen-Ausschnitt --- */
+.opt{
+  border-radius:10px; overflow:hidden; max-width:520px;
+  background:#22262F; border:1px solid rgba(255,255,255,0.10);
+  box-shadow:0 16px 38px rgba(0,0,0,0.45);
+}
+.opt-head{
+  padding:11px 16px; font-size:12.5px; font-weight:600; color:rgba(255,255,255,0.85);
+  background:rgba(0,0,0,0.22); border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.opt-body{ padding:14px 16px 18px; }
+.opt-sec{
+  font-size:10.5px; letter-spacing:.13em; font-weight:600;
+  color:var(--accent); margin:0 0 9px;
+}
+.opt-row{ display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:rgba(255,255,255,0.88); }
+.chk{
+  flex:0 0 auto; width:15px; height:15px; border-radius:4px;
+  border:1.4px solid rgba(255,255,255,0.38);
+}
+.chk.on{
+  background:var(--accent-dp); border-color:#4A82BE; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:10px;
+}
+.opt-hint{ font-size:11.5px; color:var(--fg-dim); margin:2px 0 14px 25px; line-height:1.5; max-width:44ch; }
+
+/* ---------- Fuss ---------- */
+
+footer{
+  margin-top:72px; padding-top:26px; border-top:1px solid var(--line);
+  font-size:13.5px; color:var(--fg-dim);
+}
+
+/* ---------- schmale Fenster ---------- */
+
+@media (max-width:640px){
+  .wrap{ padding:0 18px 72px; }
+  .hero{ padding:48px 0 4px; }
+  h1{ font-size:32px; }
+  .lead{ font-size:17px; }
+  h2{ font-size:22px; }
+  .stage{ padding:18px 14px; }
+  .cell{ width:76px; }
+  .menu-pair .menu:last-child{ margin-left:0; margin-top:10px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Erste Schritte</span>
+  <h1>Willkommen bei MSDesk</h1>
+  <p class="lead">
+    MSDesk legt <strong>Bereiche</strong> auf deinen Desktop — Flächen, in denen Verknüpfungen und
+    Dateien nach Themen zusammenliegen, immer hinter deinen normalen Fenstern.
+    Jeder Bereich kann mehrere <strong>Tabs</strong> haben, und hinter jedem Tab steckt ein
+    echter Ordner auf der Platte.
+  </p>
+
+  <nav class="toc">
+    <a href="#start">Die ersten drei Schritte</a>
+    <a href="#bedienung">Bedienung</a>
+    <a href="#automatik">Automatik</a>
+    <a href="#lesezeichen">Lesezeichen</a>
+    <a href="#sicherung">Sicherung &amp; Update</a>
+    <a href="#tipps">Tipps</a>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section class="first" id="start">
+  <h2><span class="num">1</span>Die ersten drei Schritte</h2>
+
+  <ol class="steps">
+    <li>
+      <b>Tab anlegen</b>
+      <span>Rechtsklick auf einen Bereich → <span class="path">Neuer Tab…</span>, Namen eingeben.
+      MSDesk legt dazu einen echten Ordner an. Schneller geht es mit dem <kbd>+</kbd> rechts
+      neben den Reitern — es erscheint, sobald die Maus über dem Bereich ist.</span>
+    </li>
+    <li>
+      <b>Sachen hineinlegen</b>
+      <span>Dateien und Verknüpfungen aus dem Explorer oder vom Desktop einfach in den Bereich
+      ziehen. Ziehen verschiebt, mit gedrückter <kbd>Strg</kbd> wird kopiert. Auch ein Link
+      direkt aus dem Browser funktioniert — daraus wird eine Verknüpfung mit Website-Symbol.</span>
+    </li>
+    <li>
+      <b>Symbol und Namen vergeben</b>
+      <span>Rechtsklick auf den Reiter → <span class="path">Umbenennen…</span> und
+      <span class="path">Symbol wählen…</span>. Für den Bereich selbst: Rechtsklick auf die Fläche →
+      <span class="path">Bereich umbenennen…</span> bzw. <span class="path">Symbol wählen…</span>
+      (ein Doppelklick auf die Titelzeile benennt ihn ebenfalls um).</span>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="bedienung">
+  <h2><span class="num">2</span>Bedienung</h2>
+  <p class="sub">
+    So sieht ein Bereich aus: dunkle Titelzeile mit Symbol, Suchfeld und Schloss, darunter die
+    Tab-Reiter und das Icon-Raster.
+  </p>
+
+  <figure>
+    <div class="stage grid-dots">
+      <div class="fence handles">
+        <div class="titlebar">
+          <span class="tb-icon"></span>
+          <span class="tb-title">Projekte</span>
+          <span class="tb-fill"></span>
+          <span class="tb-btn">&#8635;</span>
+          <span class="tb-search">Suchen…</span>
+          <span class="tb-btn lock"><i></i><i></i></span>
+        </div>
+        <div class="tabbar">
+          <span class="tab is-active"><span class="tico"></span>Allgemein</span>
+          <span class="tab c-green"><span class="tico"></span>CAD</span>
+          <span class="tab c-orange"><span class="tico"></span>Kunden</span>
+          <span class="tab-plus">+</span>
+        </div>
+        <div class="icongrid">
+          <span class="cell"><span class="ic b"></span><span class="cap">Angebote</span></span>
+          <span class="cell"><span class="ic g"></span><span class="cap">Zeichnungen</span></span>
+          <span class="cell hover"><span class="ic o"></span><span class="cap">Termine</span></span>
+          <span class="cell"><span class="ic v"></span><span class="cap">Kalkulation</span></span>
+          <span class="cell"><span class="ic t"></span><span class="cap">Notizen</span></span>
+          <span class="cell"><span class="ic r"></span><span class="cap">Rechnungen</span></span>
+          <span class="cell"><span class="ic y"></span><span class="cap">Archiv</span></span>
+          <span class="cell"><span class="ic b"></span><span class="cap">Vorlagen</span></span>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      Ein Bereich mit drei Tabs. Die gestrichelte Linie zeigt die Ränder — dort fasst du an, um
+      die Größe zu ändern. Die Punkte im Hintergrund stehen für das Raster.
+    </figcaption>
+  </figure>
+
+  <h3>Bereich verschieben, Größe ändern, ausrichten</h3>
+  <ul class="plain">
+    <li><strong>Verschieben:</strong> die Titelzeile packen und ziehen.</li>
+    <li><strong>Größe ändern:</strong> einen Rand oder eine Ecke anfassen und ziehen.</li>
+    <li><strong>Am Raster ausrichten:</strong> <span class="path">Optionen… → Allgemein →
+      Bereiche ausrichten</span>. Rastergröße wahlweise fein (10 px), normal (20 px) oder grob (40 px).
+      Zusätzlich rasten Kanten an direkten Nachbarn ein, sodass Bereiche bündig aneinanderstoßen.
+      Fühlt sich das Ziehen zu „klebrig“ an, schalte das Kanten-Einrasten ab.</li>
+    <li><strong>Aufräumen in einem Schritt:</strong> die Schaltfläche
+      <span class="path">Alle Bereiche jetzt am Raster ausrichten</span> rundet Position und Größe
+      aller Bereiche auf das Raster.</li>
+    <li><strong>Exakte Größe:</strong> <span class="path">Optionen… → Dieser Bereich → Größe (exakt)</span>
+      — Breite und Höhe eintippen und übernehmen, oder die Größe auf alle Bereiche übertragen.</li>
+  </ul>
+
+  <figure>
+    <div class="stage tight">
+      <div class="menu">
+        <div class="row hi"><span class="g filled"></span>Neuer Tab…</div>
+        <div class="row"><span class="g"></span>Ordner-Verknüpfung hinzufügen…</div>
+        <div class="sep"></div>
+        <div class="row"><span class="g"></span>Bereich umbenennen…</div>
+        <div class="row"><span class="g"></span>Symbol wählen…</div>
+        <div class="row"><span class="g"></span>Bereich fixieren<span class="check">&#10003;</span></div>
+        <div class="sep"></div>
+        <div class="row"><span class="g"></span>Ordner im Explorer öffnen</div>
+        <div class="row"><span class="g"></span>Optionen…</div>
+        <div class="sep"></div>
+        <div class="row"><span class="g"></span>Bereich entfernen…</div>
+      </div>
+    </div>
+    <figcaption>
+      Das Menü zum Bereich — Rechtsklick funktioniert überall auf der Fläche: Titelzeile,
+      Tab-Zeile und freier Platz zwischen den Icons.
+    </figcaption>
+  </figure>
+
+  <h3>Tabs</h3>
+  <p>
+    Jeder Tab zeigt einen eigenen Ordner. Alles, was einen einzelnen Reiter betrifft, steckt im
+    <strong>Rechtsklick auf den Reiter</strong>:
+  </p>
+  <ul class="plain">
+    <li><strong>Umbenennen</strong> — benennt Reiter und Ordner um.</li>
+    <li><strong>Symbol wählen</strong> — aus der mitgelieferten Galerie oder als eigene PNG-Datei.</li>
+    <li><strong>Farbe</strong> — sieben Farben, dazu benutzerdefiniert oder zurück auf Standard.
+      Die Farbe tönt auch die Fläche des Bereichs, wenn der Tab aktiv ist.</li>
+    <li><strong>In anderen Bereich verschieben</strong> — der Tab wandert samt Ordner und Inhalt
+      in einen anderen Bereich.</li>
+    <li><strong>Als eigenen Bereich abtrennen</strong> — praktisch, wenn ein Tab zu groß geworden ist.</li>
+    <li><strong>Tab entfernen</strong> — nimmt nur den Reiter weg, <strong>der Ordner bleibt auf der
+      Platte erhalten</strong>. Der letzte Tab eines Bereichs lässt sich nicht entfernen.</li>
+  </ul>
+  <p class="sub">
+    Ein Icon lässt sich auch direkt auf einen anderen <em>Reiter</em> ziehen — dann landet es im
+    Ordner dieses Tabs.
+  </p>
+
+  <figure>
+    <div class="stage tight">
+      <div class="menu-pair">
+        <div class="menu">
+          <div class="row"><span class="g"></span>Umbenennen…</div>
+          <div class="row"><span class="g"></span>Symbol wählen…</div>
+          <div class="row"><span class="g"></span>Automatische Dateiendungen…</div>
+          <div class="row hi"><span class="g filled"></span>Farbe<span class="arrow">&#8250;</span></div>
+          <div class="row"><span class="g"></span>In anderen Bereich verschieben<span class="arrow">&#8250;</span></div>
+          <div class="row"><span class="g"></span>Als eigenen Bereich abtrennen</div>
+          <div class="row"><span class="g"></span>Tab entfernen</div>
+        </div>
+        <div class="menu">
+          <div class="row"><span class="swatch" style="background:#2D7DFF"></span>Blau</div>
+          <div class="row hi"><span class="swatch" style="background:#2FA84F"></span>Grün</div>
+          <div class="row"><span class="swatch" style="background:#D0453E"></span>Rot</div>
+          <div class="row"><span class="swatch" style="background:#E8842C"></span>Orange</div>
+          <div class="row"><span class="swatch" style="background:#8C5BD8"></span>Violett</div>
+          <div class="row"><span class="swatch" style="background:#1FA8A0"></span>Türkis</div>
+          <div class="row"><span class="swatch" style="background:#6B7280"></span>Grau</div>
+          <div class="sep"></div>
+          <div class="row"><span class="g"></span>Benutzerdefiniert…</div>
+          <div class="row"><span class="g"></span>Standard (keine Farbe)</div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Rechtsklick auf einen Reiter, hier mit geöffnetem Farb-Untermenü.</figcaption>
+  </figure>
+
+  <h3>Icons</h3>
+  <ul class="plain">
+    <li><strong>Anordnen:</strong> Icons per Ziehen an die gewünschte Stelle bringen. MSDesk merkt
+      sich die Reihenfolge und sortiert nichts von selbst um; neue Dateien kommen hinten dazu.</li>
+    <li><strong>Öffnen:</strong> Doppelklick. (Im Bereich „Lesezeichen“ genügt ein einfacher Klick.)</li>
+    <li><strong>Windows-Rechtsklickmenü:</strong> Rechtsklick auf ein Icon öffnet das echte
+      Explorer-Menü — mit Öffnen, Kopieren, Umbenennen, Löschen, Eigenschaften und allem, was
+      deine installierten Programme dort eintragen.</li>
+    <li><strong>Wieder hinaus:</strong> Icons lassen sich aus dem Bereich heraus auf den Desktop
+      oder in ein Explorer-Fenster ziehen.</li>
+    <li><strong>Icon-Größe:</strong> <span class="path">Optionen… → Dieser Bereich → Icon-Größe</span>
+      (klein 24, mittel 32, groß 48) — die Einstellung gilt für alle Bereiche.</li>
+  </ul>
+
+  <figure>
+    <div class="stage tight">
+      <div class="fence narrow">
+        <div class="icongrid">
+          <span class="cell"><span class="ic b"></span><span class="cap">Angebot</span></span>
+          <span class="cell hover"><span class="ic g"></span><span class="cap">Übersicht</span></span>
+          <span class="cell sel"><span class="ic o"></span><span class="cap">Protokoll</span></span>
+          <span class="cell"><span class="ic v"></span><span class="cap">Skizze</span></span>
+        </div>
+      </div>
+      <div style="height:14px"></div>
+      <div class="menu" style="width:230px">
+        <div class="row hi"><span class="g filled"></span>Öffnen</div>
+        <div class="row"><span class="g"></span>Kopieren</div>
+        <div class="row"><span class="g"></span>Umbenennen</div>
+        <div class="row"><span class="g"></span>Löschen</div>
+        <div class="sep"></div>
+        <div class="row"><span class="g"></span>Eigenschaften</div>
+      </div>
+    </div>
+    <figcaption>
+      Zweites Icon: Maus darüber, drittes: ausgewählt. Darunter das Windows-Menü, das beim
+      Rechtsklick auf ein Icon erscheint (Ausschnitt — der genaue Inhalt kommt von Windows).
+    </figcaption>
+  </figure>
+
+  <h3>Live-Suche</h3>
+  <p>
+    Rechts in der Titelzeile sitzt ein Suchfeld (es erscheint, sobald der Bereich breit genug ist).
+    Tippen genügt — ohne <kbd>Enter</kbd>: Der Begriff gilt sofort für <strong>alle Bereiche und
+    alle Tabs</strong>. Treffer werden blau hervorgehoben, alles andere abgedunkelt, und Reiter,
+    in denen etwas gefunden wurde, färben sich ebenfalls blau. <kbd>Esc</kbd> leert die Suche
+    überall wieder.
+  </p>
+
+  <figure>
+    <div class="stage">
+      <div class="fence">
+        <div class="titlebar">
+          <span class="tb-icon"></span>
+          <span class="tb-title">Projekte</span>
+          <span class="tb-fill"></span>
+          <span class="tb-search filled">angebot<span class="caret"></span></span>
+          <span class="tb-btn lock"><i></i><i></i></span>
+        </div>
+        <div class="tabbar">
+          <span class="tab is-active"><span class="tico"></span>Allgemein</span>
+          <span class="tab match"><span class="tico"></span>Kunden</span>
+          <span class="tab c-violet"><span class="tico"></span>Archiv</span>
+        </div>
+        <div class="icongrid">
+          <span class="cell match"><span class="ic b"></span><span class="cap">Angebot 2026</span></span>
+          <span class="cell dim"><span class="ic g"></span><span class="cap">Zeichnungen</span></span>
+          <span class="cell match"><span class="ic o"></span><span class="cap">Angebotsliste</span></span>
+          <span class="cell dim"><span class="ic v"></span><span class="cap">Kalkulation</span></span>
+          <span class="cell dim"><span class="ic t"></span><span class="cap">Notizen</span></span>
+          <span class="cell dim"><span class="ic r"></span><span class="cap">Rechnungen</span></span>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      Live-Suche nach „angebot“: zwei Treffer blau, der Rest blass — und der Reiter „Kunden“ meldet,
+      dass dort ebenfalls etwas liegt.
+    </figcaption>
+  </figure>
+
+  <h3>Fixieren, Transparenz und Milchglas</h3>
+  <ul class="plain">
+    <li><strong>Fixieren:</strong> das Schloss rechts in der Titelzeile (es erscheint bei Maus über
+      dem Bereich) oder Rechtsklick → <span class="path">Bereich fixieren</span>. Dann lässt sich
+      nichts mehr versehentlich verschieben oder in der Größe verziehen.
+      <strong>Das Schloss gilt für alle Bereiche gemeinsam.</strong></li>
+    <li><strong>Transparenz:</strong> <span class="path">Optionen… → Dieser Bereich</span> — ein
+      Regler für die Fläche, ein zweiter für die Titelleiste. Auch diese Einstellung wirkt auf
+      alle Bereiche.</li>
+    <li><strong>Milchglas:</strong> pro Bereich als <span class="path">Hintergrund-Blur</span>,
+      dazu ein Hauptschalter unter <span class="path">Optionen… → Allgemein → Darstellung und
+      Leistung</span>. Ausgeschaltet bleiben die Bereiche durchscheinend, aber ohne Weichzeichnung —
+      das spart spürbar Arbeitsspeicher und Rechenzeit.</li>
+  </ul>
+
+  <figure>
+    <div class="stage tight">
+      <div class="trio">
+        <div class="fence t1">
+          <div class="titlebar"><span class="tb-icon"></span><span class="tb-title">kräftig</span></div>
+          <div class="mini">wenig Transparenz</div>
+        </div>
+        <div class="fence t2">
+          <div class="titlebar"><span class="tb-icon"></span><span class="tb-title">mittel</span></div>
+          <div class="mini">Standard</div>
+        </div>
+        <div class="fence t3">
+          <div class="titlebar"><span class="tb-icon"></span><span class="tb-title">dezent</span></div>
+          <div class="mini">stark durchscheinend</div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Drei Stufen des Transparenz-Reglers über demselben Hintergrund.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section id="automatik">
+  <h2><span class="num">3</span>Automatik: die Ablage</h2>
+  <p>
+    MSDesk kann deinen Desktop selbst aufräumen. Jede neue Datei wandert dabei nach dieser
+    Reihenfolge an ihren Platz:
+  </p>
+  <ul class="plain">
+    <li><strong>1. Endungs-Regel</strong> — passt die Endung zu einem Tab, landet die Datei dort.</li>
+    <li><strong>2. Platz-Gedächtnis</strong> — MSDesk merkt sich, in welchem Tab eine Datei zuletzt
+      lag. Legt ein Programm nach einem Update wieder eine Verknüpfung auf den Desktop, findet sie
+      von allein ihren alten Platz zurück.</li>
+    <li><strong>3. Bereich „Ablage“</strong> — alles Übrige sammelt sich dort.</li>
+  </ul>
+
+  <p>
+    Die Regeln stellst du je Tab ein: <strong>Rechtsklick auf den Reiter →
+    <span class="path">Automatische Dateiendungen…</span></strong>. Erlaubt sind einzelne Endungen
+    ohne Punkt (<span class="path">sza</span>, <span class="path">ifc</span>) und die Sammelbegriffe
+    <span class="path">bilder</span>, <span class="path">office</span>, <span class="path">video</span>,
+    <span class="path">audio</span> und <span class="path">archiv</span>, getrennt mit Semikolon.
+  </p>
+
+  <figure>
+    <div class="stage tight">
+      <div class="dlg">
+        <div class="dlg-head">MSDesk</div>
+        <div class="dlg-body">
+          <p>Dateiendungen für diesen Tab (mit ; getrennt). Einzelne Endungen ohne Punkt
+             (z.&nbsp;B. sza; 7z) oder eine Kategorie: bilder, office, video, audio, archiv.<br>
+             Der Desktop-Einsammler legt passende Dateien automatisch hier ab:</p>
+          <div class="dlg-input">sza; ifc; dwg<span class="caret"></span></div>
+        </div>
+        <div class="dlg-foot">
+          <span class="btn primary">OK</span>
+          <span class="btn">Abbrechen</span>
+        </div>
+      </div>
+    </div>
+    <figcaption>Endungs-Regeln für einen Tab — hier fängt der CAD-Tab alle SZA-, IFC- und DWG-Dateien ab.</figcaption>
+  </figure>
+
+  <div class="note">
+    <b>Einzelne Endung schlägt Sammelbegriff.</b> Trägst du in einem Tab
+    <span class="path">pdf</span> ein und in einem anderen <span class="path">office</span>, dann
+    gehen PDF-Dateien in den PDF-Tab — obwohl „office“ sie mit abdecken würde.
+  </div>
+
+  <p>
+    Ob MSDesk dauernd mitschaut, entscheidest du unter <span class="path">Optionen… → Allgemein →
+    Desktop (Ablage)</span>. Ist die Dauerüberwachung aus, braucht MSDesk dafür keine Ressourcen —
+    das Einsammeln geht dann jederzeit per Klick auf das <strong>Aktualisieren-Symbol
+    (&#8635;)</strong> in der Titelzeile des Bereichs „Ablage“. Die Endungs-Regeln greifen dabei
+    genauso.
+  </p>
+
+  <figure>
+    <div class="stage tight">
+      <div class="opt">
+        <div class="opt-head">Optionen — Allgemein</div>
+        <div class="opt-body">
+          <p class="opt-sec">DESKTOP (ABLAGE)</p>
+          <div class="opt-row">
+            <span class="chk on">&#10003;</span>Desktop dauerhaft überwachen und sofort einsammeln
+          </div>
+          <p class="opt-hint">
+            Ausgeschaltet braucht MSDesk keine Ressourcen für die Überwachung — das Einsammeln geht
+            dann per Klick auf das Aktualisieren-Symbol in der Titelzeile der „Ablage“.
+          </p>
+          <p class="opt-sec">DARSTELLUNG UND LEISTUNG</p>
+          <div class="opt-row"><span class="chk on">&#10003;</span>Milchglas-Effekt hinter den Bereichen</div>
+          <div class="opt-row"><span class="chk"></span>Website-Symbole automatisch nachladen</div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Ausschnitt aus den Optionen: Rechtsklick auf einen Bereich → <span class="path">Optionen…</span></figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section id="lesezeichen">
+  <h2><span class="num">4</span>Lesezeichen</h2>
+  <p>
+    Unter <span class="path">Optionen… → Allgemein → Lesezeichen</span> holst du deine Lesezeichen
+    aus <strong>Chrome</strong> und <strong>Firefox</strong> in einen eigenen Bereich
+    „Lesezeichen“. Die Ordner des Browsers werden zu Tabs, lose Links aus der Lesezeichenleiste
+    landen im Tab „Leiste“.
+  </p>
+  <ul class="plain">
+    <li>Ein erneuter Durchlauf <strong>gleicht nur ab</strong>: neue Lesezeichen kommen dazu,
+      vorhandene bleiben unangetastet — auch wenn du sie im Bereich umbenannt hast.</li>
+    <li>Im Lesezeichen-Bereich reicht ein <strong>einfacher Klick</strong> zum Öffnen; der
+      Hand-Cursor zeigt es an.</li>
+    <li>Das <strong>Aktualisieren-Symbol (&#8635;)</strong> in der Titelzeile dieses Bereichs holt
+      neue Chrome- und Firefox-Lesezeichen ohne Umweg über die Optionen.</li>
+    <li>Fehlende Website-Symbole holt MSDesk auf Wunsch aus dem Netz —
+      <span class="path">Optionen… → Allgemein → Website-Symbole automatisch nachladen</span>.
+      Ausgeschaltet entstehen beim Öffnen eines Lesezeichen-Tabs keine Netzwerkzugriffe;
+      bereits geholte Symbole bleiben erhalten.</li>
+  </ul>
+
+  <figure>
+    <div class="stage">
+      <div class="fence">
+        <div class="titlebar">
+          <span class="tb-icon"></span>
+          <span class="tb-title">Lesezeichen</span>
+          <span class="tb-fill"></span>
+          <span class="tb-btn hover">&#8635;</span>
+          <span class="tb-btn lock"><i></i><i></i></span>
+        </div>
+        <div class="tabbar">
+          <span class="tab is-active"><span class="tico"></span>Leiste</span>
+          <span class="tab c-green"><span class="tico"></span>Technik</span>
+          <span class="tab c-violet"><span class="tico"></span>Einkauf</span>
+        </div>
+        <div class="icongrid">
+          <span class="cell"><span class="ic b"></span><span class="cap">Intranet</span></span>
+          <span class="cell hover"><span class="ic t"></span><span class="cap">Zeiterfassung</span></span>
+          <span class="cell"><span class="ic o"></span><span class="cap">Normenportal</span></span>
+          <span class="cell"><span class="ic r"></span><span class="cap">Ticketsystem</span></span>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      Der Bereich „Lesezeichen“ mit dem Aktualisieren-Symbol in der Titelzeile (Maus darüber).
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section id="sicherung">
+  <h2><span class="num">5</span>Sicherung und Update</h2>
+
+  <h3>Sicherung</h3>
+  <p>
+    Unter <span class="path">Optionen… → Allgemein → Sicherung</span> trägst du einmal einen
+    <strong>Sicherungspfad</strong> ein. Danach genügt ein Klick auf
+    <span class="path">Automatische Sicherung</span>: MSDesk legt dort eine ZIP-Datei mit
+    Zeitstempel ab und <strong>behält die neuesten 3</strong> — ältere räumt es selbst weg.
+  </p>
+  <ul class="plain">
+    <li><span class="path">Sicherung erstellen…</span> fragt stattdessen nach Ort und Namen.</li>
+    <li><span class="path">Wiederherstellen…</span> spielt eine Sicherung zurück; MSDesk startet
+      danach neu. Die bisherige Konfiguration wird vorher zur Seite gelegt.</li>
+    <li>Gesichert werden die Konfiguration und alle Bereichs-Ordner. Große Dateien bleiben bewusst
+      draußen — die Sicherung ist für <strong>Layout und Verknüpfungen</strong> gedacht, echte
+      Arbeitsdateien gehören in dein normales Datei-Backup.</li>
+    <li>Beides findest du auch im <strong>Tray-Menü</strong> (Rechtsklick auf das MSDesk-Symbol
+      neben der Uhr).</li>
+  </ul>
+
+  <h3>Update</h3>
+  <p>
+    MSDesk schaut beim Start still nach, ob eine neuere Version bereitliegt, und meldet sich dann
+    von selbst. Nachsehen kannst du jederzeit unter <span class="path">Optionen… → Allgemein →
+    Update</span>: <span class="path">Nach Updates suchen</span> prüft, und wenn etwas da ist,
+    erscheint <span class="path">Update installieren</span> — MSDesk lädt den Installer und startet
+    ihn.
+  </p>
+
+  <figure>
+    <div class="stage tight">
+      <div class="opt">
+        <div class="opt-head">Optionen — Allgemein</div>
+        <div class="opt-body">
+          <p class="opt-sec">UPDATE</p>
+          <p class="opt-hint" style="margin-left:0">Version ist aktuell.</p>
+          <div class="dlg-foot" style="justify-content:flex-start; padding:0 0 14px">
+            <span class="btn">Nach Updates suchen</span>
+          </div>
+          <p class="opt-sec">SICHERUNG (ALLE BEREICHE)</p>
+          <p class="opt-hint" style="margin-left:0">
+            Sichert Konfiguration und alle Bereichs-Ordner als ZIP – z.&nbsp;B. vor dem Neuaufsetzen.
+          </p>
+          <div class="dlg-input" style="border-color:rgba(255,255,255,0.25); color:rgba(255,255,255,0.8); margin-bottom:12px">
+            D:\Sicherung\MSDesk
+          </div>
+          <div class="dlg-foot" style="justify-content:flex-start; padding:0">
+            <span class="btn primary">Automatische Sicherung</span>
+            <span class="btn">Sicherung erstellen…</span>
+            <span class="btn">Wiederherstellen…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>Update und Sicherung liegen zusammen in den Optionen unter „Allgemein“.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section id="tipps">
+  <h2><span class="num">6</span>Kurze Tipps</h2>
+  <ul class="tips">
+    <li><span class="dot"></span><span>Doppelklick auf das <strong>Tray-Symbol</strong> neben der Uhr
+      holt alle Bereiche kurz in den Vordergrund — praktisch, wenn Teams oder eine Vollbild-App
+      den Desktop verdeckt.</span></li>
+    <li><span class="dot"></span><span><kbd>Esc</kbd> im Suchfeld leert die Suche in allen
+      Bereichen auf einmal.</span></li>
+    <li><span class="dot"></span><span><strong>Doppelklick auf die Titelzeile</strong> benennt den
+      Bereich um — ohne Umweg über das Menü.</span></li>
+    <li><span class="dot"></span><span>Beim Hineinziehen gilt: <strong>ziehen verschiebt</strong>,
+      mit <kbd>Strg</kbd> wird <strong>kopiert</strong>.</span></li>
+    <li><span class="dot"></span><span>Ein <strong>Link aus dem Browser</strong> lässt sich direkt
+      in einen Bereich ziehen; auch der Papierkorb und andere Systemobjekte finden dort Platz.</span></li>
+    <li><span class="dot"></span><span>Das <strong>Schloss fixiert alle Bereiche</strong>, nicht
+      nur den einen — gut gegen versehentliches Verschieben.</span></li>
+    <li><span class="dot"></span><span>Nach einem Monitorwechsel: Tray-Menü →
+      <span class="path">Alle Bereiche neu ausrichten</span> holt Bereiche zurück, die außerhalb
+      des sichtbaren Bilds gelandet sind.</span></li>
+  </ul>
+</section>
+
+<footer>
+  Diese Seite liegt bei MSDesk mit im Programmordner und funktioniert ohne Internet.
+  Du kannst sie jederzeit wieder aufrufen, indem du die Datei
+  <span class="path">Assets\Hilfe\index.html</span> im Browser öffnest.
+</footer>
+
+</div>
+</body>
+</html>
