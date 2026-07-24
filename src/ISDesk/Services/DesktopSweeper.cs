@@ -29,7 +29,9 @@ public sealed class DesktopSweeper : IDisposable
             if (!Directory.Exists(desktop)) return;
 
             _debounce = new System.Timers.Timer(4000) { AutoReset = false };
-            _debounce.Elapsed += (_, _) => Sweep();
+            // Nur solange die Dauerueberwachung eingeschaltet ist (schuetzt gegen
+            // ein noch laufendes Debounce nach dem Abschalten).
+            _debounce.Elapsed += (_, _) => { if (_config.Config.DesktopSweep) Sweep(); };
 
             _watcher = new FileSystemWatcher(desktop)
             {
@@ -64,11 +66,9 @@ public sealed class DesktopSweeper : IDisposable
         }
     }
 
-    /// Manueller Anstoss (Refresh-Button): Desktop einsammeln (falls Option aktiv).
-    public void SweepNow()
-    {
-        if (_config.Config.DesktopSweep) Sweep();
-    }
+    /// Manueller Anstoss (Refresh-Button): sammelt den Desktop EINMAL ein —
+    /// unabhaengig davon, ob die Dauerueberwachung eingeschaltet ist.
+    public void SweepNow() => Sweep();
 
     /// Wendet die Endungs-Regeln auf ALLE Bereichs-Tabs an: Dateien, die laut
     /// Regel in einen anderen Tab gehoeren, werden dorthin verschoben.
@@ -108,7 +108,6 @@ public sealed class DesktopSweeper : IDisposable
     {
         try
         {
-            if (!_config.Config.DesktopSweep) return;
             var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             var ablage = _ablageFolderProvider();
             if (string.IsNullOrEmpty(ablage) || !Directory.Exists(ablage)) return;

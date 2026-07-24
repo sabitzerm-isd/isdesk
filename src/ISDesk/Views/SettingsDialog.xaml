@@ -127,11 +127,11 @@
 
                         <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
                         <CheckBox x:Name="SweepCheck"
-                                  Content="Ablage aktivieren – Dateien vom Desktop automatisch einsammeln"
+                                  Content="Desktop dauerhaft überwachen und sofort einsammeln"
                                   Foreground="#DDFFFFFF" FontSize="12.5" TextBlock.LineHeight="16"
                                   Checked="Sweep_Checked" Unchecked="Sweep_Unchecked" />
                         <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Bekannte Dateien wandern in ihren gelernten Bereich, alles andere in „Ablage“. Endungs-Regeln pro Tab per Rechtsklick auf den Tab." />
+                                   Text="Ausgeschaltet braucht ISDesk keine Ressourcen für die Überwachung. Das Einsammeln geht dann jederzeit per Klick auf das Aktualisieren-Symbol in der Titelzeile des Bereichs „Ablage“ – die Endungs-Regeln (Rechtsklick auf einen Tab) gelten dabei genauso." />
 
                         <TextBlock Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
                         <TextBlock Style="{StaticResource HintStyle}"
