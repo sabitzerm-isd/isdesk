@@ -1,94 +1,57 @@
-# ISDesk
+# MSDesk
 
-ISDesk ist ein schlanker Ersatz fuer Stardock Fences: verschiebbare, transparente
-Desktop-Bereiche ("Fences"), die Verknuepfungen und Dateien nach Themen gruppieren.
-Jeder Bereich liegt dauerhaft hinter den normalen Fenstern und spiegelt echte Ordner
-auf der Platte.
+Schlanker Desktop-Organizer für Windows 11: Bereiche auf dem Desktop, in denen
+Verknüpfungen und Dateien nach Themen zusammenliegen — immer hinter den normalen
+Fenstern. Jeder Bereich kann mehrere Tabs haben, hinter jedem Tab steckt ein
+echter Ordner auf der Platte.
 
-Windows-only (WPF, .NET 8). Reine Desktop-App mit Tray-Symbol, ohne Hauptfenster.
+Eigenentwicklung als Ersatz für Stardock Fences, ohne Lizenzierung, Telemetrie
+und Explorer-Eingriffe. Windows-only (WPF, .NET 8), Tray-Symbol ohne Hauptfenster.
+(Bis Version 0.19 hieß die Anwendung *ISDesk*.)
 
-## Features (Phase 1)
+## Installieren
 
-- **Desktop-Bereiche** – randlose Fenster mit Acrylic-Transparenz und runden Ecken,
-  dauerhaft "bottom-most" (nie im Vordergrund, nicht in Alt-Tab oder Taskleiste).
-- **Verschieben & Groesse aendern** – Ziehen an der Titelzeile, Anfassen der Raender.
-- **Tabs** – je Tab ein echter Ordner; anlegen, wechseln, umbenennen, entfernen
-  (der Ordner bleibt beim Entfernen erhalten).
-- **Icon-Raster** – Shell-Icons wie im Explorer, Start per Doppelklick, Live-Aktualisierung
-  ueber `FileSystemWatcher`.
-- **Drag & Drop** – Dateien in einen Bereich ziehen (verschieben, mit Strg kopieren) und
-  wieder heraus auf den Desktop oder in andere Ordner.
-- **Icon-Kontextmenue** – Oeffnen, im Explorer anzeigen, umbenennen, in den Papierkorb.
-- **Bereichs-Kontextmenue** – neuer Tab, umbenennen, Transparenz-Regler (live),
-  Hintergrund-Blur, Ordner oeffnen, neuer/entfernen Bereich, beenden.
-- **Tray-Menue** – neuer Bereich, alle Bereiche neu ausrichten, Autostart-Umschalter, beenden.
-- **Persistenz** – Layout, Groesse, Transparenz und Tabs werden als JSON gespeichert
-  (atomar, entprellt). Bereiche ausserhalb sichtbarer Bildschirme werden zurueckgeholt.
-- **Erststart-Demo** – beim ersten Start entsteht ein Bereich "Willkommen" mit ein paar
-  Beispiel-Verknuepfungen. Bestehende Nutzerdateien werden dabei nie angefasst.
-- **Single-Instance & Autostart** – nur eine Instanz laeuft; Autostart optional per
-  Registry-Eintrag (`HKCU\...\Run`).
+Aktuellen Installer aus den [Releases](https://github.com/sabitzerm-isd/isdesk/releases/latest)
+laden und ausführen — installiert nach `C:\Program Files\MSDesk`, legt einen
+Startmenü-Eintrag an und startet künftig mit Windows. .NET wird nicht benötigt.
 
-## Voraussetzungen
+Windows meldet „Unbekannter Herausgeber" (die Anwendung ist nicht signiert):
+*Weitere Informationen* → *Trotzdem ausführen*.
 
-- Windows 10/11 (x64)
-- .NET SDK 8.0
+Läuft MSDesk bereits, geht es bequemer: **Optionen → Allgemein → Update →
+Nach Updates suchen → Update installieren**.
 
-## Build
+## Funktionen
 
-```
-dotnet build ISDesk.sln
-```
+- Bereiche mit Tabs, Transparenz und Milchglas-Effekt, Symbolen und Tab-Farben
+- Icons frei anordnen, Drag & Drop aus Explorer und Browser, echtes
+  Windows-Rechtsklickmenü, Papierkorb und andere Systemobjekte
+- Live-Suche über alle Bereiche, Raster und Einrasten an Nachbarn
+- Ablage: sammelt den Desktop auf Knopfdruck ein, Regeln je Dateiendung
+  (`sza`, `ifc` … oder Sammelbegriffe `bilder`, `office`, `video`, `audio`, `archiv`),
+  merkt sich, wo eine Datei zuletzt lag
+- Lesezeichen aus Chrome und Firefox importieren und abgleichen
+- Sicherung als ZIP (behält die neuesten drei), Layouts je Bildschirm-Konfiguration
+- Automatische Update-Prüfung über GitHub Releases
+- Beim Deinstallieren werden die Inhalte auf Wunsch zurück auf den Desktop gelegt
 
-Release-Build:
+Eine ausführliche Anleitung öffnet sich beim ersten Start und ist danach über
+das Tray-Symbol → *Anleitung öffnen* erreichbar.
 
-```
-dotnet build ISDesk.sln -c Release
-```
+## Entwicklung
 
-Tests (Logik: ConfigService, FolderContents):
-
-```
-dotnet test ISDesk.sln
+```bash
+dotnet build MSDesk.sln
+dotnet test --nologo
 ```
 
-## Start
+Release bauen (Installer landet in `dist/`):
 
-Nach dem Build die erzeugte EXE starten:
-
-```
-src\ISDesk\bin\Debug\net8.0-windows\ISDesk.exe
+```bash
+dotnet publish src/MSDesk/MSDesk.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
-oder direkt:
+Danach `installer/MSDesk.iss` mit Inno Setup übersetzen (`/DAppVersion=x.y.z`).
 
-```
-dotnet run --project src\ISDesk
-```
-
-Die App erscheint als Tray-Symbol. Ueber das Tray-Menue oder das Kontextmenue eines
-Bereichs lassen sich neue Bereiche anlegen.
-
-## Konfiguration
-
-- Konfigurationsdatei: `%APPDATA%\ISDesk\config.json`
-- Standard-Basisordner fuer Bereiche/Tabs: `D:\Fences` (aenderbar ueber `BaseFolder`
-  in der `config.json`)
-- Bei defekter Konfiguration wird eine Sicherung als `config.bad.json` abgelegt und mit
-  Standardwerten weitergearbeitet.
-- Unbehandelte Ausnahmen landen in `%APPDATA%\ISDesk\crash.log`.
-
-## Bekannte Einschraenkungen
-
-- **Win+D / "Desktop anzeigen"** blendet die Bereiche mit aus – ein Ausblende-Schutz ist
-  fuer Phase 2 geplant.
-- **Update-Mechanik** (Auto-Update / Installer) folgt in Phase 1d.
-- Keine Ordner-Navigation innerhalb eines Tabs und (noch) keine Einstellungen-Oberflaeche
-  (Icon-Groesse etc. nur ueber die `config.json`).
-
-## Projektstruktur
-
-```
-src/ISDesk/            WPF-App (Views, ViewModels, Services, Interop)
-tests/ISDesk.Tests/    xunit-Tests (ConfigService, FolderContents)
-```
+Einstellungen liegen unter `%APPDATA%\MSDesk\config.json`, die Bereichs-Ordner
+standardmäßig unter `D:\Fences`.

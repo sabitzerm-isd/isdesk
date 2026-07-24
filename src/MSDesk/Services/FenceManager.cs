@@ -27,6 +27,9 @@ public sealed class FenceManager
 
     public void PersistNow() => _config.SaveDebounced();
 
+    /// Schmale Sicht auf die Bereiche (fuer das Zurueckgeben auf den Desktop).
+    public AppConfigSource ConfigSource() => AppConfigSource.From(_config);
+
     /// Irgendein offener Bereich — fuer Dialoge, die aus dem Tray heraus
     /// geoeffnet werden und ein Bezugs-ViewModel brauchen.
     public ViewModels.FenceViewModel? FirstFenceViewModel()

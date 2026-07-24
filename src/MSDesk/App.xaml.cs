@@ -26,6 +26,14 @@ public partial class App : Application
             args.Handled = true;
         };
 
+        // Deinstallation: Inhalte der Bereiche zurueck auf den Desktop legen und
+        // sofort beenden (kein Tray, keine Fenster).
+        if (e.Args.Any(a => string.Equals(a, DesktopRestore.CommandLineSwitch, StringComparison.OrdinalIgnoreCase)))
+        {
+            RestoreIconsAndExit();
+            return;
+        }
+
         _singleInstanceMutex = new Mutex(true, @"Global\MSDesk_SingleInstance", out var createdNew);
         if (!createdNew)
         {
@@ -84,6 +92,41 @@ public partial class App : Application
         _displayDebounce.Elapsed += (_, _) =>
             Dispatcher.Invoke(() => _manager?.ApplyLayoutsForCurrentDisplays());
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+    }
+
+    /// Vor der Deinstallation aufgerufen: fragt einmal nach und legt dann alle
+    /// Dateien aus den Bereichen zurueck auf den Desktop.
+    private void RestoreIconsAndExit()
+    {
+        try
+        {
+            var config = new ConfigService();
+            config.Load();
+            var source = AppConfigSource.From(config);
+            var count = DesktopRestore.Count(source);
+
+            if (count == 0) { Shutdown(); return; }
+
+            var (confirmed, _) = Views.ConfirmDialog.Show(
+                $"MSDesk wird entfernt.\n\n{count} Datei(en) liegen in den Bereichen. " +
+                "Sollen sie zurück auf den Desktop gelegt werden?\n\n" +
+                "Antwortest du mit „Nein“, bleiben sie in ihren Ordnern unter " +
+                $"{config.Config.BaseFolder} liegen.",
+                null, okText: "Auf den Desktop legen");
+
+            if (confirmed)
+            {
+                var (moved, failed) = DesktopRestore.RestoreAll(source);
+                var text = $"{moved} Datei(en) auf den Desktop gelegt.";
+                if (failed > 0) text += $"\n{failed} konnten nicht verschoben werden.";
+                Views.ConfirmDialog.Info(text, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogCrash(ex, "RestoreIconsAndExit");
+        }
+        Shutdown();
     }
 
     private System.Timers.Timer? _displayDebounce;

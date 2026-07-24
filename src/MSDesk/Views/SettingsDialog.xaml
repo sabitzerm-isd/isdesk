@@ -162,6 +162,12 @@
                         <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
                                    Text="Holt fehlende Symbole von Lesezeichen aus dem Internet. Ausgeschaltet entstehen beim Öffnen eines Lesezeichen-Tabs keine Netzwerkzugriffe; bereits geholte Symbole bleiben erhalten." />
 
+                        <TextBlock Text="INHALTE ZURÜCKGEBEN" Style="{StaticResource SectionStyle}" />
+                        <TextBlock Style="{StaticResource HintStyle}"
+                                   Text="Legt alle Dateien aus den Bereichen zurück auf den Desktop – z. B. wenn du MSDesk nicht mehr nutzen möchtest. Beim Deinstallieren wird ohnehin danach gefragt." />
+                        <Button Content="Alle Inhalte zurück auf den Desktop legen" MinWidth="0"
+                                Click="RestoreToDesktop_Click" />
+
                         <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
                         <CheckBox x:Name="SweepCheck"
                                   Content="Desktop dauerhaft überwachen und sofort einsammeln"

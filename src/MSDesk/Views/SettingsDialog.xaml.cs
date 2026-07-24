@@ -292,6 +292,29 @@ public partial class SettingsDialog : Window
         if (_initialized && _manager != null) _manager.AutoFavicons = false;
     }
 
+    private void RestoreToDesktop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+        var source = _manager.ConfigSource();
+        var count = DesktopRestore.Count(source);
+        if (count == 0)
+        {
+            ConfirmDialog.Info("In den Bereichen liegen keine Dateien.", this);
+            return;
+        }
+
+        var (confirmed, _) = ConfirmDialog.Show(
+            $"{count} Datei(en) aus allen Bereichen zurück auf den Desktop legen?\n\n" +
+            "Die Bereiche bleiben bestehen, sind danach aber leer.",
+            this, okText: "Auf den Desktop legen");
+        if (!confirmed) return;
+
+        var (moved, failed) = DesktopRestore.RestoreAll(source);
+        var text = $"{moved} Datei(en) auf den Desktop gelegt.";
+        if (failed > 0) text += $"\n{failed} konnten nicht verschoben werden (evtl. in Benutzung).";
+        ConfirmDialog.Info(text, this);
+    }
+
     private void Sweep_Checked(object sender, RoutedEventArgs e)
     {
         if (_initialized) _manager?.SetDesktopSweep(true);

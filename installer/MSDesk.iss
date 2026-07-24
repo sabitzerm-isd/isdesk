@@ -46,6 +46,12 @@ Name: "{autodesktop}\MSDesk"; Filename: "{app}\MSDesk.exe"; Tasks: desktopicon
 [Run]
 Filename: "{app}\MSDesk.exe"; Description: "MSDesk jetzt starten"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+; Vor dem Entfernen fragen, ob die Inhalte der Bereiche zurueck auf den Desktop
+; sollen — sonst blieben die Verknuepfungen unsichtbar in den Ordnern liegen.
+Filename: "{app}\MSDesk.exe"; Parameters: "--icons-auf-desktop"; RunOnceId: "IconsAufDesktop"; \
+    Flags: waituntilterminated
+
 [Code]
 { Die Vorgaengerversion hiess "ISDesk" und liegt in einem eigenen Ordner.
   Sie wird vor der Installation still entfernt, damit nicht zwei Programme
