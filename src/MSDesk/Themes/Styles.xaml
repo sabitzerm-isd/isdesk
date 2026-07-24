@@ -10,6 +10,26 @@
     <SolidColorBrush x:Key="MenuSeparatorBrush" Color="#26FFFFFF" />
     <SolidColorBrush x:Key="MenuAccentBrush" Color="#7DB7FF" />
 
+    <!-- Kurzinfo im Programmstil (statt hellgelbem Windows-Standard) -->
+    <Style TargetType="ToolTip">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="HasDropShadow" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{StaticResource MenuBackgroundBrush}"
+                            BorderBrush="{StaticResource MenuBorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="10,7">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.45" Color="Black" />
+                        </Border.Effect>
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Symbol vor einem Menueintrag (Segoe-Fluent-Glyphe) -->
     <Style x:Key="MenuGlyph" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />

@@ -88,6 +88,14 @@ public sealed class TabConfig
     /// Symbol vor dem Tab-Titel: Galerie-Dateiname oder absoluter PNG-Pfad.
     public string? IconPath { get; set; }
 
+    /// Ausgeblendet: Tab bleibt in der Konfiguration (und beim Abgleich erhalten),
+    /// wird aber nicht angezeigt.
+    public bool Hidden { get; set; }
+
+    /// Feste Reihenfolge in der Tab-Leiste (kleiner = weiter vorn). Der
+    /// Favoriten-Tab nutzt einen negativen Wert, damit er immer zuerst steht.
+    public int SortOrder { get; set; }
+
     /// Manuelle Icon-Reihenfolge (Dateinamen). Neue Dateien werden hinten angefuegt,
     /// verschwundene automatisch entfernt — es wird NICHT automatisch sortiert.
     public List<string> Order { get; set; } = new();

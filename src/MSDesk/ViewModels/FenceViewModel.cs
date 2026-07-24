@@ -149,6 +149,7 @@ public sealed class FenceViewModel : INotifyPropertyChanged
 
     private void UpdateTabFlags()
     {
+        OnChanged(nameof(ShowTabStrip));
         foreach (var tab in Tabs)
             tab.CanRemove = Tabs.Count > 1;
     }
@@ -173,7 +174,22 @@ public sealed class FenceViewModel : INotifyPropertyChanged
     /// Laedt NUR den sichtbaren Tab (Icons + Ordnerueberwachung). Die uebrigen Tabs
     /// laden erst beim Umschalten nach — das spart bei vielen Tabs deutlich
     /// Speicher, Threads und Handles. Auf UI-Thread aufrufen.
-    public void ActivateVisibleTab() => _activeTab?.EnsureLoaded();
+    public void ActivateVisibleTab()
+    {
+        InitFavoritesIfPresent(); // Sterne aktivieren, falls es Favoriten gibt
+        _activeTab?.EnsureLoaded();
+    }
+
+    /// Die Reiter-Zeile lohnt erst ab zwei sichtbaren Tabs — bei einem einzigen
+    /// nimmt sie nur Platz weg (das „+" zum Anlegen bleibt trotzdem).
+    public bool ShowTabStrip => Tabs.Count(t => !t.Hidden) >= 2;
+
+    /// Nach Aenderungen an Anzahl/Sichtbarkeit der Tabs aufrufen.
+    public void RefreshTabStrip()
+    {
+        UpdateTabFlags();
+        OnChanged(nameof(ShowTabStrip));
+    }
 
     public void DisposeTabs()
     {
@@ -204,6 +220,58 @@ public sealed class FenceViewModel : INotifyPropertyChanged
 
     /// Bereiche mit Refresh-Button (Ablage: Regeln, Lesezeichen: Browser-Abgleich).
     public bool IsRefreshable => IsAblage || IsBookmarks;
+
+    /// Sorgt dafuer, dass es im Lesezeichen-Bereich einen Tab „Favoriten" gibt —
+    /// er steht durch SortOrder immer an erster Stelle.
+    public TabViewModel? EnsureFavoritesTab()
+    {
+        if (!IsBookmarks) return null;
+
+        var existing = Tabs.FirstOrDefault(t =>
+            string.Equals(t.Title, Services.FavoriteService.TabTitle, StringComparison.OrdinalIgnoreCase));
+        if (existing != null) return existing;
+
+        var folder = Path.Combine(_baseFolder, SanitizeLeaf(_config.Title),
+            Services.FavoriteService.TabTitle);
+        Directory.CreateDirectory(folder);
+
+        var cfg = new TabConfig
+        {
+            Title = Services.FavoriteService.TabTitle,
+            FolderPath = folder,
+            IconSize = 32,
+            IconPath = "stern2.png",
+            SortOrder = Services.FavoriteService.SortOrder
+        };
+        _config.Tabs.Insert(0, cfg);
+
+        var tab = new TabViewModel(cfg, _persist);
+        Tabs.Insert(0, tab);
+        UpdateTabFlags();
+        ApplyFavoritesFolder(folder);
+        Persist();
+        return tab;
+    }
+
+    /// Teilt allen Tabs mit, wo die Favoriten liegen (aktiviert die Sterne).
+    private void ApplyFavoritesFolder(string folder)
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.FavoritesFolder = string.Equals(tab.FolderPath, folder, StringComparison.OrdinalIgnoreCase)
+                ? null          // im Favoriten-Tab selbst keinen Stern anbieten
+                : folder;
+        }
+    }
+
+    /// Beim Öffnen: falls es schon einen Favoriten-Tab gibt, die Sterne aktivieren.
+    private void InitFavoritesIfPresent()
+    {
+        if (!IsBookmarks) return;
+        var favorites = Tabs.FirstOrDefault(t =>
+            string.Equals(t.Title, Services.FavoriteService.TabTitle, StringComparison.OrdinalIgnoreCase));
+        if (favorites != null) ApplyFavoritesFolder(favorites.FolderPath);
+    }
 
     /// Zieht Tabs, die in der Konfiguration neu dazugekommen sind, in die Ansicht nach
     /// (geladen wird erst beim Anzeigen).

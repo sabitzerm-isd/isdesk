@@ -484,6 +484,50 @@ public partial class FenceWindow : Window
         Manager?.PersistNow();
     }
 
+    /// Tab ausblenden: bleibt in der Konfiguration (und beim Lesezeichen-Abgleich
+    /// erhalten), verschwindet aber aus der Leiste.
+    private void HideTab_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
+        if (_vm.Tabs.Count(t => !t.Hidden) <= 1)
+        {
+            ConfirmDialog.Info("Der letzte sichtbare Tab kann nicht ausgeblendet werden.", this);
+            return;
+        }
+
+        tab.Hidden = true;
+        if (ReferenceEquals(_vm.ActiveTab, tab))
+            _vm.ActiveTab = _vm.Tabs.FirstOrDefault(t => !t.Hidden);
+        _vm.RefreshTabStrip();
+    }
+
+    /// Untermenue mit allen ausgeblendeten Tabs zum Wiedereinblenden.
+    private void HiddenTabsMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menu) return;
+        menu.Items.Clear();
+
+        var hidden = _vm.Tabs.Where(t => t.Hidden).ToList();
+        if (hidden.Count == 0)
+        {
+            menu.Items.Add(new MenuItem { Header = "(keine ausgeblendet)", IsEnabled = false });
+            return;
+        }
+
+        foreach (var tab in hidden)
+        {
+            var item = new MenuItem { Header = tab.Title };
+            var captured = tab;
+            item.Click += (_, _) => { captured.Hidden = false; _vm.RefreshTabStrip(); };
+            menu.Items.Add(item);
+        }
+
+        menu.Items.Add(new Separator());
+        var all = new MenuItem { Header = "Alle wieder einblenden" };
+        all.Click += (_, _) => { foreach (var t in _vm.Tabs) t.Hidden = false; _vm.RefreshTabStrip(); };
+        menu.Items.Add(all);
+    }
+
     private void RemoveTab_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab) return;
@@ -617,6 +661,26 @@ public partial class FenceWindow : Window
         if (_vm.IsBookmarks) return; // dort oeffnet bereits der Einzelklick
         if (FindItem(e.OriginalSource as DependencyObject) is { } item)
             Launch(item.Path);
+    }
+
+    // --- Favoriten (nur im Lesezeichen-Bereich) ---
+
+    /// Stern am Icon: markiert den Eintrag als Favorit (Kopie im Tab „Favoriten",
+    /// der immer vorn steht) bzw. hebt die Markierung wieder auf.
+    private void ToggleFavorite_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not IconItemViewModel item) return;
+        e.Handled = true; // nicht als Klick auf das Icon werten (wuerde die Seite oeffnen)
+
+        var favorites = _vm.EnsureFavoritesTab();
+        if (favorites == null) return;
+
+        // Aus dem Favoriten-Tab heraus bedeutet der Stern: wieder entfernen.
+        var source = ReferenceEquals(_vm.ActiveTab, favorites)
+            ? item.Path
+            : item.Path;
+
+        item.IsFavorite = FavoriteService.Toggle(favorites.FolderPath, source);
     }
 
     /// Nur im Lesezeichen-Bereich: Einzelklick oeffnet (sofern nicht gezogen wurde).

@@ -30,6 +30,36 @@ public sealed class IconItemViewModel : INotifyPropertyChanged
 
     private bool _isHighlighted;
     private bool _isDimmed;
+    private bool _isFavorite;
+    private bool _showFavoriteStar;
+
+    /// Als Favorit markiert (nur im Lesezeichen-Bereich verwendet).
+    public bool IsFavorite
+    {
+        get => _isFavorite;
+        set
+        {
+            if (_isFavorite != value)
+            {
+                _isFavorite = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsFavorite)));
+            }
+        }
+    }
+
+    /// Stern ueberhaupt anbieten? (nur im Lesezeichen-Bereich)
+    public bool ShowFavoriteStar
+    {
+        get => _showFavoriteStar;
+        set
+        {
+            if (_showFavoriteStar != value)
+            {
+                _showFavoriteStar = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowFavoriteStar)));
+            }
+        }
+    }
 
     /// Von der Live-Suche gesetzt: Treffer werden hervorgehoben, …
     public bool IsHighlighted

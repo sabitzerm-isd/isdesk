@@ -226,6 +226,28 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         if (SearchService.IsActive) ApplySearch(); // Reiter-Markierung erhalten
     }
 
+    /// Ausgeblendet (bleibt in der Konfiguration, wird nur nicht angezeigt).
+    public bool Hidden
+    {
+        get => _config.Hidden;
+        set
+        {
+            if (_config.Hidden != value)
+            {
+                _config.Hidden = value;
+                OnChanged();
+                OnChanged(nameof(IsVisible));
+                _persist();
+            }
+        }
+    }
+
+    public bool IsVisible => !_config.Hidden;
+
+    /// Ordner des Favoriten-Tabs — gesetzt vom Bereich, wenn Favoriten moeglich
+    /// sind (nur Lesezeichen). null = kein Stern anbieten.
+    public string? FavoritesFolder { get; set; }
+
     /// Symbol vor dem Tab-Titel (Galerie-Dateiname oder absoluter PNG-Pfad).
     public string? IconPath
     {
@@ -287,6 +309,11 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             var item = new IconItemViewModel(path, FolderContents.GetDisplayName(path), Directory.Exists(path));
             Items.Add(item);
             LoadIconAsync(item);
+            if (FavoritesFolder != null && !item.IsFolder)
+            {
+                item.ShowFavoriteStar = true;
+                item.IsFavorite = FavoriteService.IsFavorite(FavoritesFolder, path);
+            }
             if (!item.IsFolder)
             {
                 if (VisualSettings.AutoFavicons)

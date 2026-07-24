@@ -70,13 +70,21 @@ public sealed class DesktopSweeper : IDisposable
     /// unabhaengig davon, ob die Dauerueberwachung eingeschaltet ist.
     public void SweepNow() => Sweep();
 
-    /// Wendet die Regeln auf ALLE Bereichs-Tabs an: Dateien UND Ordner, die laut
-    /// Regel in einen anderen Tab gehoeren, werden dorthin verschoben.
+    /// Sortiert INNERHALB der Ablage nach den Regeln um (Dateien und Ordner).
+    ///
+    /// WICHTIG: Quelle sind ausschliesslich die Tabs des Ablage-Bereichs. Andere
+    /// Bereiche werden nie durchsucht — was der Nutzer dort bewusst einsortiert
+    /// hat, darf der Aktualisieren-Knopf nicht wegziehen. (Als ZIEL duerfen
+    /// Regeln weiterhin in jedem Bereich stehen.)
     public void ApplyRulesEverywhere()
     {
         try
         {
-            foreach (var fence in _config.Config.Fences.ToList())
+            var ablage = _config.Config.Fences
+                .Where(f => string.Equals(f.Title, "Ablage", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var fence in ablage)
             {
                 foreach (var tab in fence.Tabs.ToList())
                 {

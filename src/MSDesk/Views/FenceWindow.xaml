@@ -24,12 +24,78 @@
         <!-- Icon-Kachel: Bild + Name -->
         <DataTemplate x:Key="IconItemTemplate">
             <StackPanel Margin="2,4" Background="Transparent"
-                        Width="{Binding DataContext.ActiveTab.CellWidth, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=84}">
-                <Image Source="{Binding Icon}"
-                       Width="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
-                       Height="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
-                       HorizontalAlignment="Center" Margin="0,4"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
+                        Width="{Binding DataContext.ActiveTab.CellWidth, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=84}"
+                        ToolTipService.InitialShowDelay="600" ToolTipService.ShowDuration="20000">
+                <!-- Vollstaendiger Name als Kurzinfo (die Beschriftung ist gekuerzt) -->
+                <StackPanel.ToolTip>
+                    <ToolTip>
+                        <StackPanel MaxWidth="360">
+                            <TextBlock Text="{Binding DisplayName}" Foreground="White"
+                                       FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ToolTip>
+                </StackPanel.ToolTip>
+                <Grid HorizontalAlignment="Center" Margin="0,4">
+                    <Image Source="{Binding Icon}"
+                           Width="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
+                           Height="{Binding DataContext.ActiveTab.IconSize, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=32}"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+
+                    <!-- Favoriten-Stern: nur im Lesezeichen-Bereich; erscheint bei
+                         Mausberuehrung oder wenn bereits gesetzt. Eigener Klickbereich,
+                         damit der Einzelklick zum Oeffnen unberuehrt bleibt. -->
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Top"
+                            Margin="0,-6,-8,0" Click="ToggleFavorite_Click"
+                            ToolTip="Als Favorit merken">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Width" Value="16" />
+                                <Setter Property="Height" Value="16" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" CornerRadius="8" Background="#CC1B1E26">
+                                                <TextBlock x:Name="Star" Text="&#xE734;" FontFamily="Segoe MDL2 Assets"
+                                                           FontSize="9" Foreground="#99FFFFFF"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                    <Setter TargetName="Star" Property="Text" Value="&#xE735;" />
+                                                    <Setter TargetName="Star" Property="Foreground" Value="#EBAF2D" />
+                                                </DataTrigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Star" Property="Foreground" Value="#EBAF2D" />
+                                                    <Setter TargetName="Bd" Property="Background" Value="#EE2A2F3A" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <!-- gesetzte Favoriten immer sichtbar -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding ShowFavoriteStar}" Value="True" />
+                                            <Condition Binding="{Binding IsFavorite}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                    <!-- sonst nur bei Mausberuehrung des Eintrags -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding ShowFavoriteStar}" Value="True" />
+                                            <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=StackPanel}}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
                 <TextBlock Text="{Binding DisplayName}" FontSize="11"
                            Foreground="#F2FFFFFF"
                            TextAlignment="Center" HorizontalAlignment="Center"
@@ -83,11 +149,28 @@
         <!-- Tab: nimmt Icons per Drag & Drop entgegen; optionale eigene Hintergrundfarbe
              (Farbebene unter der Hover-/Aktiv-Ebene, damit die Trigger unveraendert wirken) -->
         <DataTemplate x:Key="TabItemTemplate">
-            <Grid Margin="2,0,0,0">
+            <!-- Feste Hoehe + gleichbleibende Innenabstaende: beim Umschalten
+                 aendert sich nur die Farbe, nie die Groesse — dadurch bleiben
+                 die Reiter beim Klicken exakt an ihrem Platz. -->
+            <Grid Margin="2,2,0,2" Height="24">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Visible" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Hidden}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <!-- Bei nur EINEM sichtbaren Tab braucht es keinen Reiter -->
+                            <DataTrigger Binding="{Binding DataContext.ShowTabStrip, RelativeSource={RelativeSource AncestorType=Window}}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
                 <Border CornerRadius="6" Background="{Binding PillBrush}">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Opacity" Value="0.35" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                                     <Setter Property="Opacity" Value="1.0" />
@@ -96,17 +179,22 @@
                         </Style>
                     </Border.Style>
                 </Border>
-                <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,3" Cursor="Hand"
+                <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,0" Cursor="Hand"
                         AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="#18FFFFFF" />
                             </Trigger>
+                            <!-- Aktiver Reiter: heller Grund UND blauer Rahmen —
+                                 dadurch auf einen Blick erkennbar, auch bei farbigen Tabs -->
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                <Setter Property="Background" Value="#2EFFFFFF" />
+                                <Setter Property="Background" Value="#4AFFFFFF" />
+                                <Setter Property="BorderBrush" Value="#7DB7FF" />
                             </DataTrigger>
                             <!-- Live-Suche: Tabs mit Treffern blau markieren -->
                             <DataTrigger Binding="{Binding HasSearchMatch}" Value="True">
@@ -125,6 +213,9 @@
                         </MenuItem>
                         <MenuItem Header="Automatische Dateiendungen…" Click="TabAutoExtensions_Click">
                             <MenuItem.Icon><TextBlock Text="&#xE71C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Tab ausblenden" Click="HideTab_Click" IsEnabled="{Binding CanRemove}">
+                            <MenuItem.Icon><TextBlock Text="&#xED1A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="Farbe">
                             <MenuItem Header="Blau" Tag="#2D7DFF" Click="TabColor_Click">
@@ -289,6 +380,10 @@
                 <MenuItem Header="Ordner-Verknüpfung hinzufügen…" Click="AddFolderLink_Click">
                     <MenuItem.Icon><TextBlock Text="&#xE8B7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="Ausgeblendete Tabs" SubmenuOpened="HiddenTabsMenu_SubmenuOpened">
+                    <MenuItem.Icon><TextBlock Text="&#xE7B3;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem Header="…" />
+                </MenuItem>
                 <Separator />
                 <MenuItem Header="Bereich umbenennen…" Click="RenameFence_Click">
                     <MenuItem.Icon><TextBlock Text="&#xE8AC;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -330,7 +425,8 @@
         <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34" />
-            <RowDefinition Height="28" />
+            <!-- Auto: waechst mit, wenn die Reiter auf mehrere Zeilen umbrechen -->
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -501,11 +597,14 @@
                    LostMouseCapture="Window_DragLostCapture">
             <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource AddTabButtonStyle}"
                     Click="AddTab_Click" ToolTip="Neuen Tab anlegen" />
+            <!-- WrapPanel: zu viele Tabs brechen in weitere Zeilen um, statt
+                 abgeschnitten zu werden. Feste Hoehe je Reiter haelt die Zeilen
+                 ruhig — beim Umschalten darf sich nichts verschieben. -->
             <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabItemTemplate}"
                           VerticalAlignment="Center">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
+                        <WrapPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
