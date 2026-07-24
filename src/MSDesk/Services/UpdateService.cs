@@ -12,6 +12,60 @@ public sealed class UpdateService
 
     public sealed record UpdateInfo(string LatestVersion, string DownloadUrl, long Size, string HtmlUrl);
 
+    /// Ein Eintrag der Versionsgeschichte fuer die Anzeige in den Optionen.
+    public sealed record ReleaseNote(string Version, DateTime? Published, string Text);
+
+    private const string ReleasesApi = "https://api.github.com/repos/sabitzerm-isd/isdesk/releases?per_page=10";
+
+    /// <summary>
+    /// Holt die letzten Versionshinweise von GitHub. Leere Liste, wenn offline
+    /// oder nicht erreichbar — die Optionen bleiben dann einfach ohne Verlauf.
+    /// </summary>
+    public async Task<IReadOnlyList<ReleaseNote>> GetReleaseNotesAsync()
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            http.DefaultRequestHeaders.UserAgent.Add(
+                new System.Net.Http.Headers.ProductInfoHeaderValue("MSDesk", CurrentVersion));
+
+            var json = await http.GetStringAsync(ReleasesApi).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+
+            var notes = new List<ReleaseNote>();
+            foreach (var release in doc.RootElement.EnumerateArray())
+            {
+                var tag = release.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
+                var body = release.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
+                DateTime? published = release.TryGetProperty("published_at", out var p)
+                                      && p.TryGetDateTime(out var when) ? when : null;
+
+                notes.Add(new ReleaseNote(tag.TrimStart('v', 'V'), published, CleanMarkdown(body)));
+            }
+            return notes;
+        }
+        catch (Exception)
+        {
+            return Array.Empty<ReleaseNote>();
+        }
+    }
+
+    /// Macht aus den Markdown-Hinweisen gut lesbaren Fliesstext (ohne #, ** und `).
+    private static string CleanMarkdown(string text)
+    {
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var result = new List<string>(lines.Length);
+
+        foreach (var raw in lines)
+        {
+            var line = raw.TrimEnd();
+            line = line.TrimStart('#', ' ').Replace("**", "").Replace("`", "");
+            if (line.StartsWith("- ", StringComparison.Ordinal)) line = "•  " + line[2..];
+            result.Add(line);
+        }
+        return string.Join("\n", result).Trim();
+    }
+
     public static string CurrentVersion
         => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
 

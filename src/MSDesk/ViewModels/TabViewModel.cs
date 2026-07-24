@@ -26,6 +26,7 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private bool _hasSearchMatch;
+    private int _searchMatchCount;
 
     /// True, wenn dieser Tab bei aktiver Suche Treffer enthaelt (markiert den Reiter).
     public bool HasSearchMatch
@@ -34,25 +35,38 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
         private set { if (_hasSearchMatch != value) { _hasSearchMatch = value; OnChanged(); } }
     }
 
+    /// Anzahl der Treffer in diesem Tab — wird als Zahl am Reiter angezeigt, damit
+    /// bei mehreren Fundstellen sichtbar ist, wo wie viel liegt.
+    public int SearchMatchCount
+    {
+        get => _searchMatchCount;
+        private set { if (_searchMatchCount != value) { _searchMatchCount = value; OnChanged(); } }
+    }
+
+    /// Zaehlung neu ausfuehren (der Bereich stoesst das an, bevor er entscheidet,
+    /// auf welchen Tab umgeschaltet wird — so ist die Reihenfolge eindeutig).
+    internal void RecomputeSearch() => ApplySearch();
+
     /// Treffer hervorheben, Nicht-Treffer abdunkeln (laeuft auf dem UI-Thread).
     /// NICHT geladene Tabs (Lazy Loading) haben keine Items — dort entscheiden die
     /// Dateinamen im Ordner ueber die Reiter-Markierung.
     private void ApplySearch()
     {
         var active = SearchService.IsActive;
-        var any = false;
+        var hits = 0;
         foreach (var item in Items)
         {
             var match = active && SearchService.Matches(item.DisplayName);
             item.IsHighlighted = match;
             item.IsDimmed = active && !match;
-            if (match) any = true;
+            if (match) hits++;
         }
 
         if (active && !_isLoaded)
-            any = FolderNames().Any(SearchService.Matches);
+            hits = FolderNames().Count(SearchService.Matches);
 
-        HasSearchMatch = active && any;
+        SearchMatchCount = active ? hits : 0;
+        HasSearchMatch = active && hits > 0;
     }
 
     // --- Namens-Zwischenspeicher fuer nicht geladene Tabs ---

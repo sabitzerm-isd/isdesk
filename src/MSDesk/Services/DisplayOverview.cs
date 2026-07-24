@@ -6,7 +6,9 @@ namespace MSDesk.Services;
 public sealed record MonitorInfo(string Name, string Details, bool IsPrimary);
 
 /// Eine gespeicherte Bildschirm-Konfiguration samt Anzahl der darin gemerkten Bereiche.
-public sealed record SavedLayoutInfo(string Key, string Description, int FenceCount, bool IsCurrent);
+/// <paramref name="Name"/> ist der selbst vergebene Name (z. B. „Homeoffice"),
+/// <paramref name="Description"/> die technische Beschreibung der Monitore.
+public sealed record SavedLayoutInfo(string Key, string Name, string Description, int FenceCount, bool IsCurrent);
 
 /// <summary>
 /// Bereitet auf, welche Bildschirme gerade angeschlossen sind und welche
@@ -56,7 +58,12 @@ public static class DisplayOverview
 
         return counts
             .Select(kv => new SavedLayoutInfo(
-                kv.Key, Describe(kv.Key), kv.Value,
+                kv.Key,
+                config.DisplayNames.TryGetValue(kv.Key, out var name) && !string.IsNullOrWhiteSpace(name)
+                    ? name
+                    : "Ohne Namen",
+                Describe(kv.Key),
+                kv.Value,
                 string.Equals(kv.Key, current, StringComparison.Ordinal)))
             .OrderByDescending(i => i.IsCurrent)
             .ThenByDescending(i => i.FenceCount)

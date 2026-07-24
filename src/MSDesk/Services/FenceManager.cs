@@ -488,6 +488,11 @@ public sealed class FenceManager
         if (_currentLayoutKey != null && !string.Equals(_currentLayoutKey, key, StringComparison.Ordinal))
             StoreLayout(_currentLayoutKey);
 
+        // Unbekannte Konfiguration (z. B. erstes Abstecken des zweiten Monitors):
+        // die Anordnung anteilig auf die neue Flaeche uebertragen, statt die
+        // Bereiche auf ihren alten Koordinaten stehen zu lassen.
+        var transfer = TransferAreasFor(key);
+
         foreach (var window in _windows)
         {
             var cfg = window.ViewModel.Config;
@@ -496,6 +501,14 @@ public sealed class FenceManager
                 cfg.X = rect.X; cfg.Y = rect.Y;
                 cfg.Width = Math.Max(rect.Width, 180); cfg.Height = Math.Max(rect.Height, 120);
             }
+            else if (transfer is var (from, to))
+            {
+                var mapped = LayoutTransfer.Map(
+                    new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height },
+                    from, to);
+                cfg.X = mapped.X; cfg.Y = mapped.Y;
+                cfg.Width = mapped.Width; cfg.Height = mapped.Height;
+            }
             EnsureOnScreen(cfg);
             window.Left = cfg.X;
             window.Top = cfg.Y;
@@ -503,12 +516,24 @@ public sealed class FenceManager
             window.Height = cfg.Height;
             cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
         }
+
+        // Arbeitsflaeche dieser Konfiguration festhalten — Grundlage fuer ein
+        // spaeteres anteiliges Uebertragen auf die naechste unbekannte.
+        var current = CurrentDesktopArea();
+        _config.Config.DisplayAreas[key] = new LayoutRect
+        {
+            X = current.X, Y = current.Y, Width = current.Width, Height = current.Height
+        };
+
         _currentLayoutKey = key;
         _config.SaveDebounced();
     }
 
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
     public Models.AppConfig ConfigForDisplayOverview => _config.Config;
+
+    /// Speichert die Konfiguration in Kuerze (gebuendelt, nicht bei jedem Tastendruck).
+    public void SaveSoon() => _config.SaveDebounced();
 
     /// Merkt den im Tray gewaehlten Autostart-Wunsch dauerhaft.
     public void SetAutostartWanted(bool wanted)
@@ -533,9 +558,41 @@ public sealed class FenceManager
         _config.Save();
     }
 
+    /// <summary>
+    /// Liefert Quell- und Zielflaeche fuer das anteilige Uebertragen — oder null,
+    /// wenn nichts zu uebertragen ist (erster Start, oder die bisherige Flaeche
+    /// ist unbekannt). Beides in DIP.
+    /// </summary>
+    private (LayoutTransfer.Area From, LayoutTransfer.Area To)? TransferAreasFor(string newKey)
+    {
+        if (_currentLayoutKey == null || string.Equals(_currentLayoutKey, newKey, StringComparison.Ordinal))
+            return null;
+        if (!_config.Config.DisplayAreas.TryGetValue(_currentLayoutKey, out var previous))
+            return null;
+        if (previous.Width <= 0 || previous.Height <= 0) return null;
+
+        var target = CurrentDesktopArea();
+        return (new LayoutTransfer.Area(previous.X, previous.Y, previous.Width, previous.Height), target);
+    }
+
+    /// Nutzbare Flaeche des Hauptbildschirms in DIP.
+    private static LayoutTransfer.Area CurrentDesktopArea()
+    {
+        var work = System.Windows.SystemParameters.WorkArea;
+        return new LayoutTransfer.Area(work.X, work.Y, work.Width, work.Height);
+    }
+
     /// Schreibt die aktuelle Fenster-Geometrie aller Bereiche unter dem Schluessel fest.
     private void StoreLayout(string key)
     {
+        // Zur Anordnung gehoert auch, wie gross die Arbeitsflaeche damals war —
+        // nur damit laesst sie sich spaeter anteilig umrechnen.
+        var area = CurrentDesktopArea();
+        _config.Config.DisplayAreas[key] = new LayoutRect
+        {
+            X = area.X, Y = area.Y, Width = area.Width, Height = area.Height
+        };
+
         foreach (var window in _windows)
         {
             var cfg = window.ViewModel.Config;

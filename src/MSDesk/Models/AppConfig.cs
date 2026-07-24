@@ -37,6 +37,17 @@ public sealed class AppConfig
     /// Wurde die Anleitung beim ersten Start schon gezeigt?
     public bool HelpShown { get; set; }
 
+    /// Wurde der Erststart-Assistent (Name, Sicherungsort) bereits durchlaufen?
+    public bool SetupCompleted { get; set; }
+
+    /// Vor- und Nachname des Anwenders — erscheint in den Optionen und im
+    /// Dateinamen der Sicherungen, damit sich Sicherungen zuordnen lassen.
+    public string UserFirstName { get; set; } = "";
+    public string UserLastName { get; set; } = "";
+
+    /// Vollstaendiger Name, sofern hinterlegt (sonst leer).
+    public string UserFullName => $"{UserFirstName} {UserLastName}".Trim();
+
     /// Globaler Hauptschalter fuer den Milchglas-Effekt. Aus = kein Bereich
     /// zeichnet ihn (spart Speicher und Rechenzeit), unabhaengig von der
     /// Einstellung des einzelnen Bereichs.
@@ -44,6 +55,15 @@ public sealed class AppConfig
 
     /// Fehlende Website-Symbole beim Anzeigen automatisch aus dem Netz holen.
     public bool AutoFavicons { get; set; } = true;
+
+    /// Eigene Namen fuer Bildschirm-Konfigurationen: Fingerabdruck → Name
+    /// (z. B. „Homeoffice", „Mobil", „Dortmund"). Reine Anzeigehilfe.
+    public Dictionary<string, string> DisplayNames { get; set; } = new();
+
+    /// Groesse der Arbeitsflaeche (DIP) je Bildschirm-Konfiguration. Dient dazu,
+    /// die Anordnung beim ERSTEN Wechsel auf eine unbekannte Konfiguration
+    /// anteilig umzurechnen, statt die Bereiche irgendwo landen zu lassen.
+    public Dictionary<string, LayoutRect> DisplayAreas { get; set; } = new();
 
     /// Eigene Notizen zu Eintraegen: Dateiname (klein) → Notiztext.
     /// Bewusst ueber den Dateinamen (wie <see cref="Placements"/>), damit die

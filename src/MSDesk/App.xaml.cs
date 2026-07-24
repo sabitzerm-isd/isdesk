@@ -100,6 +100,8 @@ public partial class App : Application
 
         _tray = new TrayService(_manager, _autostart);
 
+        // Erststart: erst einrichten (Name, Sicherungsort), dann die Anleitung.
+        Views.SetupDialog.RunOnFirstStart(_config);
         HelpPage.OpenOnFirstRun(_config); // beim allerersten Start die Anleitung zeigen
         CheckForUpdatesAsync(); // beim Start still nach neuer Version schauen
 
@@ -210,6 +212,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        Interop.AlignmentGuides.Dispose();
         _displayDebounce?.Dispose();
         _manager?.Sweeper?.Dispose();
         _tray?.Dispose();

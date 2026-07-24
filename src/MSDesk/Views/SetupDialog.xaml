@@ -1,0 +1,128 @@
+<Window x:Class="MSDesk.Views.SetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MSDesk einrichten"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="Transparent"
+        ShowInTaskbar="True"
+        Topmost="True"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Width="600" Height="560">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock" x:Key="LabelStyle">
+            <Setter Property="Foreground" Value="#CCFFFFFF" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="SectionStyle">
+            <Setter Property="Foreground" Value="#88FFFFFF" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,18,0,8" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="HintStyle">
+            <Setter Property="Foreground" Value="#99FFFFFF" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#22000000" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CaretBrush" Value="White" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="MinWidth" Value="88" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Foreground" Value="#F2FFFFFF" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="6" Background="#28FFFFFF" Padding="12,4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3CFFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsDefault" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3A6EA5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#F21B1E26">
+        <Grid Margin="28,24,28,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="Willkommen bei MSDesk" Foreground="#F2FFFFFF"
+                           FontSize="19" FontWeight="SemiBold" />
+                <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                           Text="Zwei kurze Angaben, dann ist alles eingerichtet. Beides lässt sich später in den Optionen ändern." />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Margin="0,4,0,0">
+                <TextBlock Text="NAME" Style="{StaticResource SectionStyle}" Margin="0,10,0,8" />
+                <TextBlock Style="{StaticResource HintStyle}"
+                           Text="Wird in den Optionen angezeigt und an die Dateinamen der Sicherungen angehängt — so ist auf einem gemeinsamen Laufwerk erkennbar, wessen Sicherung es ist." />
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Vorname" Style="{StaticResource LabelStyle}" />
+                    <TextBox Grid.Column="1" x:Name="FirstNameBox" />
+                    <TextBlock Grid.Column="3" Text="Nachname" Style="{StaticResource LabelStyle}" />
+                    <TextBox Grid.Column="4" x:Name="LastNameBox" />
+                </Grid>
+
+                <TextBlock Text="SICHERUNG" Style="{StaticResource SectionStyle}" />
+                <TextBlock Style="{StaticResource HintStyle}"
+                           Text="MSDesk kann seine Einstellungen und alle Inhalte der Bereiche sichern. Lege den Ordner am besten auf ein Cloud-Laufwerk (OneDrive, SharePoint) — dann liegt die Sicherung nicht auf demselben Rechner und ist auch nach einer Neuinstallation noch da." />
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="BackupBox" Margin="0,0,8,0" />
+                    <Button Grid.Column="1" Content="Ordner wählen…" MinWidth="0" Margin="0"
+                            Click="ChooseFolder_Click" />
+                </Grid>
+                <TextBlock x:Name="CloudHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0"
+                           Foreground="#8FD8A0" />
+            </StackPanel>
+
+            <Grid Grid.Row="2" Margin="-28,16,-28,0" Background="#18000000">
+                <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Foreground="#66FFFFFF" FontSize="11" Margin="28,0" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,20,12">
+                    <Button Content="Später" Click="Skip_Click" />
+                    <Button Content="Fertig" IsDefault="True" Click="Finish_Click" Margin="0" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

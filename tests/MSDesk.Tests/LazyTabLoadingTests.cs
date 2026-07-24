@@ -121,7 +121,7 @@ public class LazyTabLoadingTests : IDisposable
     }
 
     [Fact]
-    public void SucheFindetAuchInNichtGeladenenTabs()
+    public void SucheSchaltetAufDenTabMitDemTreffer()
     {
         var vm = Build(
             new TabConfig { Title = "A", FolderPath = MakeTabFolder("A", "a1.txt") },
@@ -131,12 +131,45 @@ public class LazyTabLoadingTests : IDisposable
         try
         {
             SearchService.SetTerm("rechnung");
-            Assert.False(vm.Tabs[0].HasSearchMatch);
-            Assert.False(vm.Tabs[1].IsLoaded);
-            Assert.True(vm.Tabs[1].HasSearchMatch); // Reiter-Markierung ohne Laden
 
+            Assert.False(vm.Tabs[0].HasSearchMatch);
+            Assert.True(vm.Tabs[1].HasSearchMatch);
+            Assert.Equal(1, vm.Tabs[1].SearchMatchCount);
+            // Der Bereich zeigt den Treffer von selbst an.
+            Assert.Same(vm.Tabs[1], vm.ActiveTab);
+
+            // Nach dem Beenden der Suche wieder dort, wo man vorher war.
             SearchService.SetTerm("");
+            Assert.Same(vm.Tabs[0], vm.ActiveTab);
             Assert.False(vm.Tabs[1].HasSearchMatch);
+        }
+        finally
+        {
+            SearchService.SetTerm("");
+            vm.DisposeTabs();
+        }
+    }
+
+    [Fact]
+    public void SichtbarerTrefferBleibtStehen_AndereTabsNurMarkiert()
+    {
+        // Der aktive Tab hat selbst einen Treffer — dann darf NICHT umgeschaltet
+        // werden, sonst wuerde einem beim Tippen der Tab weggezogen. Die uebrigen
+        // Fundstellen sind ueber die Trefferzahl am Reiter erreichbar, ohne dass
+        // die Tabs dafuer geladen werden muessen.
+        var vm = Build(
+            new TabConfig { Title = "A", FolderPath = MakeTabFolder("A", "rechnung-2025.pdf") },
+            new TabConfig { Title = "B", FolderPath = MakeTabFolder("B", "rechnung.pdf", "rechnung-alt.pdf") });
+        vm.ActivateVisibleTab();
+
+        try
+        {
+            SearchService.SetTerm("rechnung");
+
+            Assert.Same(vm.Tabs[0], vm.ActiveTab); // kein Wegspringen
+            Assert.Equal(1, vm.Tabs[0].SearchMatchCount);
+            Assert.Equal(2, vm.Tabs[1].SearchMatchCount); // gezaehlt ohne zu laden
+            Assert.False(vm.Tabs[1].IsLoaded);
         }
         finally
         {

@@ -54,6 +54,13 @@ public partial class SettingsDialog : Window
         WidthBox.Text = ((int)Math.Round(vm.Width)).ToString();
         HeightBox.Text = ((int)Math.Round(vm.Height)).ToString();
 
+        if (manager?.ConfigForDisplayOverview is { } appConfig)
+        {
+            FirstNameBox.Text = appConfig.UserFirstName;
+            LastNameBox.Text = appConfig.UserLastName;
+        }
+        UpdateBackupCloudHint();
+
         VersionText.Text = $"MSDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
 
@@ -117,12 +124,58 @@ public partial class SettingsDialog : Window
     private void Nav_Changed(object sender, RoutedEventArgs e)
     {
         if (!_initialized && PanelAllgemein == null) return;
-        if (PanelAllgemein == null || PanelBereich == null || PanelBildschirme == null) return;
+        if (PanelAllgemein == null || PanelBereich == null || PanelBildschirme == null
+            || PanelSicherung == null || PanelUpdate == null) return;
+
         PanelAllgemein.Visibility = NavAllgemein.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         PanelBereich.Visibility = NavBereich.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         PanelBildschirme.Visibility = NavBildschirme.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PanelSicherung.Visibility = NavSicherung.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        PanelUpdate.Visibility = NavUpdate.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         if (NavBildschirme.IsChecked == true) LoadDisplays();
+        if (NavUpdate.IsChecked == true) _ = LoadReleaseNotesAsync();
+    }
+
+    // --- Anwendername ---
+
+    private void UserName_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_initialized) return;
+        var config = _manager?.ConfigForDisplayOverview;
+        if (config == null) return;
+
+        config.UserFirstName = FirstNameBox.Text.Trim();
+        config.UserLastName = LastNameBox.Text.Trim();
+        _manager?.SaveSoon();
+    }
+
+    // --- Versionshinweise ---
+
+    /// Anzeigemodell fuer die Liste „Was ist neu".
+    private sealed record ReleaseNoteItem(string Version, string PublishedText, string Text, bool IsCurrent);
+
+    private bool _releaseNotesLoaded;
+
+    private async Task LoadReleaseNotesAsync()
+    {
+        if (_releaseNotesLoaded) return;
+        _releaseNotesLoaded = true;
+
+        var notes = await _updates.GetReleaseNotesAsync();
+        if (notes.Count == 0)
+        {
+            _releaseNotesLoaded = false; // beim naechsten Aufruf erneut versuchen
+            ReleaseNotesStatus.Text = "Versionshinweise konnten nicht geladen werden (keine Verbindung zu GitHub).";
+            return;
+        }
+
+        ReleaseNotesStatus.Visibility = Visibility.Collapsed;
+        ReleaseNotesList.ItemsSource = notes.Select(n => new ReleaseNoteItem(
+            n.Version,
+            n.Published?.ToLocalTime().ToString("dd.MM.yyyy") ?? "",
+            n.Text,
+            string.Equals(n.Version, UpdateService.CurrentVersion, StringComparison.Ordinal))).ToList();
     }
 
     // --- Bildschirme ---
@@ -143,6 +196,25 @@ public partial class SettingsDialog : Window
     {
         LoadDisplays();
         LayoutSaveHint.Text = "Aktualisiert.";
+    }
+
+    /// Eigenen Namen fuer eine Bildschirm-Konfiguration vergeben.
+    private void RenameDisplay_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string key) return;
+        var config = _manager?.ConfigForDisplayOverview;
+        if (config == null) return;
+
+        config.DisplayNames.TryGetValue(key, out var existing);
+        var name = InputDialog.Ask("Name für diese Bildschirm-Konfiguration:", existing ?? "", this);
+        if (name == null) return; // abgebrochen
+
+        name = name.Trim();
+        if (name.Length == 0) config.DisplayNames.Remove(key);
+        else config.DisplayNames[key] = name;
+
+        _manager?.SaveSoon();
+        LoadDisplays();
     }
 
     /// Sichert die aktuelle Anordnung ausdruecklich fuer die aktive Konfiguration.
@@ -360,6 +432,35 @@ public partial class SettingsDialog : Window
     {
         if (_initialized && _manager != null)
             _manager.AutoBackupFolder = BackupPathBox.Text;
+        UpdateBackupCloudHint();
+    }
+
+    /// Weist darauf hin, ob die Sicherung den Rechner ueberlebt.
+    private void UpdateBackupCloudHint()
+    {
+        if (BackupCloudHint == null) return;
+        var path = BackupPathBox?.Text ?? "";
+
+        if (path.Trim().Length == 0)
+        {
+            BackupCloudHint.Foreground = System.Windows.Media.Brushes.Khaki;
+            BackupCloudHint.Text = "Noch kein Ordner hinterlegt — lege ihn am besten auf ein Cloud-Laufwerk.";
+            return;
+        }
+
+        var cloudy = new[] { "onedrive", "sharepoint", "dropbox", "nextcloud", "google drive", "gdrive" }
+            .Any(marker => path.Contains(marker, StringComparison.OrdinalIgnoreCase));
+
+        if (cloudy || path.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            BackupCloudHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+            BackupCloudHint.Text = "Liegt außerhalb dieses Rechners — die Sicherung überlebt damit auch einen Rechnerwechsel.";
+        }
+        else
+        {
+            BackupCloudHint.Foreground = System.Windows.Media.Brushes.Khaki;
+            BackupCloudHint.Text = "Dieser Ordner liegt auf dem Rechner selbst. Bei einem Ausfall wäre die Sicherung mit weg — ein Cloud-Ordner ist sicherer.";
+        }
     }
 
     private void BrowseBackupPath_Click(object sender, RoutedEventArgs e)

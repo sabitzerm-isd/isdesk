@@ -53,6 +53,34 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Kurzinfo-Symbol: haelt die Oberflaeche frei von langen Erklaerungen.
+             Der ausfuehrliche Text samt Skizze steckt in der Kurzinfo. -->
+        <Style TargetType="TextBlock" x:Key="InfoGlyph">
+            <Setter Property="Text" Value="&#xE946;" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#7DB7FF" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="7,0,0,0" />
+            <Setter Property="Cursor" Value="Help" />
+            <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
+            <Setter Property="ToolTipService.ShowDuration" Value="120000" />
+        </Style>
+
+        <!-- Ueberschrift innerhalb einer Kurzinfo -->
+        <Style TargetType="TextBlock" x:Key="TipTitle">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="TipText">
+            <Setter Property="Foreground" Value="#CCFFFFFF" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,8,0,0" />
+        </Style>
+
         <!-- Linke Navigation -->
         <Style TargetType="RadioButton" x:Key="NavStyle">
             <Setter Property="Foreground" Value="#DDFFFFFF" />
@@ -97,9 +125,13 @@
                 <StackPanel Margin="8,0">
                     <RadioButton x:Name="NavAllgemein" Style="{StaticResource NavStyle}" Content="Allgemein"
                                  IsChecked="True" Checked="Nav_Changed" />
-                    <RadioButton x:Name="NavBereich" Style="{StaticResource NavStyle}" Content="Dieser Bereich"
-                                 Checked="Nav_Changed" />
                     <RadioButton x:Name="NavBildschirme" Style="{StaticResource NavStyle}" Content="Bildschirme"
+                                 Checked="Nav_Changed" />
+                    <RadioButton x:Name="NavSicherung" Style="{StaticResource NavStyle}" Content="Sicherung"
+                                 Checked="Nav_Changed" />
+                    <RadioButton x:Name="NavUpdate" Style="{StaticResource NavStyle}" Content="Update"
+                                 Checked="Nav_Changed" />
+                    <RadioButton x:Name="NavBereich" Style="{StaticResource NavStyle}" Content="Dieser Bereich"
                                  Checked="Nav_Changed" />
                 </StackPanel>
             </StackPanel>
@@ -109,20 +141,84 @@
                 <Grid>
                     <!-- ===== ALLGEMEIN (zentrale Einstellungen) ===== -->
                     <StackPanel x:Name="PanelAllgemein">
-                        <TextBlock Text="UPDATE" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
-                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource HintStyle}"
-                                   Text="Suche nach Updates…" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="UpdateCheckButton" Content="Nach Updates suchen" MinWidth="0"
-                                    Click="CheckUpdate_Click" />
-                            <Button x:Name="UpdateInstallButton" Content="Update installieren" MinWidth="0"
-                                    Visibility="Collapsed" Click="InstallUpdate_Click" />
-                            <Button Content="Anleitung öffnen" MinWidth="0" Click="OpenHelp_Click" />
-                        </StackPanel>
+                        <TextBlock Text="ANWENDER" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Vorname" Style="{StaticResource LabelStyle}" />
+                            <TextBox Grid.Column="1" x:Name="FirstNameBox" Height="28" Padding="6,3" FontSize="12"
+                                     VerticalContentAlignment="Center" Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
+                                     TextChanged="UserName_TextChanged" />
+                            <TextBlock Grid.Column="3" Text="Nachname" Style="{StaticResource LabelStyle}" />
+                            <TextBox Grid.Column="4" x:Name="LastNameBox" Height="28" Padding="6,3" FontSize="12"
+                                     VerticalContentAlignment="Center" Background="#22000000" Foreground="White"
+                                     BorderBrush="#40FFFFFF" BorderThickness="1" CaretBrush="White"
+                                     TextChanged="UserName_TextChanged" />
+                            <TextBlock Grid.Column="5" Style="{StaticResource InfoGlyph}">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="330">
+                                            <TextBlock Text="Wozu der Name?" Style="{StaticResource TipTitle}" />
+                                            <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                       Text="Der Name wird an die Dateinamen der Sicherungen angehängt. Liegen die Sicherungen auf einem gemeinsamen Laufwerk, ist damit sofort erkennbar, von wem eine Sicherung stammt." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </Grid>
 
-                        <TextBlock Text="LESEZEICHEN" Style="{StaticResource SectionStyle}" />
-                        <TextBlock Style="{StaticResource HintStyle}"
-                                   Text="Legt alle Lesezeichen im Bereich „Lesezeichen“ ab – nach Ordnern in Tabs gegliedert. Erneutes Ausführen holt nur neu hinzugekommene Lesezeichen. Firefox liest MSDesk aus der neuesten Lesezeichen-Sicherung des Profils." />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="LESEZEICHEN" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Lesezeichen übernehmen" Style="{StaticResource TipTitle}" />
+                                            <!-- Skizze: Browser-Ordner werden zu Tabs im Bereich -->
+                                            <Canvas Width="330" Height="86" Background="#14FFFFFF">
+                                                <Border Canvas.Left="8" Canvas.Top="10" Width="120" Height="66"
+                                                        Background="#22FFFFFF" CornerRadius="4" />
+                                                <TextBlock Canvas.Left="16" Canvas.Top="16" Text="Browser"
+                                                           Foreground="#AAFFFFFF" FontSize="10" />
+                                                <Border Canvas.Left="16" Canvas.Top="32" Width="60" Height="9"
+                                                        Background="#E1AF3C" CornerRadius="2" />
+                                                <Border Canvas.Left="16" Canvas.Top="46" Width="80" Height="9"
+                                                        Background="#E1AF3C" CornerRadius="2" />
+                                                <Border Canvas.Left="16" Canvas.Top="60" Width="48" Height="9"
+                                                        Background="#E1AF3C" CornerRadius="2" />
+                                                <Path Stroke="#7DB7FF" StrokeThickness="2"
+                                                      Data="M 136,44 L 178,44 M 170,38 L 178,44 L 170,50" />
+                                                <Border Canvas.Left="190" Canvas.Top="10" Width="130" Height="66"
+                                                        Background="#22FFFFFF" CornerRadius="4" />
+                                                <Border Canvas.Left="196" Canvas.Top="16" Width="36" Height="13"
+                                                        Background="#4AFFFFFF" CornerRadius="3" />
+                                                <Border Canvas.Left="236" Canvas.Top="16" Width="36" Height="13"
+                                                        Background="#26FFFFFF" CornerRadius="3" />
+                                                <Border Canvas.Left="276" Canvas.Top="16" Width="36" Height="13"
+                                                        Background="#26FFFFFF" CornerRadius="3" />
+                                                <Border Canvas.Left="198" Canvas.Top="38" Width="20" Height="20"
+                                                        Background="#3A6EA5" CornerRadius="4" />
+                                                <Border Canvas.Left="226" Canvas.Top="38" Width="20" Height="20"
+                                                        Background="#3A6EA5" CornerRadius="4" />
+                                                <Border Canvas.Left="254" Canvas.Top="38" Width="20" Height="20"
+                                                        Background="#3A6EA5" CornerRadius="4" />
+                                            </Canvas>
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Jeder Lesezeichen-Ordner wird zu einem eigenen Tab im Bereich „Lesezeichen“. Erneutes Ausführen holt nur neu Hinzugekommenes — bestehende Einträge, Favoriten und ausgeblendete Tabs bleiben unangetastet." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Firefox liest MSDesk aus der neuesten Lesezeichen-Sicherung des Profils; der Browser muss dafür nicht geöffnet sein." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
                         <WrapPanel>
                             <Button x:Name="BookmarkButton" Content="Chrome-Lesezeichen importieren / abgleichen"
                                     MinWidth="0" Margin="0,0,8,8" Click="ImportBookmarks_Click" />
@@ -130,7 +226,48 @@
                                     MinWidth="0" Margin="0,0,8,8" Click="ImportFirefoxBookmarks_Click" />
                         </WrapPanel>
 
-                        <TextBlock Text="BEREICHE AUSRICHTEN" Style="{StaticResource SectionStyle}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="BEREICHE AUSRICHTEN" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Raster, Kanten und Hilfslinien" Style="{StaticResource TipTitle}" />
+                                            <!-- Skizze: Bereich rastet an Nachbarn ein, Hilfslinie zeigt es an -->
+                                            <Canvas Width="330" Height="110" Background="#14FFFFFF">
+                                                <Border Canvas.Left="18" Canvas.Top="14" Width="104" Height="50"
+                                                        Background="#26FFFFFF" CornerRadius="4"
+                                                        BorderBrush="#44FFFFFF" BorderThickness="1" />
+                                                <TextBlock Canvas.Left="26" Canvas.Top="30" Text="Nachbar"
+                                                           Foreground="#88FFFFFF" FontSize="10" />
+                                                <Border Canvas.Left="18" Canvas.Top="70" Width="104" Height="26"
+                                                        Background="#26FFFFFF" CornerRadius="4"
+                                                        BorderBrush="#44FFFFFF" BorderThickness="1" />
+                                                <!-- der gezogene Bereich, buendig an der linken Kante -->
+                                                <Border Canvas.Left="130" Canvas.Top="14" Width="112" Height="82"
+                                                        Background="#332E6EA5" CornerRadius="4"
+                                                        BorderBrush="#7DB7FF" BorderThickness="1" />
+                                                <TextBlock Canvas.Left="140" Canvas.Top="48" Text="wird gezogen"
+                                                           Foreground="#CCFFFFFF" FontSize="10" />
+                                                <!-- die Hilfslinie -->
+                                                <Rectangle Canvas.Left="126" Canvas.Top="8" Width="2" Height="96"
+                                                           Fill="#7DB7FF" />
+                                                <TextBlock Canvas.Left="250" Canvas.Top="46" Text="Hilfslinie"
+                                                           Foreground="#7DB7FF" FontSize="10" />
+                                                <Path Stroke="#7DB7FF" StrokeThickness="1"
+                                                      Data="M 246,52 L 190,52" />
+                                            </Canvas>
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Beim Verschieben erscheint eine blaue Linie genau dort, wo der Bereich einrastet — so ist vor dem Loslassen sichtbar, wo er landet." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Das Raster rundet Position und Größe auf feste Schritte. Das Kanten-Einrasten dockt zusätzlich bündig an direkte Nachbarn an, sodass Bereiche lückenlos aneinanderpassen." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Fühlt sich das Verschieben „klebrig“ an, schalte das Kanten-Einrasten ab — das Raster allein bleibt ruhiger." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
                         <CheckBox x:Name="GridSnapCheck" Content="Am Raster ausrichten"
                                   Foreground="#DDFFFFFF" FontSize="12.5"
                                   Checked="GridSnap_Checked" Unchecked="GridSnap_Unchecked" />
@@ -146,41 +283,164 @@
                         <CheckBox x:Name="EdgeSnapCheck" Content="An Kanten benachbarter Bereiche einrasten"
                                   Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,8,0,0"
                                   Checked="EdgeSnap_Checked" Unchecked="EdgeSnap_Unchecked" />
-                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Beim Verschieben und Größenziehen rasten Bereiche auf dem Raster ein; das Kanten-Einrasten dockt sie zusätzlich bündig an direkte Nachbarn an. Wenn sich das Verschieben „klebrig“ anfühlt, schalte das Kanten-Einrasten ab." />
-                        <Button Content="Alle Bereiche jetzt am Raster ausrichten" MinWidth="0" Margin="0,4,0,0"
+                        <Button Content="Alle Bereiche jetzt am Raster ausrichten" MinWidth="0" Margin="0,10,0,0"
                                 Click="SnapAll_Click"
                                 ToolTip="Rundet Position und Größe aller Bereiche auf das Raster – bringt gewachsene Layouts in einem Schritt in Ordnung." />
 
-                        <TextBlock Text="DARSTELLUNG UND LEISTUNG" Style="{StaticResource SectionStyle}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="DARSTELLUNG UND LEISTUNG" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Milchglas und Website-Symbole" Style="{StaticResource TipTitle}" />
+                                            <!-- Skizze: mit und ohne Weichzeichnung -->
+                                            <Canvas Width="330" Height="96" Background="#14FFFFFF">
+                                                <Rectangle Canvas.Left="14" Canvas.Top="12" Width="140" Height="70">
+                                                    <Rectangle.Fill>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#553A6EA5" Offset="0" />
+                                                            <GradientStop Color="#55A05C8C" Offset="1" />
+                                                        </LinearGradientBrush>
+                                                    </Rectangle.Fill>
+                                                    <Rectangle.Effect>
+                                                        <BlurEffect Radius="9" />
+                                                    </Rectangle.Effect>
+                                                </Rectangle>
+                                                <Border Canvas.Left="14" Canvas.Top="12" Width="140" Height="70"
+                                                        BorderBrush="#55FFFFFF" BorderThickness="1" CornerRadius="4" />
+                                                <TextBlock Canvas.Left="22" Canvas.Top="60" Text="mit Milchglas"
+                                                           Foreground="#DDFFFFFF" FontSize="10" />
+
+                                                <Rectangle Canvas.Left="176" Canvas.Top="12" Width="140" Height="70">
+                                                    <Rectangle.Fill>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#553A6EA5" Offset="0" />
+                                                            <GradientStop Color="#55A05C8C" Offset="1" />
+                                                        </LinearGradientBrush>
+                                                    </Rectangle.Fill>
+                                                </Rectangle>
+                                                <Border Canvas.Left="176" Canvas.Top="12" Width="140" Height="70"
+                                                        BorderBrush="#55FFFFFF" BorderThickness="1" CornerRadius="4" />
+                                                <TextBlock Canvas.Left="184" Canvas.Top="60" Text="ohne — spart Speicher"
+                                                           Foreground="#DDFFFFFF" FontSize="10" />
+                                            </Canvas>
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Ohne Milchglas bleiben die Bereiche durchscheinend, nur ohne Weichzeichnung. Das spart deutlich Arbeitsspeicher und Rechenzeit, weil sonst jeder Bereich den Effekt einzeln zeichnet." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Website-Symbole: Fehlende Symbole von Lesezeichen werden aus dem Internet geholt. Ausgeschaltet entstehen beim Öffnen eines Lesezeichen-Tabs keine Netzwerkzugriffe; bereits geholte Symbole bleiben erhalten." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
                         <CheckBox x:Name="BlurCheck" Content="Milchglas-Effekt hinter den Bereichen"
                                   Foreground="#DDFFFFFF" FontSize="12.5"
                                   Checked="Blur_Checked" Unchecked="Blur_Unchecked" />
-                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Ausgeschaltet bleiben die Bereiche durchscheinend, aber ohne Weichzeichnung – das spart deutlich Arbeitsspeicher und Rechenzeit, weil jeder Bereich den Effekt sonst einzeln zeichnet." />
                         <CheckBox x:Name="FaviconCheck" Content="Website-Symbole automatisch nachladen"
-                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,8,0,0"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,10,0,0"
                                   Checked="Favicon_Checked" Unchecked="Favicon_Unchecked" />
-                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Holt fehlende Symbole von Lesezeichen aus dem Internet. Ausgeschaltet entstehen beim Öffnen eines Lesezeichen-Tabs keine Netzwerkzugriffe; bereits geholte Symbole bleiben erhalten." />
 
-                        <TextBlock Text="INHALTE ZURÜCKGEBEN" Style="{StaticResource SectionStyle}" />
-                        <TextBlock Style="{StaticResource HintStyle}"
-                                   Text="Legt alle Dateien aus den Bereichen zurück auf den Desktop – z. B. wenn du MSDesk nicht mehr nutzen möchtest. Beim Deinstallieren wird ohnehin danach gefragt." />
-                        <Button Content="Alle Inhalte zurück auf den Desktop legen" MinWidth="0"
-                                Click="RestoreToDesktop_Click" />
-
-                        <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="DESKTOP (ABLAGE)" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Dateien vom Desktop einsammeln" Style="{StaticResource TipTitle}" />
+                                            <!-- Skizze: Desktop-Dateien wandern nach Regel in Tabs -->
+                                            <Canvas Width="330" Height="96" Background="#14FFFFFF">
+                                                <TextBlock Canvas.Left="14" Canvas.Top="10" Text="Desktop"
+                                                           Foreground="#AAFFFFFF" FontSize="10" />
+                                                <Border Canvas.Left="14" Canvas.Top="28" Width="26" Height="30"
+                                                        Background="#B93C37" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="18" Canvas.Top="60" Text=".pdf"
+                                                           Foreground="#99FFFFFF" FontSize="9" />
+                                                <Border Canvas.Left="52" Canvas.Top="28" Width="26" Height="30"
+                                                        Background="#2E8B57" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="52" Canvas.Top="60" Text=".xlsx"
+                                                           Foreground="#99FFFFFF" FontSize="9" />
+                                                <Border Canvas.Left="90" Canvas.Top="28" Width="26" Height="30"
+                                                        Background="#E1AF3C" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="92" Canvas.Top="60" Text="Ordner"
+                                                           Foreground="#99FFFFFF" FontSize="9" />
+                                                <Path Stroke="#7DB7FF" StrokeThickness="2"
+                                                      Data="M 130,44 L 172,44 M 164,38 L 172,44 L 164,50" />
+                                                <Border Canvas.Left="184" Canvas.Top="14" Width="132" Height="68"
+                                                        Background="#22FFFFFF" CornerRadius="4" />
+                                                <TextBlock Canvas.Left="192" Canvas.Top="20" Text="Ablage"
+                                                           Foreground="#DDFFFFFF" FontSize="10" />
+                                                <Border Canvas.Left="192" Canvas.Top="38" Width="38" Height="14"
+                                                        Background="#B93C37" CornerRadius="3" Opacity="0.75" />
+                                                <Border Canvas.Left="236" Canvas.Top="38" Width="38" Height="14"
+                                                        Background="#2E8B57" CornerRadius="3" Opacity="0.75" />
+                                                <Border Canvas.Left="192" Canvas.Top="58" Width="38" Height="14"
+                                                        Background="#E1AF3C" CornerRadius="3" Opacity="0.75" />
+                                            </Canvas>
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Welcher Tab welche Dateien aufnimmt, legst du per Rechtsklick auf den Tab-Reiter fest („Automatische Dateiendungen“). Auch „Ordner“ ist als Regel möglich." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Ausgeschaltet braucht MSDesk keine Ressourcen für die Überwachung. Das Einsammeln geht dann jederzeit über das Aktualisieren-Symbol in der Titelzeile des Bereichs „Ablage“ — dieselben Regeln gelten." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Eingesammelt wird ausschließlich vom Desktop. Was du bereits in anderen Bereichen einsortiert hast, bleibt liegen." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
                         <CheckBox x:Name="SweepCheck"
                                   Content="Desktop dauerhaft überwachen und sofort einsammeln"
                                   Foreground="#DDFFFFFF" FontSize="12.5" TextBlock.LineHeight="16"
                                   Checked="Sweep_Checked" Unchecked="Sweep_Unchecked" />
-                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Ausgeschaltet braucht MSDesk keine Ressourcen für die Überwachung. Das Einsammeln geht dann jederzeit per Klick auf das Aktualisieren-Symbol in der Titelzeile des Bereichs „Ablage“ – die Endungs-Regeln (Rechtsklick auf einen Tab) gelten dabei genauso." />
 
-                        <TextBlock Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" />
-                        <TextBlock Style="{StaticResource HintStyle}"
-                                   Text="Sichert Konfiguration und alle Bereichs-Ordner als ZIP – z. B. vor dem Neuaufsetzen." />
+                        <TextBlock Text="INHALTE ZURÜCKGEBEN" Style="{StaticResource SectionStyle}" />
+                        <Button Content="Alle Inhalte zurück auf den Desktop legen" MinWidth="0"
+                                Click="RestoreToDesktop_Click"
+                                ToolTip="Legt alle Dateien aus den Bereichen zurück auf den Desktop — z. B. wenn du MSDesk nicht mehr nutzen möchtest. Beim Deinstallieren wird ohnehin danach gefragt." />
+                    </StackPanel>
+
+                    <!-- ===== SICHERUNG ===== -->
+                    <StackPanel x:Name="PanelSicherung" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="SICHERUNG (ALLE BEREICHE)" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,0,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Was gesichert wird" Style="{StaticResource TipTitle}" />
+                                            <!-- Skizze: Bereiche + Einstellungen wandern als ZIP in die Cloud -->
+                                            <Canvas Width="330" Height="96" Background="#14FFFFFF">
+                                                <Border Canvas.Left="14" Canvas.Top="18" Width="60" Height="24"
+                                                        Background="#26FFFFFF" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="20" Canvas.Top="23" Text="Bereiche"
+                                                           Foreground="#CCFFFFFF" FontSize="10" />
+                                                <Border Canvas.Left="14" Canvas.Top="52" Width="60" Height="24"
+                                                        Background="#26FFFFFF" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="18" Canvas.Top="57" Text="Einstell."
+                                                           Foreground="#CCFFFFFF" FontSize="10" />
+                                                <Path Stroke="#7DB7FF" StrokeThickness="2"
+                                                      Data="M 84,47 L 118,47 M 110,41 L 118,47 L 110,53" />
+                                                <Border Canvas.Left="128" Canvas.Top="30" Width="52" Height="34"
+                                                        Background="#E1AF3C" CornerRadius="3" />
+                                                <TextBlock Canvas.Left="142" Canvas.Top="40" Text="ZIP"
+                                                           Foreground="#22262F" FontSize="11" FontWeight="SemiBold" />
+                                                <Path Stroke="#7DB7FF" StrokeThickness="2"
+                                                      Data="M 190,47 L 224,47 M 216,41 L 224,47 L 216,53" />
+                                                <Path Canvas.Left="236" Canvas.Top="26" Fill="#5AA0DC"
+                                                      Data="M 20,34 A 12,12 0 0 1 20,10 A 16,16 0 0 1 50,10 A 11,11 0 0 1 50,34 Z" />
+                                                <TextBlock Canvas.Left="244" Canvas.Top="66" Text="Cloud-Laufwerk"
+                                                           Foreground="#99FFFFFF" FontSize="9" />
+                                            </Canvas>
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Gesichert werden die Einstellungen und alle Bereichs-Ordner als ZIP. Sehr große Dateien (über 1 MB) bleiben außen vor, damit die Sicherung schlank bleibt; es werden immer nur die neuesten drei behalten." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Lege den Ordner auf ein Cloud-Laufwerk. Dann liegt die Sicherung nicht auf demselben Rechner und ist auch nach einem Neuaufsetzen noch vorhanden." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock x:Name="BackupCloudHint" Style="{StaticResource HintStyle}" />
                         <Grid Margin="0,2,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="90" />
@@ -274,6 +534,59 @@
                                    Text="Tab-Optionen (Symbol, Farbe, automatische Dateiendungen, verschieben) per Rechtsklick auf den jeweiligen Tab-Reiter." />
                     </StackPanel>
 
+                    <!-- ===== UPDATE ===== -->
+                    <StackPanel x:Name="PanelUpdate" Visibility="Collapsed">
+                        <TextBlock Text="VERSION" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
+                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource HintStyle}"
+                                   Text="Suche nach Updates…" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="UpdateCheckButton" Content="Nach Updates suchen" MinWidth="0"
+                                    Click="CheckUpdate_Click" />
+                            <Button x:Name="UpdateInstallButton" Content="Update installieren" MinWidth="0"
+                                    Visibility="Collapsed" Click="InstallUpdate_Click"
+                                    ToolTip="Lädt die neue Fassung, installiert sie ohne weitere Rückfragen und startet MSDesk danach wieder." />
+                            <Button Content="Anleitung öffnen" MinWidth="0" Click="OpenHelp_Click" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource HintStyle}" Margin="0,10,0,0"
+                                   Text="Das Update läuft ohne Durchklicken durch. Nur die Rückfrage von Windows zur Rechteerhöhung erscheint noch — die verlangt Windows für den Ordner „Programme“." />
+
+                        <TextBlock Text="WAS IST NEU" Style="{StaticResource SectionStyle}" />
+                        <TextBlock x:Name="ReleaseNotesStatus" Style="{StaticResource HintStyle}"
+                                   Text="Versionshinweise werden geladen…" />
+                        <ItemsControl x:Name="ReleaseNotesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#14FFFFFF" CornerRadius="6" Padding="14,11" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Version, StringFormat=Version {0}}"
+                                                           Foreground="#F2FFFFFF" FontSize="13" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding PublishedText}" Foreground="#88FFFFFF"
+                                                           FontSize="11.5" Margin="10,0,0,0" VerticalAlignment="Center" />
+                                                <Border Background="#3A6EA5" CornerRadius="4" Padding="7,1"
+                                                        Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="installiert" Foreground="White" FontSize="10.5" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Text}" Foreground="#BBFFFFFF" FontSize="12"
+                                                       TextWrapping="Wrap" Margin="0,7,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
                     <!-- ===== BILDSCHIRME (Kontrolle der gespeicherten Layouts) ===== -->
                     <StackPanel x:Name="PanelBildschirme" Visibility="Collapsed">
                         <TextBlock Text="JETZT ANGESCHLOSSEN" Style="{StaticResource SectionStyle}" Margin="0,0,0,8" />
@@ -339,7 +652,8 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Description}" Foreground="#F2FFFFFF"
+                                                    <!-- Eigener Name, falls vergeben — sonst die technische Beschreibung -->
+                                                    <TextBlock Text="{Binding Name}" Foreground="#F2FFFFFF"
                                                                FontSize="12.5" FontWeight="SemiBold" />
                                                     <Border Background="#3A6EA5" CornerRadius="4" Padding="7,1"
                                                             Margin="8,0,0,0" VerticalAlignment="Center">
@@ -356,12 +670,18 @@
                                                         <TextBlock Text="gerade aktiv" Foreground="White" FontSize="10.5" />
                                                     </Border>
                                                 </StackPanel>
+                                                <TextBlock Text="{Binding Description}" Foreground="#77FFFFFF"
+                                                           FontSize="11" Margin="0,2,0,0" />
                                                 <TextBlock Foreground="#99FFFFFF" FontSize="11.5" Margin="0,2,0,0">
                                                     <Run Text="Anordnung gespeichert für" />
                                                     <Run Text="{Binding FenceCount, Mode=OneWay}" FontWeight="SemiBold" />
                                                     <Run Text="Bereich(e)" />
                                                 </TextBlock>
                                             </StackPanel>
+                                            <Button Grid.Column="1" Content="Benennen…" MinWidth="0" Margin="8,0,0,0"
+                                                    VerticalAlignment="Center" Click="RenameDisplay_Click"
+                                                    Tag="{Binding Key}"
+                                                    ToolTip="Eigenen Namen vergeben, z. B. „Homeoffice“, „Mobil“ oder „Dortmund“." />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

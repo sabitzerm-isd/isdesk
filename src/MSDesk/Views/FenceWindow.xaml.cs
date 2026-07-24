@@ -254,11 +254,14 @@ public partial class FenceWindow : Window
         var rawLeft = _dragLeftStart + (cursor.X - _dragCursorStart.X);
         var rawTop = _dragTopStart + (cursor.Y - _dragCursorStart.Y);
 
-        var (left, top) = GridSnapBehavior.SnapMovePixels(hwnd, rawLeft, rawTop,
+        var (left, top, guides) = GridSnapBehavior.SnapMovePixelsWithGuides(hwnd, rawLeft, rawTop,
             (int)Math.Round(ActualWidth * scale), (int)Math.Round(ActualHeight * scale));
 
         Left = left / scale;
         Top = top / scale;
+
+        // Hilfslinien dort zeigen, wo gerade eingerastet wird.
+        AlignmentGuides.Show(guides);
     }
 
     private void Window_DragMouseUp(object sender, MouseButtonEventArgs e) => EndWindowDrag();
@@ -273,6 +276,7 @@ public partial class FenceWindow : Window
         _isDraggingWindow = false;
         _dragCapture?.ReleaseMouseCapture();
         _dragCapture = null;
+        AlignmentGuides.Hide();
     }
 
     // --- Titel direkt in der Titelzeile umbenennen (Doppelklick) ---

@@ -22,6 +22,17 @@ public static class GridSnapBehavior
         public int Height => B - T;
     }
 
+    /// <summary>
+    /// Eine Hilfslinie, die beim Verschieben anzeigt, woran der Bereich gerade
+    /// einrastet. Alle Angaben in Bildschirm-Pixeln.
+    /// <paramref name="Vertical"/> = senkrechte Linie (dann ist Position ein X-Wert,
+    /// From/To sind Y-Werte); sonst waagerecht.
+    /// </summary>
+    public readonly record struct Guide(bool Vertical, int Position, int From, int To);
+
+    /// Ein Fangpunkt samt Herkunft — noetig, um die Hilfslinie zeichnen zu koennen.
+    private readonly record struct Candidate(int Value, int GuideAt, Box Source);
+
     /// Rastergroesse in DIP (0 = ausgeschaltet). Wird aus der Konfiguration gesetzt.
     public static int GridSize { get; set; } = 20;
 
@@ -115,11 +126,36 @@ public static class GridSnapBehavior
     public static (int Left, int Top) ResolveMove(Box me, IReadOnlyList<Box> others,
         int gridPx, int snapPx, int reachPx)
     {
-        var left = SnapEdge(me.L, MoveCandidatesX(others, me, reachPx), snapPx)
-                   ?? SnapToGrid(me.L, gridPx);
-        var top = SnapEdge(me.T, MoveCandidatesY(others, me, reachPx), snapPx)
-                  ?? SnapToGrid(me.T, gridPx);
+        var (left, top, _) = ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx);
         return (left, top);
+    }
+
+    /// <summary>
+    /// Wie <see cref="ResolveMove"/>, liefert zusaetzlich die Hilfslinien an den
+    /// Kanten, an denen tatsaechlich eingerastet wurde. Beim reinen Raster-Einrasten
+    /// entstehen keine Linien — Linien beziehen sich immer auf einen Nachbarn.
+    /// </summary>
+    public static (int Left, int Top, IReadOnlyList<Guide> Guides) ResolveMoveWithGuides(
+        Box me, IReadOnlyList<Box> others, int gridPx, int snapPx, int reachPx)
+    {
+        var hitX = BestCandidate(me.L, MoveCandidatesX(others, me, reachPx), snapPx);
+        var hitY = BestCandidate(me.T, MoveCandidatesY(others, me, reachPx), snapPx);
+
+        var left = hitX?.Value ?? SnapToGrid(me.L, gridPx);
+        var top = hitY?.Value ?? SnapToGrid(me.T, gridPx);
+
+        var placed = new Box(left, top, left + me.Width, top + me.Height);
+        var guides = new List<Guide>(2);
+
+        if (hitX is { } x)
+            guides.Add(new Guide(true, x.GuideAt,
+                Math.Min(placed.T, x.Source.T), Math.Max(placed.B, x.Source.B)));
+
+        if (hitY is { } y)
+            guides.Add(new Guide(false, y.GuideAt,
+                Math.Min(placed.L, y.Source.L), Math.Max(placed.R, y.Source.R)));
+
+        return (left, top, guides);
     }
 
     /// Neues Rechteck beim Ziehen an einer Kante/Ecke (edge = WMSZ_*).
@@ -183,29 +219,46 @@ public static class GridSnapBehavior
 
     /// Neue linke Kante beim Verschieben: an fremde Kante andocken (links/rechts
     /// daneben) oder buendig ausrichten (linke an linke, rechte an rechte).
-    private static IEnumerable<int> MoveCandidatesX(IReadOnlyList<Box> others, Box me, int reach)
+    /// GuideAt ist jeweils die Kante, an der sich beide Bereiche beruehren bzw.
+    /// buendig abschliessen — genau dort wird die Hilfslinie gezeichnet.
+    private static IEnumerable<Candidate> MoveCandidatesX(IReadOnlyList<Box> others, Box me, int reach)
     {
         foreach (var o in others)
         {
             if (!NearVertically(me, o, reach)) continue;
-            yield return o.R;             // mein linker Rand an seinen rechten
-            yield return o.L - me.Width;  // mein rechter Rand an seinen linken
-            yield return o.L;             // linksbuendig
-            yield return o.R - me.Width;  // rechtsbuendig
+            yield return new Candidate(o.R, o.R, o);             // mein linker Rand an seinen rechten
+            yield return new Candidate(o.L - me.Width, o.L, o);  // mein rechter Rand an seinen linken
+            yield return new Candidate(o.L, o.L, o);             // linksbuendig
+            yield return new Candidate(o.R - me.Width, o.R, o);  // rechtsbuendig
         }
     }
 
     /// Neue obere Kante beim Verschieben (analog zu <see cref="MoveCandidatesX"/>).
-    private static IEnumerable<int> MoveCandidatesY(IReadOnlyList<Box> others, Box me, int reach)
+    private static IEnumerable<Candidate> MoveCandidatesY(IReadOnlyList<Box> others, Box me, int reach)
     {
         foreach (var o in others)
         {
             if (!NearHorizontally(me, o, reach)) continue;
-            yield return o.B;              // meine Oberkante an seine Unterkante
-            yield return o.T - me.Height;  // meine Unterkante an seine Oberkante
-            yield return o.T;              // oben buendig
-            yield return o.B - me.Height;  // unten buendig
+            yield return new Candidate(o.B, o.B, o);              // meine Oberkante an seine Unterkante
+            yield return new Candidate(o.T - me.Height, o.T, o);  // meine Unterkante an seine Oberkante
+            yield return new Candidate(o.T, o.T, o);              // oben buendig
+            yield return new Candidate(o.B - me.Height, o.B, o);  // unten buendig
         }
+    }
+
+    /// Naechstliegender Fangpunkt samt Herkunft (null = keiner in Reichweite).
+    private static Candidate? BestCandidate(int value, IEnumerable<Candidate> candidates, int snap)
+    {
+        Candidate? best = null;
+        var bestDistance = snap + 1;
+        foreach (var candidate in candidates)
+        {
+            var distance = Math.Abs(candidate.Value - value);
+            if (distance > snap || distance >= bestDistance) continue;
+            bestDistance = distance;
+            best = candidate;
+        }
+        return best;
     }
 
     /// Senkrechte Kanten (links/rechts) benachbarter Bereiche — fuers Groessenziehen.
@@ -243,8 +296,17 @@ public static class GridSnapBehavior
     public static (int Left, int Top) SnapMovePixels(IntPtr self, int rawLeft, int rawTop,
         int widthPx, int heightPx)
     {
+        var (left, top, _) = SnapMovePixelsWithGuides(self, rawLeft, rawTop, widthPx, heightPx);
+        return (left, top);
+    }
+
+    /// Wie <see cref="SnapMovePixels"/>, liefert zusaetzlich die anzuzeigenden Hilfslinien.
+    public static (int Left, int Top, IReadOnlyList<Guide> Guides) SnapMovePixelsWithGuides(
+        IntPtr self, int rawLeft, int rawTop, int widthPx, int heightPx)
+    {
         var grid = GridSize;
-        if (grid <= 0) return (rawLeft, rawTop); // Ausrichten aus → 1:1 dem Cursor folgen
+        // Ausrichten aus → 1:1 dem Cursor folgen, dann gibt es auch nichts anzuzeigen.
+        if (grid <= 0) return (rawLeft, rawTop, Array.Empty<Guide>());
 
         var scale = DpiScale(self);
         var gridPx = Math.Max(1, (int)Math.Round(grid * scale));
@@ -253,7 +315,7 @@ public static class GridSnapBehavior
 
         var me = new Box(rawLeft, rawTop, rawLeft + widthPx, rawTop + heightPx);
         var others = EdgeSnapEnabled ? OtherRects(self) : new List<Box>();
-        return ResolveMove(me, others, gridPx, snapPx, reachPx);
+        return ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx);
     }
 
     public static double ScaleOf(IntPtr hwnd) => DpiScale(hwnd);

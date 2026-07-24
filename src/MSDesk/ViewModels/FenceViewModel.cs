@@ -29,6 +29,52 @@ public sealed class FenceViewModel : INotifyPropertyChanged
             _activeTab.IsActive = true;
         }
         UpdateTabFlags();
+
+        // Bewusst NACH dem Anlegen der Tabs: so ist beim Umschalten sichergestellt,
+        // dass die Trefferzahlen bereits stehen.
+        Services.SearchService.TermChanged += OnSearchTermChanged;
+    }
+
+    // --- Suche: automatisch auf den Tab mit den Treffern umschalten ---
+
+    /// Tab, der vor Beginn der Suche aktiv war — wird danach wiederhergestellt.
+    private TabViewModel? _tabBeforeSearch;
+
+    /// <summary>
+    /// Schaltet auf den Tab mit den meisten Treffern um — aber nur, wenn der
+    /// gerade sichtbare Tab selbst KEINEN Treffer hat. Sonst wuerde einem beim
+    /// Weitertippen der Tab unter den Fingern weggezogen, obwohl man den
+    /// gesuchten Eintrag schon vor sich hat.
+    ///
+    /// Liegen Treffer in mehreren Tabs, bleibt das sichtbar: jeder Reiter zeigt
+    /// seine Trefferzahl an, sodass die uebrigen Fundstellen mit einem Klick
+    /// erreichbar sind.
+    /// </summary>
+    private void OnSearchTermChanged()
+    {
+        // Zaehlungen zuerst verbindlich aktualisieren (Reihenfolge der
+        // Ereignis-Empfaenger ist sonst nicht garantiert).
+        foreach (var tab in Tabs) tab.RecomputeSearch();
+
+        if (!Services.SearchService.IsActive)
+        {
+            // Suche beendet: zurueck auf den urspruenglichen Tab.
+            if (_tabBeforeSearch != null && Tabs.Contains(_tabBeforeSearch))
+                ActiveTab = _tabBeforeSearch;
+            _tabBeforeSearch = null;
+            return;
+        }
+
+        if (ActiveTab is { SearchMatchCount: > 0 }) return; // Treffer schon sichtbar
+
+        var best = Tabs
+            .Where(t => t.IsVisible && t.SearchMatchCount > 0)
+            .OrderByDescending(t => t.SearchMatchCount)
+            .FirstOrDefault();
+        if (best == null || ReferenceEquals(best, ActiveTab)) return;
+
+        _tabBeforeSearch ??= ActiveTab;
+        ActiveTab = best;
     }
 
     public FenceConfig Config => _config;
@@ -193,6 +239,9 @@ public sealed class FenceViewModel : INotifyPropertyChanged
 
     public void DisposeTabs()
     {
+        // Abmelden, sonst reagierte ein geschlossener Bereich weiter auf die Suche.
+        Services.SearchService.TermChanged -= OnSearchTermChanged;
+
         foreach (var tab in Tabs)
             tab.Dispose();
     }
