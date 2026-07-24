@@ -39,6 +39,10 @@ Source: "..\publish\MSDesk.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Symbol-Galerie: liegt bei PublishSingleFile NEBEN der EXE und muss mitinstalliert
 ; werden — sonst zeigen Bereiche und Tabs keine Symbole.
 Source: "..\publish\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Sicherheitsnetz: sollte ein Build die nativen WPF-Bibliotheken doch neben die
+; EXE legen statt sie einzubetten, werden sie mitinstalliert — ohne sie startet
+; die Anwendung nicht.
+Source: "..\publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\MSDesk"; Filename: "{app}\MSDesk.exe"
@@ -48,7 +52,11 @@ Name: "{autodesktop}\MSDesk"; Filename: "{app}\MSDesk.exe"; Tasks: desktopicon; 
 ; echten Anwenders, nicht des ggf. erhoehten Installer-Kontexts). Im Tray abschaltbar.
 
 [Run]
-Filename: "{app}\MSDesk.exe"; Description: "MSDesk jetzt starten"; Flags: nowait postinstall skipifsilent
+; Ohne "skipifsilent": auch das stille Update (aus dem Programm heraus) startet
+; MSDesk danach wieder. "runasoriginaluser" ist wichtig — sonst liefe MSDesk
+; erhoeht weiter und koennte keine Dateien mehr aus dem Explorer annehmen.
+Filename: "{app}\MSDesk.exe"; Description: "MSDesk jetzt starten"; \
+    Flags: nowait postinstall runasoriginaluser
 
 [UninstallRun]
 ; Vor dem Entfernen fragen, ob die Inhalte der Bereiche zurueck auf den Desktop

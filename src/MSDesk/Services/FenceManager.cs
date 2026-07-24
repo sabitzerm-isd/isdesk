@@ -510,6 +510,13 @@ public sealed class FenceManager
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
     public Models.AppConfig ConfigForDisplayOverview => _config.Config;
 
+    /// Merkt den im Tray gewaehlten Autostart-Wunsch dauerhaft.
+    public void SetAutostartWanted(bool wanted)
+    {
+        _config.Config.AutostartWanted = wanted;
+        _config.SaveDebounced();
+    }
+
     /// Bildschirm-Konfiguration, deren Anordnung gerade aktiv ist.
     private string? _currentLayoutKey;
 

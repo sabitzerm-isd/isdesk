@@ -42,6 +42,12 @@ public partial class App : Application
             return;
         }
 
+        // Alles protokollieren, was sonst unbemerkt zum Programmabbruch fuehrt —
+        // sonst steht man vor einer Anwendung, die kommentarlos nicht startet.
+        DispatcherUnhandledException += (_, args) => LogCrash(args.Exception, "DispatcherUnhandledException");
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            LogCrash(args.ExceptionObject as Exception, "UnhandledException");
+
         Interop.DarkMenuMode.EnableForApp(); // dunkle Explorer-Kontextmenues
 
         _config = new ConfigService();
@@ -61,9 +67,14 @@ public partial class App : Application
             _config.Config.AutostartConfigured = true;
             _config.SaveDebounced();
         }
+        else if (_config.Config.AutostartWanted)
+        {
+            // Gewuenscht: fehlenden Eintrag neu anlegen, veralteten Pfad korrigieren.
+            _autostart.EnsureEnabled();
+        }
         else
         {
-            _autostart.EnsureCurrentPath();
+            _autostart.EnsureCurrentPath(); // ausdruecklich abgeschaltet → nur Pfadpflege
         }
 
         if (_config.Config.Fences.Count == 0)

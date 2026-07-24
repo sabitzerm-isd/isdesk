@@ -6,11 +6,16 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyVersion>0.24.0</AssemblyVersion>
-    <FileVersion>0.24.0</FileVersion>
-    <Version>0.24.0</Version>
+    <AssemblyVersion>0.24.1</AssemblyVersion>
+    <FileVersion>0.24.1</FileVersion>
+    <Version>0.24.1</Version>
     <ApplicationIcon>Assets\MSDesk.ico</ApplicationIcon>
     <SatelliteResourceLanguages>de</SatelliteResourceLanguages>
+    <!-- MUSS gesetzt bleiben: sonst legt der Einzeldatei-Build die nativen
+         WPF-Bibliotheken (PresentationNative, wpfgfx, vcruntime …) NEBEN die
+         EXE. Der Installer nimmt nur die EXE mit — die Anwendung startet dann
+         gar nicht mehr (DllNotFoundException tief in WindowsBase). -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\MSDesk.ico" />

@@ -71,7 +71,16 @@ public sealed class UpdateService
                 var bytes = await http.GetByteArrayAsync(info.DownloadUrl).ConfigureAwait(false);
                 await File.WriteAllBytesAsync(path, bytes).ConfigureAwait(false);
             }
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            // Stumm durchlaufen lassen: kein Durchklicken der Installationsschritte.
+            // Der Installer schliesst das laufende MSDesk selbst und startet es
+            // danach ueber seinen [Run]-Eintrag wieder (als normaler Anwender).
+            // Die Windows-Rueckfrage zur Rechteerhoehung erscheint weiterhin —
+            // die verlangt Windows fuer Schreibzugriff auf "Programme".
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path)
+            {
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS",
+                UseShellExecute = true
+            });
             return path;
         }
         catch (Exception ex)

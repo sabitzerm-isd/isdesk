@@ -22,6 +22,11 @@ public sealed class AppConfig
     /// schaltet MSDesk ihn automatisch ein (im Tray abschaltbar).
     public bool AutostartConfigured { get; set; }
 
+    /// Soll MSDesk mit Windows starten? Wird nur ueber den Tray-Schalter
+    /// veraendert. Solange true, wird ein fehlender Eintrag beim Start wieder
+    /// angelegt — sonst bliebe der Autostart nach einem Verlust dauerhaft aus.
+    public bool AutostartWanted { get; set; } = true;
+
     /// Rastergroesse (Pixel) beim Verschieben/Groessenziehen von Bereichen.
     /// 0 = Ausrichten komplett aus (dann auch kein Kanten-Einrasten).
     public int GridSize { get; set; } = 20;

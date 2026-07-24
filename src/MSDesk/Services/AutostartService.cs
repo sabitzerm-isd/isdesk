@@ -67,5 +67,19 @@ public sealed class AutostartService
             Enable();
     }
 
+    /// <summary>
+    /// Stellt den Autostart wieder her, wenn er gewuenscht ist: legt einen
+    /// fehlenden Eintrag neu an und korrigiert einen veralteten Pfad.
+    /// <see cref="EnsureCurrentPath"/> allein genuegt nicht — ist der Eintrag
+    /// ganz verschwunden (Aufraeumprogramm, neues Profil), bliebe der Autostart
+    /// sonst dauerhaft aus, weil er als „schon eingerichtet" gilt.
+    /// </summary>
+    public void EnsureEnabled()
+    {
+        var expected = $"\"{ExePath}\"";
+        if (!string.Equals(CurrentCommand, expected, StringComparison.OrdinalIgnoreCase))
+            Enable();
+    }
+
     private static string ExePath => Environment.ProcessPath ?? "";
 }

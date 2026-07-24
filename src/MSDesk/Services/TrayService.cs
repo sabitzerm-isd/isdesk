@@ -63,6 +63,9 @@ public sealed class TrayService : IDisposable
         {
             if (_autostartItem.Checked) _autostart.Enable();
             else _autostart.Disable();
+            // Wunsch merken: nur so laesst sich „abgeschaltet" von „Eintrag
+            // verlorengegangen" unterscheiden.
+            _manager.SetAutostartWanted(_autostartItem.Checked);
         };
         menu.Items.Add(_autostartItem);
 
