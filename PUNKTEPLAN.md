@@ -123,6 +123,36 @@ sie mit **Opus** statt Fable umgesetzt werden können (Modell wählst du in der 
 App pro Session). Rechenintensive Unteraufgaben delegiere ich zusätzlich an günstigere
 Subagenten. Fable lohnt sich wieder bei kniffligen Architektur-/Debug-Fragen (z. B. Multi-Monitor).
 
+## 4b. STAND 23.07.2026 (v0.15.2, installiert + verteilt)
+
+**Phase 1 (A1–A10): vollständig erledigt.** Zusätzlich weit über den Plan hinaus:
+farbige Symbol-Galerie, Live-Suche, Tab-Farben, manuelle Icon-Anordnung, Papierkorb
+und andere Systemobjekte, Chrome-Lesezeichen-Import, Datei-Ablage mit Endungs-Regeln,
+Platz-Gedächtnis, Sicherung mit Aufbewahrung, echtes Shell-Kontextmenü (dunkel).
+
+**Phase 2:** B5 (Multi-Monitor-Layouts), B6 (Shell-Kontextmenü), B7 (Installer +
+Auto-Update) erledigt. B3 teilweise (Icon-Größe global statt pro Tab; Sortierung
+durch manuelle Anordnung gelöst).
+
+### Offen
+
+| Nr. | Punkt | Anmerkung |
+|---|---|---|
+| B1 | Ordner-Navigation im Bereich | Doppelklick auf Ordner öffnet aktuell den Explorer statt im Bereich hineinzunavigieren (Breadcrumb zurück) |
+| B2 | Roll-up (nur Titelleiste) | Doppelklick auf den Titel ist mit „Umbenennen" belegt — bräuchte andere Geste |
+| B3 | Icon-Größe **pro Tab** | Aktuell global für alle Bereiche |
+| B4 | Automatische Layout-Snapshots | Manuelle Sicherung existiert; tägliche automatische fehlt |
+| C | Raster beim Verschieben/Größe | Gebaut, auf Wunsch deaktiviert („später verbessern") |
+| C | Hotkey Bereiche zeigen/verstecken | Aktuell nur Tray-Menü + Tray-Doppelklick |
+| C | Export/Import von Layouts | Für ein Firmen-Standardlayout der Kollegen |
+| C | Hilfe-Seite in der App | |
+| C | Mehrsprachigkeit (DE/EN) | Aktuell nur Deutsch |
+| — | Code-Signierung | Windows meldet „Unbekannter Herausgeber" (Zertifikat ~80–200 €/Jahr) |
+| — | Weitere Browser für Lesezeichen | Aktuell nur Chrome (Edge/Firefox vorbereitet erweiterbar) |
+| — | Tabs innerhalb eines Bereichs umsortieren | Verschieben in andere Bereiche geht bereits |
+| — | Multi-Monitor-Test | Layouts je Bildschirm-Konfiguration gebaut, aber mit den 3 echten Setups (Mobil / Homeoffice / Dortmund) noch nicht erprobt |
+| — | Ordner-Überwachung verschlanken | Optional: nur den sichtbaren Tab überwachen statt alle 38 |
+
 ## 5. Entscheidungen (23.07.2026, mit Michael abgestimmt)
 
 1. **Icon-Ansatz:** Variante 1 — eigene Bereiche mit echten Ordnern ✅
