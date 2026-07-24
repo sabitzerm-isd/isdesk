@@ -70,25 +70,13 @@ public static class DisplayOverview
             .ToList();
     }
 
-    /// Macht aus dem Fingerabdruck ("\\.\DISPLAY1:0,0,1920,1080|…") einen lesbaren Text.
+    /// Macht aus dem Fingerabdruck einen lesbaren Text (versteht auch die alte Form).
     public static string Describe(string key)
     {
-        if (string.IsNullOrWhiteSpace(key)) return "unbekannt";
+        var monitors = DisplayConfig.Parse(key);
+        if (monitors.Count == 0) return "unbekannt";
 
-        var parts = key.Split('|', StringSplitOptions.RemoveEmptyEntries);
-        var sizes = new List<string>();
-
-        foreach (var part in parts)
-        {
-            var colon = part.LastIndexOf(':');
-            if (colon < 0 || colon + 1 >= part.Length) continue;
-
-            var numbers = part[(colon + 1)..].Split(',');
-            if (numbers.Length != 4) continue;
-            sizes.Add($"{numbers[2]} × {numbers[3]}");
-        }
-
-        if (sizes.Count == 0) return "unbekannt";
+        var sizes = monitors.Select(m => $"{m.Width} × {m.Height}").ToList();
         var count = sizes.Count == 1 ? "1 Bildschirm" : $"{sizes.Count} Bildschirme";
         return $"{count}: {string.Join(", ", sizes)}";
     }

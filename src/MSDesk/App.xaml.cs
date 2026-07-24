@@ -88,6 +88,10 @@ public partial class App : Application
         // Von Hand gesetzte Symbole bleiben unangetastet.
         if (TabIconRules.ApplyMissing(_config.Config) > 0) _config.SaveDebounced();
 
+        // Gespeicherte Bildschirm-Anordnungen auf die geraetenamen-freie Kennung
+        // umstellen — sonst waeren sie nach dem Wechsel nicht mehr auffindbar.
+        if (DisplayConfig.MigrateKeys(_config.Config) > 0) _config.SaveDebounced();
+
         _manager.Sweeper = new DesktopSweeper(_config, _manager.GetAblageFolder);
         _manager.Bookmarks = new BookmarkImportService(_config, _manager);
         _manager.OpenAll();

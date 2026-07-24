@@ -198,6 +198,16 @@ public partial class SettingsDialog : Window
         LayoutSaveHint.Text = "Aktualisiert.";
     }
 
+    /// Bereiche ueberschneidungsfrei neu anordnen (nach einem Bildschirmwechsel).
+    private void RearrangeFences_Click(object sender, RoutedEventArgs e)
+    {
+        var count = _manager?.RearrangeOnCurrentScreen() ?? 0;
+        LoadDisplays();
+        LayoutSaveHint.Text = count > 0
+            ? $"{count} Bereiche überschneidungsfrei angeordnet und gesichert."
+            : "Keine Bereiche vorhanden.";
+    }
+
     /// Eigenen Namen fuer eine Bildschirm-Konfiguration vergeben.
     private void RenameDisplay_Click(object sender, RoutedEventArgs e)
     {

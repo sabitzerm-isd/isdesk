@@ -490,8 +490,10 @@ public sealed class FenceManager
 
         // Unbekannte Konfiguration (z. B. erstes Abstecken des zweiten Monitors):
         // die Anordnung anteilig auf die neue Flaeche uebertragen, statt die
-        // Bereiche auf ihren alten Koordinaten stehen zu lassen.
-        var transfer = TransferAreasFor(key);
+        // Bereiche auf ihren alten Koordinaten stehen zu lassen. Das geschieht
+        // fuer ALLE betroffenen Bereiche GEMEINSAM — nur so lassen sich
+        // Ueberschneidungen vermeiden, wenn zwei Monitore zu einem werden.
+        ApplyTransferForUnknownDisplays(key);
 
         foreach (var window in _windows)
         {
@@ -500,14 +502,6 @@ public sealed class FenceManager
             {
                 cfg.X = rect.X; cfg.Y = rect.Y;
                 cfg.Width = Math.Max(rect.Width, 110); cfg.Height = Math.Max(rect.Height, 80);
-            }
-            else if (transfer is var (from, to))
-            {
-                var mapped = LayoutTransfer.Map(
-                    new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height },
-                    from, to);
-                cfg.X = mapped.X; cfg.Y = mapped.Y;
-                cfg.Width = mapped.Width; cfg.Height = mapped.Height;
             }
             EnsureOnScreen(cfg);
             window.Left = cfg.X;
@@ -586,6 +580,68 @@ public sealed class FenceManager
         _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
+    }
+
+    /// <summary>
+    /// Ordnet ALLE Bereiche auf der aktuellen Arbeitsflaeche neu an —
+    /// ueberschneidungsfrei, in der bisherigen Leserichtung. Fuer den Fall,
+    /// dass eine Anordnung bereits mit Ueberlappungen gespeichert wurde.
+    /// Rueckgabe: Anzahl der Bereiche.
+    /// </summary>
+    public int RearrangeOnCurrentScreen()
+    {
+        if (_windows.Count == 0) return 0;
+
+        var area = CurrentDesktopArea();
+        var vorher = _windows
+            .Select(w => new LayoutRect { X = w.Left, Y = w.Top, Width = w.Width, Height = w.Height })
+            .ToList();
+
+        var nachher = LayoutTransfer.Arrange(vorher, area, area);
+
+        for (var i = 0; i < _windows.Count; i++)
+        {
+            var window = _windows[i];
+            window.Left = nachher[i].X;
+            window.Top = nachher[i].Y;
+            window.Width = nachher[i].Width;
+            window.Height = nachher[i].Height;
+        }
+
+        _currentLayoutKey ??= DisplayConfig.Current;
+        StoreLayout(_currentLayoutKey);
+        _config.Save();
+        return _windows.Count;
+    }
+
+    /// <summary>
+    /// Ordnet alle Bereiche, fuer die es unter <paramref name="key"/> noch keine
+    /// gespeicherte Anordnung gibt, gemeinsam auf der neuen Flaeche an —
+    /// ueberschneidungsfrei und in der bisherigen Leserichtung.
+    /// </summary>
+    private void ApplyTransferForUnknownDisplays(string key)
+    {
+        if (TransferAreasFor(key) is not var (from, to)) return;
+
+        var betroffen = _windows
+            .Select(w => w.ViewModel.Config)
+            .Where(cfg => !cfg.Layouts.ContainsKey(key))
+            .ToList();
+        if (betroffen.Count == 0) return;
+
+        var vorher = betroffen
+            .Select(cfg => new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height })
+            .ToList();
+
+        var nachher = LayoutTransfer.Arrange(vorher, from, to);
+
+        for (var i = 0; i < betroffen.Count; i++)
+        {
+            betroffen[i].X = nachher[i].X;
+            betroffen[i].Y = nachher[i].Y;
+            betroffen[i].Width = nachher[i].Width;
+            betroffen[i].Height = nachher[i].Height;
+        }
     }
 
     /// <summary>

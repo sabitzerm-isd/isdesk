@@ -692,6 +692,8 @@
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Content="Anordnung jetzt sichern" MinWidth="0" Click="SaveLayoutNow_Click"
                                     ToolTip="Normalerweise nicht nötig — das Sichern läuft automatisch. Dieser Knopf schreibt sofort, ohne die kurze Wartezeit." />
+                            <Button Content="Bereiche neu anordnen" MinWidth="0" Click="RearrangeFences_Click"
+                                    ToolTip="Legt alle Bereiche überschneidungsfrei nebeneinander — hilft, wenn nach einem Bildschirmwechsel Bereiche übereinanderliegen." />
                             <Button Content="Aktualisieren" MinWidth="0" Click="RefreshDisplays_Click" />
                         </StackPanel>
                         <TextBlock x:Name="LayoutSaveHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0" />

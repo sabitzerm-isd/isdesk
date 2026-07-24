@@ -53,6 +53,95 @@ public static class LayoutTransfer
         return new LayoutRect { X = Math.Round(x), Y = Math.Round(y), Width = Math.Round(width), Height = Math.Round(height) };
     }
 
+    /// Abstand zwischen zwei Bereichen bei der Neuanordnung (DIP).
+    private const double Gap = 8;
+
+    /// Wie stark bei jedem Versuch verkleinert wird, wenn nicht alles passt.
+    private const double ShrinkStep = 0.85;
+
+    /// Hoehe eines „Zeilenfachs" fuer die Sortierung — Bereiche innerhalb
+    /// dieses Bandes gelten als in derselben Zeile liegend.
+    private const double RowBand = 120;
+
+    /// <summary>
+    /// Ordnet ALLE Bereiche gemeinsam auf der neuen Flaeche an — anteilig wie
+    /// bisher, aber anschliessend ueberschneidungsfrei.
+    ///
+    /// Das einzelne Abbilden genuegt nicht: Bereiche, die vorher auf
+    /// VERSCHIEDENEN Monitoren an aehnlicher Stelle lagen, landen sonst
+    /// uebereinander. Deshalb werden sie danach in Leserichtung (oben links
+    /// nach unten rechts) nebeneinandergelegt und bei Bedarf gemeinsam
+    /// verkleinert, bis alles nebeneinander Platz hat.
+    ///
+    /// Die Rueckgabe hat dieselbe Reihenfolge wie die Eingabe.
+    /// </summary>
+    public static IReadOnlyList<LayoutRect> Arrange(IReadOnlyList<LayoutRect> items, Area from, Area to)
+    {
+        if (items.Count == 0) return items;
+        if (to.Width <= 0 || to.Height <= 0) return items;
+
+        // 1. Anteilig abbilden — daraus ergeben sich Wunschgroesse und -reihenfolge.
+        var mapped = items.Select(i => Map(i, from, to)).ToList();
+
+        // 2. Leserichtung bestimmen: erst Zeile (grob gebuendelt), dann von links.
+        var order = Enumerable.Range(0, mapped.Count)
+            .OrderBy(i => (int)Math.Floor(mapped[i].Y / RowBand))
+            .ThenBy(i => mapped[i].X)
+            .ToList();
+
+        // 3. Nebeneinanderlegen; passt es in der Hoehe nicht, alles gemeinsam
+        //    verkleinern und erneut versuchen.
+        var scale = 1.0;
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            if (TryPack(mapped, order, to, scale, out var packed)) return packed;
+            scale *= ShrinkStep;
+        }
+
+        // Notfall: letzter Versuch, Ergebnis in jedem Fall innerhalb der Flaeche.
+        TryPack(mapped, order, to, scale, out var last);
+        return last;
+    }
+
+    /// Legt die Bereiche zeilenweise nebeneinander. false = passt in der Hoehe nicht.
+    private static bool TryPack(List<LayoutRect> mapped, List<int> order, Area to, double scale,
+                                out List<LayoutRect> result)
+    {
+        result = new List<LayoutRect>(new LayoutRect[mapped.Count]);
+
+        double x = to.X, y = to.Y, rowHeight = 0;
+        var fits = true;
+
+        foreach (var index in order)
+        {
+            var width = Math.Min(to.Width, Math.Max(MinWidth, mapped[index].Width * scale));
+            var height = Math.Min(to.Height, Math.Max(MinHeight, mapped[index].Height * scale));
+
+            // Zeilenumbruch, sobald die Zeile voll ist (aber nie bei leerer Zeile).
+            if (x > to.X && x + width > to.X + to.Width)
+            {
+                x = to.X;
+                y += rowHeight + Gap;
+                rowHeight = 0;
+            }
+
+            if (y + height > to.Y + to.Height) fits = false;
+
+            result[index] = new LayoutRect
+            {
+                X = Math.Round(x),
+                Y = Math.Round(Clamp(y, to.Y, Math.Max(to.Y, to.Y + to.Height - height))),
+                Width = Math.Round(width),
+                Height = Math.Round(height)
+            };
+
+            x += width + Gap;
+            rowHeight = Math.Max(rowHeight, height);
+        }
+
+        return fits;
+    }
+
     private static double Clamp(double value, double min, double max)
         => max < min ? min : Math.Min(Math.Max(value, min), max);
 }
