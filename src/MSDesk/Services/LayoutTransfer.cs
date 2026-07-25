@@ -305,6 +305,71 @@ public static class LayoutTransfer
             Width = Math.Round(r.Width), Height = Math.Round(r.Height)
         }).ToList();
 
+    /// <summary>
+    /// Ordnet alle Bereiche an einem gedachten Raster an: zeilenweise in
+    /// Leserichtung, mit ueberall GLEICHEM Zwischenraum. Die Groessen bleiben
+    /// dabei unveraendert — es wird ausschliesslich verschoben.
+    ///
+    /// Die bisherige Reihenfolge (oben links nach unten rechts) bleibt erhalten,
+    /// damit die Anordnung vertraut wirkt.
+    /// </summary>
+    public static IReadOnlyList<LayoutRect> ArrangeOnGrid(
+        IReadOnlyList<LayoutRect> items, Area area, double gap)
+    {
+        if (items.Count == 0) return items;
+        if (area.Width <= 0 || area.Height <= 0) return items;
+
+        var order = Enumerable.Range(0, items.Count)
+            .OrderBy(i => (int)Math.Floor(items[i].Y / RowBand))
+            .ThenBy(i => items[i].X)
+            .ToList();
+
+        var result = new LayoutRect[items.Count];
+        double x = area.X + gap, y = area.Y + gap, rowHeight = 0;
+
+        foreach (var index in order)
+        {
+            var item = items[index];
+
+            // Zeilenumbruch, sobald die Zeile voll ist (nie bei leerer Zeile).
+            if (x > area.X + gap && x + item.Width > area.X + area.Width - gap)
+            {
+                x = area.X + gap;
+                y += rowHeight + gap;
+                rowHeight = 0;
+            }
+
+            result[index] = new LayoutRect
+            {
+                X = Math.Round(x),
+                Y = Math.Round(y),
+                Width = item.Width,   // Groesse bleibt unangetastet
+                Height = item.Height
+            };
+
+            x += item.Width + gap;
+            rowHeight = Math.Max(rowHeight, item.Height);
+        }
+
+        // Ragt die letzte Zeile unten heraus, alles gemeinsam nach oben schieben,
+        // ohne den gleichmaessigen Abstand zu veraendern.
+        var unten = result.Max(r => r.Y + r.Height);
+        var ueberstand = unten - (area.Y + area.Height - gap);
+        if (ueberstand > 0)
+        {
+            var verschiebung = Math.Min(ueberstand, result.Min(r => r.Y) - area.Y);
+            if (verschiebung > 0)
+                for (var i = 0; i < result.Length; i++)
+                    result[i] = new LayoutRect
+                    {
+                        X = result[i].X, Y = Math.Round(result[i].Y - verschiebung),
+                        Width = result[i].Width, Height = result[i].Height
+                    };
+        }
+
+        return result;
+    }
+
     /// Notfall-Anordnung: alles in Leserichtung aufreihen.
     private static IReadOnlyList<LayoutRect> PackInReadingOrder(
         IReadOnlyList<LayoutRect> items, Area from, Area to)

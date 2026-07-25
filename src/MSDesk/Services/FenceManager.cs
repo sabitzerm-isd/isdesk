@@ -511,6 +511,12 @@ public sealed class FenceManager
             cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
         }
 
+        // Sicherheitsnetz: Auch eine GESPEICHERTE Anordnung kann Bereiche
+        // uebereinander enthalten — etwa wenn sie aus einer aelteren Fassung
+        // stammt. Sie ungeprueft anzuwenden hiesse, den Fehler dauerhaft
+        // mitzuschleppen. Aufgeraeumt wird nur, wenn es wirklich noetig ist.
+        ResolveOverlapsNow(key);
+
         // Gesamtflaeche dieser Konfiguration festhalten — Grundlage fuer ein
         // spaeteres anteiliges Uebertragen auf die naechste unbekannte.
         var current = VirtualArea();
@@ -522,10 +528,47 @@ public sealed class FenceManager
         _currentLayoutKey = key;
         _config.Save();          // sofort, nicht gebuendelt: der Wechsel ist abgeschlossen
         ResumeLayoutSaving();    // ab jetzt darf wieder laufend gesichert werden
+
+        StartupLog.Write($"Anordnung angewandt: {_windows.Count} Bereiche, Kennung {key}");
+    }
+
+    /// <summary>
+    /// Loest Ueberlappungen der aktuell gesetzten Fenster auf — verschiebt dabei
+    /// so wenig wie moeglich. Ohne Ueberlappung geschieht nichts.
+    /// </summary>
+    private void ResolveOverlapsNow(string key)
+    {
+        if (_windows.Count < 2) return;
+
+        var flaeche = VirtualArea();
+        var lage = _windows
+            .Select(w => new LayoutRect { X = w.Left, Y = w.Top, Width = w.Width, Height = w.Height })
+            .ToList();
+
+        if (LayoutTransfer.FitsWithoutChange(lage, flaeche)) return;
+
+        var bereinigt = LayoutTransfer.Arrange(lage, flaeche, flaeche);
+        for (var i = 0; i < _windows.Count; i++)
+        {
+            var window = _windows[i];
+            var cfg = window.ViewModel.Config;
+
+            window.Left = cfg.X = bereinigt[i].X;
+            window.Top = cfg.Y = bereinigt[i].Y;
+            window.Width = cfg.Width = bereinigt[i].Width;
+            window.Height = cfg.Height = bereinigt[i].Height;
+            cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
+        }
+
+        StartupLog.Write("Überlappungen aufgelöst.");
     }
 
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
     public Models.AppConfig ConfigForDisplayOverview => _config.Config;
+
+    /// Fuer die Diagnose in den Optionen.
+    public string ConfigFilePath => _config.ConfigPath;
+    public int SaveCount => _config.SaveCount;
 
     /// Speichert die Konfiguration in Kuerze (gebuendelt, nicht bei jedem Tastendruck).
     public void SaveSoon() => _config.SaveDebounced();
@@ -568,6 +611,10 @@ public sealed class FenceManager
                 if (app == null) return;
                 app.Dispatcher.BeginInvoke(() =>
                 {
+                    // Erneut pruefen: der Timer kann bereits gelaufen sein, als
+                    // waehrend eines Bildschirmwechsels gesperrt wurde.
+                    if (_layoutSavingSuspended) return;
+
                     _currentLayoutKey ??= DisplayConfig.Current;
                     StoreLayout(_currentLayoutKey);
                     _config.Save();
@@ -629,6 +676,37 @@ public sealed class FenceManager
             window.Top = nachher[i].Y;
             window.Width = nachher[i].Width;
             window.Height = nachher[i].Height;
+        }
+
+        _currentLayoutKey ??= DisplayConfig.Current;
+        StoreLayout(_currentLayoutKey);
+        _config.Save();
+        return _windows.Count;
+    }
+
+    /// <summary>
+    /// Ordnet alle Bereiche an einem gedachten Raster an — gleicher Abstand
+    /// ueberall, Groessen unveraendert. Rueckgabe: Anzahl der Bereiche.
+    /// </summary>
+    public int ArrangeOnGrid()
+    {
+        if (_windows.Count == 0) return 0;
+
+        var flaeche = CurrentDesktopArea();
+        var abstand = Math.Max(8, _config.Config.GridSize > 0 ? _config.Config.GridSize : 16);
+
+        var lage = _windows
+            .Select(w => new LayoutRect { X = w.Left, Y = w.Top, Width = w.Width, Height = w.Height })
+            .ToList();
+
+        var neu = LayoutTransfer.ArrangeOnGrid(lage, flaeche, abstand);
+
+        for (var i = 0; i < _windows.Count; i++)
+        {
+            var window = _windows[i];
+            window.Left = neu[i].X;
+            window.Top = neu[i].Y;
+            // Breite/Hoehe bewusst NICHT anfassen.
         }
 
         _currentLayoutKey ??= DisplayConfig.Current;

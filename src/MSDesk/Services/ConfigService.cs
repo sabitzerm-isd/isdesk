@@ -109,11 +109,19 @@ public sealed class ConfigService
         }
     }
 
+    /// Zaehlt die erfolgreichen Speichervorgaenge (fuer das Startprotokoll).
+    public int SaveCount { get; private set; }
+
     public void Save()
     {
         lock (_sync)
         {
-            if (_suppressSaves) return;
+            if (_suppressSaves)
+            {
+                StartupLog.Write("Speichern uebersprungen (gesperrt).");
+                return;
+            }
+
             try
             {
                 var dir = Path.GetDirectoryName(_path)!;
@@ -122,12 +130,16 @@ public sealed class ConfigService
                 var json = JsonSerializer.Serialize(Config, JsonOptions);
                 File.WriteAllText(tmp, json);
                 File.Move(tmp, _path, overwrite: true);
+
+                // Nur die ersten Male protokollieren — danach waere es nur Rauschen.
+                if (++SaveCount <= 3) StartupLog.Write($"Gespeichert ({json.Length} Zeichen) → {_path}");
             }
             catch (Exception ex)
             {
                 // Ohne diese Meldung blieb ein fehlgeschlagenes Speichern voellig
                 // unbemerkt: der Aufruf kommt aus einem Timer-Rueckruf, dessen
                 // Ausnahmen spurlos verschwinden.
+                StartupLog.Write($"SPEICHERN FEHLGESCHLAGEN -> {ex.GetType().Name}: {ex.Message}");
                 App.LogCrash(ex, "ConfigService.Save");
             }
         }

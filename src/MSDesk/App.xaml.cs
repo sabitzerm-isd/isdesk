@@ -94,27 +94,50 @@ public partial class App : Application
 
         _manager.Sweeper = new DesktopSweeper(_config, _manager.GetAblageFolder);
         _manager.Bookmarks = new BookmarkImportService(_config, _manager);
-        _manager.OpenAll();
-        _manager.ApplyLayoutsForCurrentDisplays();
+
+        // Bildschirm-Ueberwachung ZUERST einrichten. Sie stand frueher ganz am
+        // Ende — faellt davor ein Schritt aus, reagierte MSDesk anschliessend
+        // ueberhaupt nicht mehr auf das An- und Abstecken von Monitoren, ohne
+        // dass das nach aussen erkennbar gewesen waere.
+        StartupLog.Step("Bildschirm-Ueberwachung", () =>
+        {
+            _displayDebounce = new System.Timers.Timer(1200) { AutoReset = false };
+            _displayDebounce.Elapsed += (_, _) =>
+            {
+                try
+                {
+                    Dispatcher.Invoke(() => _manager?.ApplyLayoutsForCurrentDisplays());
+                }
+                catch (Exception ex)
+                {
+                    // Ohne diesen Fang bliebe das Speichern nach einem Fehler
+                    // dauerhaft gesperrt (SuspendLayoutSaving).
+                    LogCrash(ex, "DisplayChange");
+                    _manager?.ResumeLayoutSaving();
+                }
+            };
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        });
+
+        StartupLog.Step("Bereiche oeffnen", () => _manager.OpenAll());
+        StartupLog.Step("Anordnung anwenden", () => _manager.ApplyLayoutsForCurrentDisplays());
+
         // Tabs laden erst beim Anzeigen — das Platz-Gedaechtnis lernt die Ordner
         // deshalb einmalig im Hintergrund (ohne Icons/Ueberwachung).
-        PlacementRegistry.LearnAllTabFolders();
-        if (_config.Config.DesktopSweep)
-            _manager.Sweeper.Start();
-
-        _tray = new TrayService(_manager, _autostart);
+        StartupLog.Step("Platz-Gedaechtnis", PlacementRegistry.LearnAllTabFolders);
+        StartupLog.Step("Ablage", () =>
+        {
+            if (_config.Config.DesktopSweep) _manager.Sweeper.Start();
+        });
+        StartupLog.Step("Infobereich-Symbol", () => _tray = new TrayService(_manager, _autostart));
 
         // Erststart: erst einrichten (Name, Sicherungsort), dann die Anleitung.
-        Views.SetupDialog.RunOnFirstStart(_config);
-        HelpPage.OpenOnFirstRun(_config); // beim allerersten Start die Anleitung zeigen
-        CheckForUpdatesAsync(); // beim Start still nach neuer Version schauen
+        // Bewusst ZULETZT: der Dialog haelt den Start an, bis er geschlossen wird.
+        StartupLog.Step("Erststart-Assistent", () => Views.SetupDialog.RunOnFirstStart(_config));
+        StartupLog.Step("Anleitung", () => HelpPage.OpenOnFirstRun(_config));
+        StartupLog.Step("Update-Pruefung", () => CheckForUpdatesAsync());
 
-        // Bildschirm-Konfigurationswechsel (Docking, RDP, Beamer): entprellt das
-        // gemerkte Layout der neuen Konfiguration anwenden.
-        _displayDebounce = new System.Timers.Timer(1200) { AutoReset = false };
-        _displayDebounce.Elapsed += (_, _) =>
-            Dispatcher.Invoke(() => _manager?.ApplyLayoutsForCurrentDisplays());
-        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        StartupLog.Write("Start abgeschlossen.");
     }
 
     /// Vor der Deinstallation aufgerufen: fragt einmal nach und legt dann alle

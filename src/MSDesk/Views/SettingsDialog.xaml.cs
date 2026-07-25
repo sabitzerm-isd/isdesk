@@ -208,6 +208,50 @@ public partial class SettingsDialog : Window
             : "Keine Bereiche vorhanden.";
     }
 
+    /// Alle Bereiche an einem gedachten Raster ausrichten (Größen bleiben).
+    private void ArrangeOnGrid_Click(object sender, RoutedEventArgs e)
+    {
+        var anzahl = _manager?.ArrangeOnGrid() ?? 0;
+        LoadDisplays();
+        LayoutSaveHint.Text = anzahl > 0
+            ? $"{anzahl} Bereiche am Raster ausgerichtet — gleicher Abstand, Größen unverändert."
+            : "Keine Bereiche vorhanden.";
+    }
+
+    /// Zeigt, ob wirklich gespeichert wird — sonst bleibt jeder Fehler unbemerkt.
+    private void ShowDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        var text = new System.Text.StringBuilder();
+        try
+        {
+            var pfad = _manager?.ConfigFilePath ?? "";
+            text.AppendLine($"Konfigurationsdatei:\n{pfad}\n");
+
+            if (File.Exists(pfad))
+            {
+                var info = new FileInfo(pfad);
+                var alter = DateTime.Now - info.LastWriteTime;
+                text.AppendLine($"Zuletzt geschrieben: {info.LastWriteTime:dd.MM.yyyy HH:mm:ss}");
+                text.AppendLine($"Das ist vor {(int)alter.TotalMinutes} Minuten.");
+                text.AppendLine($"Größe: {info.Length / 1024} KB\n");
+            }
+            else
+            {
+                text.AppendLine("Die Datei existiert noch nicht.\n");
+            }
+
+            text.AppendLine($"Speichervorgänge in dieser Sitzung: {_manager?.SaveCount ?? 0}");
+            text.AppendLine($"Gemerkte Bildschirm-Konfigurationen: {_manager?.ConfigForDisplayOverview.DisplayAreas.Count ?? 0}");
+            text.AppendLine($"\nAktuelle Kennung:\n{DisplayConfig.Current}");
+        }
+        catch (Exception ex)
+        {
+            text.AppendLine($"Fehler beim Ermitteln: {ex.Message}");
+        }
+
+        ConfirmDialog.Info(text.ToString(), this);
+    }
+
     /// Gemerkte Anordnung EINER Konfiguration vergessen (zum Testen).
     private void ResetDisplay_Click(object sender, RoutedEventArgs e)
     {
