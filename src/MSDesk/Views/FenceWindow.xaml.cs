@@ -919,6 +919,39 @@ public partial class FenceWindow : Window
         if (notizGewaehlt) AskForNote(item);
     }
 
+    /// <summary>
+    /// Rechtsklick auf das Schloss: Hoehe genau eingeben — auf Wunsch gleich
+    /// fuer alle Bereiche. Gleiche Hoehen lassen die Anordnung deutlich
+    /// ruhiger wirken, von Hand trifft man sie kaum genau.
+    /// </summary>
+    private void LockButton_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true; // nicht als Umschalten werten
+
+        var eingabe = InputDialog.Ask(
+            "Höhe des Bereichs (Pixel):", ((int)Math.Round(ActualHeight)).ToString(), this);
+        if (eingabe == null) return;
+
+        if (!int.TryParse(eingabe.Trim(), out var hoehe) || hoehe < 80)
+        {
+            ConfirmDialog.Info("Bitte eine Zahl ab 80 eingeben.", this);
+            return;
+        }
+
+        Height = hoehe;
+
+        var (aufAlle, _) = ConfirmDialog.Show(
+            $"Höhe auf {hoehe} Pixel gesetzt.\n\n" +
+            "Soll diese Höhe auch für alle anderen Bereiche gelten?",
+            this, okText: "Für alle übernehmen");
+
+        if (aufAlle)
+        {
+            var anzahl = Manager?.ApplyHeightToAll(hoehe) ?? 0;
+            ConfirmDialog.Info($"{anzahl} weitere Bereiche auf {hoehe} Pixel gesetzt.", this);
+        }
+    }
+
     // --- Notizen ---
 
     /// Stift in der Listendarstellung.
@@ -947,6 +980,13 @@ public partial class FenceWindow : Window
     protected override void OnLocationChanged(EventArgs e)
     {
         base.OnLocationChanged(e);
+
+        // Waehrend eine Anordnung uebertragen wird NICHTS zurueckschreiben:
+        // dieser Handler feuert noch mitten in der Zuweisung von Left, wenn
+        // Top erst im naechsten Schritt gesetzt wird. Ein Zurueckschreiben
+        // wuerde den halb gesetzten Zustand festhalten.
+        if (Manager?.IsApplyingLayout == true) return;
+
         _vm.X = Left;
         _vm.Y = Top;
         Manager?.LayoutChanged(); // Anordnung automatisch sichern
@@ -955,6 +995,8 @@ public partial class FenceWindow : Window
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
         base.OnRenderSizeChanged(sizeInfo);
+        if (Manager?.IsApplyingLayout == true) return; // siehe OnLocationChanged
+
         _vm.Width = ActualWidth;
         _vm.Height = ActualHeight;
         Manager?.LayoutChanged();

@@ -283,6 +283,17 @@
                         <CheckBox x:Name="EdgeSnapCheck" Content="An Kanten benachbarter Bereiche einrasten"
                                   Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,8,0,0"
                                   Checked="EdgeSnap_Checked" Unchecked="EdgeSnap_Unchecked" />
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="Zwischenraum" Style="{StaticResource LabelStyle}" Width="90" />
+                            <ComboBox x:Name="SnapGapBox" Width="150" Height="28"
+                                      VerticalAlignment="Center" SelectionChanged="SnapGap_SelectionChanged"
+                                      ToolTip="Beim Verschieben rastet der Bereich in genau diesem Abstand neben dem Nachbarn ein — waagerecht wie senkrecht. So entstehen überall gleiche Abstände.">
+                                <ComboBoxItem Content="Bündig (0 mm)" Tag="0" />
+                                <ComboBoxItem Content="Schmal (4 mm)" Tag="4" />
+                                <ComboBoxItem Content="Normal (6 mm)" Tag="6" />
+                                <ComboBoxItem Content="Weit (8 mm)" Tag="8" />
+                            </ComboBox>
+                        </StackPanel>
                         <Button Content="Alle Bereiche jetzt am Raster ausrichten" MinWidth="0" Margin="0,10,0,0"
                                 Click="SnapAll_Click"
                                 ToolTip="Rundet Position und Größe aller Bereiche auf das Raster – bringt gewachsene Layouts in einem Schritt in Ordnung." />

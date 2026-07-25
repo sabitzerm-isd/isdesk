@@ -48,6 +48,7 @@ public partial class SettingsDialog : Window
         GridSizeBox.IsEnabled = grid > 0;
         SelectGridSize(grid > 0 ? grid : 20);
 
+        SelectSnapGap(manager?.SnapGapMillimeters ?? 6);
         BlurCheck.IsChecked = manager?.BlurEnabled ?? true;
         FaviconCheck.IsChecked = manager?.AutoFavicons ?? true;
         EdgeSnapCheck.IsChecked = manager?.EdgeSnapEnabled ?? true;
@@ -469,6 +470,29 @@ public partial class SettingsDialog : Window
             }
         }
         GridSizeBox.SelectedItem = GridSizeBox.Items[1]; // Normal (20)
+    }
+
+    /// Zwischenraum, in dem Bereiche neben- und untereinander einrasten.
+    private void SelectSnapGap(double mm)
+    {
+        foreach (ComboBoxItem item in SnapGapBox.Items)
+        {
+            if (item.Tag is string tag && double.TryParse(tag, out var wert)
+                && Math.Abs(wert - mm) < 0.01)
+            {
+                SnapGapBox.SelectedItem = item;
+                return;
+            }
+        }
+        SnapGapBox.SelectedItem = SnapGapBox.Items[2]; // Normal (6 mm)
+    }
+
+    private void SnapGap_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_initialized || _manager == null) return;
+        if (SnapGapBox.SelectedItem is ComboBoxItem { Tag: string tag }
+            && double.TryParse(tag, out var mm))
+            _manager.SnapGapMillimeters = mm;
     }
 
     private int SelectedGridSize()

@@ -751,7 +751,8 @@
 
                 <ToggleButton Grid.Column="4" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
-                              ToolTip="Bereich fixieren (Verschieben und Größe sperren)" />
+                              PreviewMouseRightButtonUp="LockButton_RightClick"
+                              ToolTip="Linksklick: Bereich fixieren (Verschieben und Größe sperren).&#x0a;Rechtsklick: Höhe genau eingeben — auch für alle Bereiche auf einmal." />
             </Grid>
             </Grid>
         </Border>

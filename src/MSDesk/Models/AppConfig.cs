@@ -34,6 +34,10 @@ public sealed class AppConfig
     /// Kanten-Einrasten an benachbarten Bereichen (unabhaengig vom Raster).
     public bool EdgeSnap { get; set; } = true;
 
+    /// Zwischenraum zwischen benachbarten Bereichen in Millimetern, in dem beim
+    /// Verschieben eingerastet wird. 0 = bündig aneinander.
+    public double SnapGapMillimeters { get; set; } = 6;
+
     /// Wurde die Anleitung beim ersten Start schon gezeigt?
     public bool HelpShown { get; set; }
 

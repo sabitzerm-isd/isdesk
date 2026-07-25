@@ -63,6 +63,31 @@ public sealed class FenceManager
         static bool Same(double a, double b) => Math.Abs(a - b) < 0.5;
     }
 
+    /// <summary>
+    /// Setzt alle Bereiche auf dieselbe Hoehe (Breite und Position bleiben).
+    /// Gleiche Hoehen lassen eine Anordnung deutlich ruhiger wirken.
+    /// Rueckgabe: Anzahl der geaenderten Bereiche.
+    /// </summary>
+    public int ApplyHeightToAll(double hoehe)
+    {
+        var geaendert = 0;
+        foreach (var window in _windows)
+        {
+            if (Math.Abs(window.Height - hoehe) < 0.5) continue;
+            window.Height = Math.Max(80, hoehe);
+            geaendert++;
+        }
+
+        DisplayConfig.Invalidate();
+        _currentLayoutKey = DisplayConfig.Current;
+        StoreLayout(_currentLayoutKey);
+        _config.Save();
+
+        StartupLog.Layout("VON HAND: Höhe für alle", _currentLayoutKey,
+                          $"{hoehe:F0} Pixel", Bereichsliste());
+        return geaendert;
+    }
+
     /// Uebertraegt die Groesse eines Bereichs auf alle anderen (gleiche Optik).
     public int ApplySizeToAll(FenceViewModel source)
     {
@@ -92,6 +117,19 @@ public sealed class FenceManager
         if (width.HasValue) window.Width = Math.Max(110, width.Value);
         if (height.HasValue) window.Height = Math.Max(80, height.Value);
         _config.SaveDebounced();
+    }
+
+    /// Zwischenraum (mm), in dem Bereiche neben- und untereinander einrasten.
+    public double SnapGapMillimeters
+    {
+        get => _config.Config.SnapGapMillimeters;
+        set
+        {
+            if (Math.Abs(_config.Config.SnapGapMillimeters - value) < 0.01) return;
+            _config.Config.SnapGapMillimeters = value;
+            Interop.GridSnapBehavior.GapMillimeters = value;
+            _config.SaveDebounced();
+        }
     }
 
     /// Kanten-Einrasten an anderen Bereichen (separat vom Raster schaltbar).
@@ -499,6 +537,9 @@ public sealed class FenceManager
 
         var plan = DisplaySwitchPlan.Compute(fences, key, VirtualArea(), CurrentDesktopArea());
 
+        IsApplyingLayout = true;
+        try
+        {
         for (var i = 0; i < _windows.Count; i++)
         {
             var window = _windows[i];
@@ -537,6 +578,11 @@ public sealed class FenceManager
             {
                 X = zielX, Y = zielY, Width = zielBreite, Height = zielHoehe
             };
+        }
+        }
+        finally
+        {
+            IsApplyingLayout = false;
         }
 
         StartupLog.Layout(
@@ -601,6 +647,18 @@ public sealed class FenceManager
     }
 
     public void ResumeLayoutSaving() => _layoutSavingSuspended = false;
+
+    /// <summary>
+    /// True, solange eine Anordnung auf die Fenster uebertragen wird.
+    ///
+    /// Absicherung gegen einen bereits behobenen, aber heiklen Mechanismus:
+    /// Das Setzen von Window.Left loest noch WAEHREND der Zuweisung
+    /// OnLocationChanged aus, und der Handler schreibt Position und Groesse in
+    /// die Konfiguration zurueck — mit Werten, die zu diesem Zeitpunkt erst
+    /// halb gesetzt sind. Solange dieses Flag steht, unterbleibt das
+    /// Zurueckschreiben.
+    /// </summary>
+    public bool IsApplyingLayout { get; private set; }
 
     private System.Timers.Timer? _displayWatch;
 

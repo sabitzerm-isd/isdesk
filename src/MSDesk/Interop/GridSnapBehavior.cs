@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -39,6 +39,24 @@ public static class GridSnapBehavior
     /// Kanten-Einrasten an anderen Bereichen (separat abschaltbar — mit vielen
     /// Bereichen empfinden manche das Fangen als "klebrig").
     public static bool EdgeSnapEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gewuenschter Zwischenraum zwischen zwei benachbarten Bereichen — in
+    /// Millimetern, weil man ihn so beurteilt („etwa 5 mm Luft"). 0 = die
+    /// Bereiche stossen bündig aneinander.
+    ///
+    /// Beim Verschieben rastet der Bereich genau in diesem Abstand neben dem
+    /// Nachbarn ein. Dadurch entstehen ueberall gleiche Abstaende, ohne dass
+    /// man sie von Hand ausmessen muss.
+    /// </summary>
+    public static double GapMillimeters { get; set; } = 6;
+
+    /// 1 mm in geraeteunabhaengigen Punkten (96 dpi, 1 Zoll = 25,4 mm).
+    private const double DipPerMillimeter = 96.0 / 25.4;
+
+    /// Der eingestellte Zwischenraum in Bildschirm-Pixeln.
+    private static int GapPixels(double scale)
+        => (int)Math.Round(GapMillimeters * DipPerMillimeter * scale);
 
     /// Fangbereich fuer das Kanten-Einrasten in DIP. Bewusst klein: bei vielen
     /// Bereichen gibt es sonst fast ueberall einen Fangpunkt.
@@ -126,9 +144,9 @@ public static class GridSnapBehavior
     /// Neue linke obere Ecke beim Verschieben: erst an fremden Kanten einrasten,
     /// sonst auf das Raster. Groesse bleibt unveraendert.
     public static (int Left, int Top) ResolveMove(Box me, IReadOnlyList<Box> others,
-        int gridPx, int snapPx, int reachPx)
+        int gridPx, int snapPx, int reachPx, int gapPx = 0)
     {
-        var (left, top, _) = ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx);
+        var (left, top, _) = ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx, gapPx);
         return (left, top);
     }
 
@@ -138,10 +156,10 @@ public static class GridSnapBehavior
     /// entstehen keine Linien — Linien beziehen sich immer auf einen Nachbarn.
     /// </summary>
     public static (int Left, int Top, IReadOnlyList<Guide> Guides) ResolveMoveWithGuides(
-        Box me, IReadOnlyList<Box> others, int gridPx, int snapPx, int reachPx)
+        Box me, IReadOnlyList<Box> others, int gridPx, int snapPx, int reachPx, int gapPx = 0)
     {
-        var hitX = BestCandidate(me.L, MoveCandidatesX(others, me, reachPx), snapPx);
-        var hitY = BestCandidate(me.T, MoveCandidatesY(others, me, reachPx), snapPx);
+        var hitX = BestCandidate(me.L, MoveCandidatesX(others, me, reachPx, gapPx), snapPx);
+        var hitY = BestCandidate(me.T, MoveCandidatesY(others, me, reachPx, gapPx), snapPx);
 
         var left = hitX?.Value ?? SnapToGrid(me.L, gridPx);
         var top = hitY?.Value ?? SnapToGrid(me.T, gridPx);
@@ -223,26 +241,36 @@ public static class GridSnapBehavior
     /// daneben) oder buendig ausrichten (linke an linke, rechte an rechte).
     /// GuideAt ist jeweils die Kante, an der sich beide Bereiche beruehren bzw.
     /// buendig abschliessen — genau dort wird die Hilfslinie gezeichnet.
-    private static IEnumerable<Candidate> MoveCandidatesX(IReadOnlyList<Box> others, Box me, int reach)
+    private static IEnumerable<Candidate> MoveCandidatesX(IReadOnlyList<Box> others, Box me, int reach, int gap)
     {
         foreach (var o in others)
         {
             if (!NearVertically(me, o, reach)) continue;
-            yield return new Candidate(o.R, o.R, o);             // mein linker Rand an seinen rechten
-            yield return new Candidate(o.L - me.Width, o.L, o);  // mein rechter Rand an seinen linken
+
+            // Nebeneinander MIT dem gewuenschten Zwischenraum. Steht ein Abstand,
+            // ist das der massgebliche Fangpunkt — so entstehen ueberall gleiche
+            // Abstaende, ohne von Hand auszumessen.
+            yield return new Candidate(o.R + gap, o.R, o);                    // rechts vom Nachbarn
+            yield return new Candidate(o.L - me.Width - gap, o.L, o);         // links vom Nachbarn
+
+            // Kanten buendig ausrichten (Spalten bilden) — unabhaengig vom Abstand.
             yield return new Candidate(o.L, o.L, o);             // linksbuendig
             yield return new Candidate(o.R - me.Width, o.R, o);  // rechtsbuendig
         }
     }
 
     /// Neue obere Kante beim Verschieben (analog zu <see cref="MoveCandidatesX"/>).
-    private static IEnumerable<Candidate> MoveCandidatesY(IReadOnlyList<Box> others, Box me, int reach)
+    private static IEnumerable<Candidate> MoveCandidatesY(IReadOnlyList<Box> others, Box me, int reach, int gap)
     {
         foreach (var o in others)
         {
             if (!NearHorizontally(me, o, reach)) continue;
-            yield return new Candidate(o.B, o.B, o);              // meine Oberkante an seine Unterkante
-            yield return new Candidate(o.T - me.Height, o.T, o);  // meine Unterkante an seine Oberkante
+
+            // Untereinander MIT Zwischenraum — dasselbe Prinzip wie waagerecht.
+            yield return new Candidate(o.B + gap, o.B, o);                     // unter dem Nachbarn
+            yield return new Candidate(o.T - me.Height - gap, o.T, o);         // ueber dem Nachbarn
+
+            // Kanten buendig ausrichten (Reihen bilden).
             yield return new Candidate(o.T, o.T, o);              // oben buendig
             yield return new Candidate(o.B - me.Height, o.B, o);  // unten buendig
         }
@@ -317,7 +345,7 @@ public static class GridSnapBehavior
 
         var me = new Box(rawLeft, rawTop, rawLeft + widthPx, rawTop + heightPx);
         var others = EdgeSnapEnabled ? OtherRects(self) : new List<Box>();
-        return ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx);
+        return ResolveMoveWithGuides(me, others, gridPx, snapPx, reachPx, GapPixels(scale));
     }
 
     public static double ScaleOf(IntPtr hwnd) => DpiScale(hwnd);
