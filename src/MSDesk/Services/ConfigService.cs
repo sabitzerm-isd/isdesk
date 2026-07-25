@@ -77,12 +77,21 @@ public sealed class ConfigService
         {
             var json = File.ReadAllText(_path);
             Config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? new AppConfig();
+
+            // Festhalten, WAS tatsaechlich geladen wurde. Zusammen mit dem
+            // Eintrag beim Speichern laesst sich damit belegen, ob das zuletzt
+            // Geschriebene beim naechsten Start wirklich ankommt.
+            var kennungen = Config.Fences.SelectMany(f => f.Layouts.Keys)
+                                         .Distinct(StringComparer.Ordinal).ToList();
+            StartupLog.Write($"Geladen: {json.Length} Zeichen, {Config.Fences.Count} Bereiche, " +
+                             $"{kennungen.Count} Bildschirm-Kennungen [{string.Join(" | ", kennungen)}]");
         }
         catch (Exception)
         {
             // Kaputte Datei: Sicherungskopie ablegen, mit Defaults weiterarbeiten (kein Crash).
             TryBackupBadFile();
             Config = new AppConfig();
+            StartupLog.Write("Konfiguration NICHT lesbar — mit Standardwerten gestartet.");
         }
     }
 
@@ -135,17 +144,19 @@ public sealed class ConfigService
     /// Zaehlt die erfolgreichen Speichervorgaenge (fuer das Startprotokoll).
     public int SaveCount { get; private set; }
 
-    /// Liest die Datei zurueck und prueft, ob wirklich das Erwartete darin steht.
-    private bool Angekommen(string erwartet)
+    /// Liest die Datei frisch von der Platte (ohne Zwischenspeicher).
+    private string? Zurueckgelesen()
     {
         try
         {
-            return new FileInfo(_path) is { Exists: true } info
-                && Math.Abs(info.Length - Encoding.UTF8.GetByteCount(erwartet)) <= 3; // BOM-Toleranz
+            using var stream = new FileStream(_path, FileMode.Open, FileAccess.Read,
+                                              FileShare.ReadWrite);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            return reader.ReadToEnd();
         }
         catch (Exception)
         {
-            return false;
+            return null;
         }
     }
 
@@ -165,30 +176,34 @@ public sealed class ConfigService
                 Directory.CreateDirectory(dir);
                 var json = JsonSerializer.Serialize(Config, JsonOptions);
 
-                // 1. Weg: erst in eine Nebendatei, dann umbenennen. Dadurch kann
-                //    ein Abbruch mitten im Schreiben die Konfiguration nicht
-                //    zerstoeren.
-                var tmp = _path + ".tmp";
-                File.WriteAllText(tmp, json);
-                File.Move(tmp, _path, overwrite: true);
+                // UNMITTELBAR in die Zieldatei schreiben. Frueher lief das ueber
+                // eine Nebendatei mit anschliessendem Umbenennen — das ist bei
+                // Abstuerzen sicherer, kam aber nachweislich nicht immer an.
+                // Gegen Datenverlust schuetzt jetzt die Sicherungskopie unten.
+                File.WriteAllText(_path, json, new UTF8Encoding(false));
 
-                // NACHPRUEFEN. Es hat sich gezeigt, dass ein Speichervorgang
-                // ohne Fehlermeldung durchlaufen kann, ohne dass die Datei
-                // tatsaechlich veraendert wird. Ohne diese Pruefung meldet das
-                // Programm Erfolg, waehrend jede Einstellung verloren geht.
-                if (!Angekommen(json))
+                // NACHPRUEFEN: den tatsaechlichen Inhalt zurueklesen. Es hat sich
+                // gezeigt, dass ein Speichervorgang ohne jede Fehlermeldung
+                // durchlaufen kann, ohne dass die Datei veraendert wird — das
+                // Programm meldet dann Erfolg, waehrend alles verloren geht.
+                var gelesen = Zurueckgelesen();
+                var stimmt = string.Equals(gelesen, json, StringComparison.Ordinal);
+
+                if (!stimmt)
                 {
-                    // 2. Weg: unmittelbar in die Zieldatei schreiben.
-                    File.WriteAllText(_path, json);
-
-                    StartupLog.Write(Angekommen(json)
-                        ? $"Gespeichert ({json.Length} Zeichen) — auf dem zweiten Weg, Umbenennen kam nicht an."
-                        : $"SPEICHERN KAM NICHT AN! Datei unveraendert: {_path}");
+                    StartupLog.Write(
+                        $"SPEICHERN KAM NICHT AN! geschrieben {json.Length}, " +
+                        $"in der Datei {gelesen?.Length.ToString() ?? "nicht lesbar"} Zeichen — {_path}");
                     return;
                 }
 
+                // Zusaetzliche Kopie: geht die Hauptdatei doch einmal verloren,
+                // ist der letzte gute Stand noch vorhanden.
+                try { File.Copy(_path, _path + ".bak", overwrite: true); } catch (Exception) { }
+
                 // Nur die ersten Male protokollieren — danach waere es nur Rauschen.
-                if (++SaveCount <= 3) StartupLog.Write($"Gespeichert ({json.Length} Zeichen) → {_path}");
+                if (++SaveCount <= 3)
+                    StartupLog.Write($"Gespeichert und geprueft ({json.Length} Zeichen) → {_path}");
             }
             catch (Exception ex)
             {
