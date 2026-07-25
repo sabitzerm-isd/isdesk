@@ -395,37 +395,47 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         set { if (_config.ShowTabCounts != value) { _config.ShowTabCounts = value; OnChanged(); Persist(); } }
     }
 
+    // WICHTIG: Diese vier Eigenschaften halten nur den zuletzt bekannten Stand
+    // fest. Sie schreiben BEWUSST NICHT in Config.Layouts.
+    //
+    // Frueher tat eine Hilfsmethode („SnapshotLayout") genau das — bei jeder
+    // einzelnen Aenderung von X, Y, Breite oder Hoehe, mit der gerade gueltigen
+    // Bildschirm-Kennung. Das umging die gesamte Absicherung: die Sperre
+    // waehrend eines Bildschirmwechsels, die Pruefung der Kennung und das
+    // gebuendelte Schreiben.
+    //
+    // Die Folge war der lange gesuchte Fehler: Beim Anstecken eines Monitors
+    // verschiebt Windows die Fenster, jede dieser Zwischenpositionen landete
+    // sofort in der Anordnung — teils noch unter der alten, teils schon unter
+    // der neuen Kennung. So entstanden Anordnungen, die X aus der einen und Y
+    // aus der anderen Konfiguration trugen.
+    //
+    // Die Anordnung wird ausschliesslich vom FenceManager gespeichert
+    // (StoreLayout), und zwar geprueft, gebuendelt und nie waehrend eines
+    // Bildschirmwechsels.
+
     public double X
     {
         get => _config.X;
-        set { if (_config.X != value) { _config.X = value; SnapshotLayout(); OnChanged(); Persist(); } }
+        set { if (_config.X != value) { _config.X = value; OnChanged(); Persist(); } }
     }
 
     public double Y
     {
         get => _config.Y;
-        set { if (_config.Y != value) { _config.Y = value; SnapshotLayout(); OnChanged(); Persist(); } }
+        set { if (_config.Y != value) { _config.Y = value; OnChanged(); Persist(); } }
     }
 
     public double Width
     {
         get => _config.Width;
-        set { if (_config.Width != value) { _config.Width = value; SnapshotLayout(); OnChanged(); Persist(); } }
+        set { if (_config.Width != value) { _config.Width = value; OnChanged(); Persist(); } }
     }
 
     public double Height
     {
         get => _config.Height;
-        set { if (_config.Height != value) { _config.Height = value; SnapshotLayout(); OnChanged(); Persist(); } }
-    }
-
-    /// Merkt sich die aktuelle Geometrie fuer die gerade aktive Bildschirm-Konfiguration.
-    private void SnapshotLayout()
-    {
-        _config.Layouts[Services.DisplayConfig.Current] = new LayoutRect
-        {
-            X = _config.X, Y = _config.Y, Width = _config.Width, Height = _config.Height
-        };
+        set { if (_config.Height != value) { _config.Height = value; OnChanged(); Persist(); } }
     }
 
     private void Persist() => _persist();
