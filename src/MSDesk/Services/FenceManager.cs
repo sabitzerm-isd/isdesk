@@ -591,8 +591,21 @@ public sealed class FenceManager
                     // waehrend eines Bildschirmwechsels gesperrt wurde.
                     if (_layoutSavingSuspended) return;
 
-                    _currentLayoutKey ??= DisplayConfig.Current;
-                    StoreLayout(_currentLayoutKey);
+                    // Die Kennung IMMER frisch ermitteln, nie auf den gemerkten
+                    // Wert vertrauen: Ist ein Bildschirmwechsel unbemerkt
+                    // geblieben, wuerde die Anordnung sonst unter der ALTEN
+                    // Konfiguration abgelegt — man verschiebt am Laptop und
+                    // findet die Aenderung anschliessend am Doppelmonitor wieder.
+                    DisplayConfig.Invalidate();
+                    var aktuell = DisplayConfig.Current;
+
+                    if (!string.Equals(aktuell, _currentLayoutKey, StringComparison.Ordinal))
+                    {
+                        StartupLog.Write($"Kennung hatte sich unbemerkt geaendert: {_currentLayoutKey} → {aktuell}");
+                        _currentLayoutKey = aktuell;
+                    }
+
+                    StoreLayout(aktuell);
                     _config.Save();
                 });
             };
@@ -654,7 +667,8 @@ public sealed class FenceManager
             window.Height = nachher[i].Height;
         }
 
-        _currentLayoutKey ??= DisplayConfig.Current;
+        DisplayConfig.Invalidate();
+        _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
         return _windows.Count;
@@ -685,7 +699,8 @@ public sealed class FenceManager
             // Breite/Hoehe bewusst NICHT anfassen.
         }
 
-        _currentLayoutKey ??= DisplayConfig.Current;
+        DisplayConfig.Invalidate();
+        _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
         return _windows.Count;
@@ -827,8 +842,10 @@ public sealed class FenceManager
     public void ShutdownAll()
     {
         // Anordnung noch VOR dem Schliessen festhalten (danach sind die
-        // Fensterkoordinaten nicht mehr aussagekraeftig).
-        if (_currentLayoutKey != null) StoreLayout(_currentLayoutKey);
+        // Fensterkoordinaten nicht mehr aussagekraeftig) — unter der aktuell
+        // gueltigen Kennung, nicht unter der gemerkten.
+        DisplayConfig.Invalidate();
+        StoreLayout(DisplayConfig.Current);
 
         foreach (var window in _windows.ToList())
             window.Close();

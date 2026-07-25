@@ -236,6 +236,35 @@ public class DisplaySwitchPlanTests
     }
 
     [Fact]
+    public void VerschiebenAmLaptop_AendertDieDoppelmonitorAnordnungNicht()
+    {
+        // Der gemeldete Fehler: Am Laptop wurden die Bereiche nach unten
+        // gezogen — danach waren sie AUCH am Doppelmonitor verschoben.
+        // Ursache war, dass unter der falschen Kennung gespeichert wurde.
+        // Hier wird geprueft, dass beide Konfigurationen getrennt bleiben.
+        var amDoppel = AnordnungZwei();
+        var amLaptop = Compute(
+            Bereiche(amDoppel, (KeyZwei, amDoppel)), KeyLaptop, FlaecheLaptop, WorkLaptop).Positions;
+
+        // Am Laptop alles 60 px nach unten ziehen und unter KeyLaptop sichern.
+        var nachUnten = amLaptop
+            .Select(r => new LayoutRect { X = r.X, Y = r.Y + 60, Width = r.Width, Height = r.Height })
+            .ToList();
+
+        // Anstecken: die Doppelmonitor-Anordnung muss UNVERSCHOBEN zurueckkommen.
+        var zurueck = Compute(
+            Bereiche(nachUnten, (KeyZwei, amDoppel), (KeyLaptop, nachUnten)),
+            KeyZwei, FlaecheZwei, WorkZwei);
+
+        Assert.Equal(PlanKind.Restored, zurueck.Kind);
+        Gleich(amDoppel, zurueck.Positions);
+
+        // Und die Y-Werte duerfen sich gegenueber dem Original NICHT um 60 unterscheiden.
+        for (var i = 0; i < amDoppel.Count; i++)
+            Assert.Equal(amDoppel[i].Y, zurueck.Positions[i].Y);
+    }
+
+    [Fact]
     public void OhneBereiche_KeinFehler()
     {
         var plan = Compute(Array.Empty<Fence>(), KeyLaptop, FlaecheLaptop, WorkLaptop);
