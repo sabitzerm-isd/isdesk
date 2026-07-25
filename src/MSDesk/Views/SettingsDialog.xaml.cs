@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -223,9 +223,7 @@ public partial class SettingsDialog : Window
     {
         try
         {
-            var pfad = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "MSDesk", "start.log");
+            var pfad = Path.Combine(ConfigService.DefaultFolder, "start.log");
 
             if (!File.Exists(pfad))
             {
@@ -264,6 +262,17 @@ public partial class SettingsDialog : Window
             }
 
             text.AppendLine($"Speichervorgänge in dieser Sitzung: {_manager?.SaveCount ?? 0}");
+
+            // Frueherer Ablageort: dort wurden Aenderungen bei einem Anwender von
+            // aussen zurueckgesetzt. Liegt die alte Datei noch, ist sie nur ein
+            // Ueberbleibsel und wird nicht mehr verwendet.
+            var alt = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MSDesk", "config.json");
+            if (File.Exists(alt))
+                text.AppendLine($"\nHinweis: Unter „Roaming“ liegt noch eine alte Datei " +
+                                $"(Stand {new FileInfo(alt).LastWriteTime:dd.MM.yyyy HH:mm}). " +
+                                "Sie wird nicht mehr verwendet.");
             text.AppendLine($"Gemerkte Bildschirm-Konfigurationen: {_manager?.ConfigForDisplayOverview.DisplayAreas.Count ?? 0}");
             text.AppendLine($"\nAktuelle Kennung:\n{DisplayConfig.Current}");
         }

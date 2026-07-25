@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -119,7 +119,7 @@ public static class WebLinkFactory
     private static async Task<string?> DownloadFaviconCoreAsync(Uri site)
     {
         var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MSDesk", "FavIcons");
+            ConfigService.DefaultFolder, "FavIcons");
         Directory.CreateDirectory(dir);
         var icoPath = Path.Combine(dir, SanitizeFileName(site.Host) + ".ico");
         if (File.Exists(icoPath)) return icoPath;

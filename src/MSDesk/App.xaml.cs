@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Windows;
 using MSDesk.Models;
@@ -310,8 +310,8 @@ public partial class App : Application
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MSDesk");
+            // Gleicher Ort wie die Konfiguration (AppData\Local).
+            var dir = Services.ConfigService.DefaultFolder;
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
             sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {origin}");

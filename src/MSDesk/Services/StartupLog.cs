@@ -39,8 +39,9 @@ public static class StartupLog
         get
         {
             if (_path != null) return _path;
-            var dir = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MSDesk");
+            // Gleicher Ort wie die Konfiguration (AppData\Local) — siehe dort,
+            // warum Roaming dafuer nicht taugt.
+            var dir = ConfigService.DefaultFolder;
             Directory.CreateDirectory(dir);
             return _path = System.IO.Path.Combine(dir, "start.log");
         }

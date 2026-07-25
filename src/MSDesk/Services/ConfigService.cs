@@ -21,13 +21,60 @@ public sealed class ConfigService
 
     public string ConfigPath => _path;
 
+    /// <summary>
+    /// Ablageort der Konfiguration.
+    ///
+    /// Bewusst „AppData\Local" statt „AppData\Roaming": Roaming wird von
+    /// Profil-Synchronisation, Sicherungswerkzeugen und Schutzprogrammen
+    /// angefasst. Bei einem Anwender wurden dort Aenderungen nachtraeglich auf
+    /// aeltere Staende zurueckgesetzt — samt urspruenglichem Zeitstempel —,
+    /// wodurch saemtliche Einstellungen verloren gingen, ohne dass MSDesk etwas
+    /// davon bemerken konnte. Local ist genau fuer solche Daten vorgesehen.
+    /// </summary>
+    public static string DefaultFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MSDesk");
+
+    /// Frueherer Ablageort (bis v0.28.6) — wird einmalig uebernommen.
+    private static string LegacyFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MSDesk");
+
     public ConfigService(string? pathOverride = null)
     {
-        _path = pathOverride ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MSDesk", "config.json");
+        _path = pathOverride ?? Path.Combine(DefaultFolder, "config.json");
         _debounceTimer = new System.Timers.Timer(400) { AutoReset = false };
         _debounceTimer.Elapsed += (_, _) => Save();
+    }
+
+    /// <summary>
+    /// Uebernimmt Konfiguration und Symbol-Zwischenspeicher aus dem frueheren
+    /// Ablageort. Laeuft nur, solange am neuen Ort noch nichts liegt.
+    /// </summary>
+    private void MigrateFromRoaming()
+    {
+        try
+        {
+            if (File.Exists(_path)) return;
+
+            var alteDatei = Path.Combine(LegacyFolder, "config.json");
+            if (!File.Exists(alteDatei)) return;
+
+            Directory.CreateDirectory(DefaultFolder);
+            File.Copy(alteDatei, _path, overwrite: false);
+            StartupLog.Write($"Konfiguration uebernommen: {alteDatei} → {_path}");
+
+            var alteIcons = Path.Combine(LegacyFolder, "FavIcons");
+            var neueIcons = Path.Combine(DefaultFolder, "FavIcons");
+            if (Directory.Exists(alteIcons) && !Directory.Exists(neueIcons))
+            {
+                Directory.CreateDirectory(neueIcons);
+                foreach (var datei in Directory.GetFiles(alteIcons))
+                    File.Copy(datei, Path.Combine(neueIcons, Path.GetFileName(datei)), overwrite: false);
+            }
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "ConfigService.MigrateFromRoaming");
+        }
     }
 
     /// Uebernimmt die Einstellungen der Vorgaengerversion, die noch "ISDesk" hiess
@@ -66,6 +113,7 @@ public sealed class ConfigService
     public void Load()
     {
         MigrateFromIsDesk();
+        MigrateFromRoaming();
 
         if (!File.Exists(_path))
         {
