@@ -121,6 +121,7 @@ public partial class App : Application
                 }
             };
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            _manager.StartDisplayWatch(); // Sicherheitsnetz, falls das Ereignis ausbleibt
         });
 
         StartupLog.Step("Bereiche oeffnen", () => _manager.OpenAll());

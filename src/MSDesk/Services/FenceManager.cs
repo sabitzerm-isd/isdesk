@@ -580,6 +580,52 @@ public sealed class FenceManager
 
     public void ResumeLayoutSaving() => _layoutSavingSuspended = false;
 
+    private System.Timers.Timer? _displayWatch;
+
+    /// <summary>
+    /// Sicherheitsnetz: prueft regelmaessig, ob sich die Bildschirm-Konfiguration
+    /// geaendert hat. Windows meldet das nicht in jedem Fall — beim blossen
+    /// EINSCHALTEN eines bereits angesteckten Monitors bleibt das Ereignis
+    /// gelegentlich aus. Ohne diese Pruefung arbeitet MSDesk dann mit der
+    /// falschen Konfiguration weiter.
+    ///
+    /// Kostet praktisch nichts: ein Aufruf alle drei Sekunden, der nur die
+    /// Bildschirmliste ausliest.
+    /// </summary>
+    public void StartDisplayWatch()
+    {
+        if (_displayWatch != null) return;
+
+        _displayWatch = new System.Timers.Timer(3000) { AutoReset = true };
+        _displayWatch.Elapsed += (_, _) =>
+        {
+            var app = System.Windows.Application.Current;
+            if (app == null) return;
+
+            app.Dispatcher.BeginInvoke(() =>
+            {
+                try
+                {
+                    if (_layoutSavingSuspended) return; // Wechsel laeuft bereits
+
+                    DisplayConfig.Invalidate();
+                    var aktuell = DisplayConfig.Current;
+                    if (_currentLayoutKey == null
+                        || string.Equals(aktuell, _currentLayoutKey, StringComparison.Ordinal)) return;
+
+                    StartupLog.Write($"Bildschirmwechsel selbst erkannt (kein Ereignis von Windows): " +
+                                      $"{_currentLayoutKey} → {aktuell}");
+                    ApplyLayoutsForCurrentDisplays();
+                }
+                catch (Exception ex)
+                {
+                    App.LogCrash(ex, "DisplayWatch");
+                }
+            });
+        };
+        _displayWatch.Start();
+    }
+
     public void LayoutChanged()
     {
         if (_layoutSavingSuspended) return;
@@ -597,18 +643,29 @@ public sealed class FenceManager
                     // waehrend eines Bildschirmwechsels gesperrt wurde.
                     if (_layoutSavingSuspended) return;
 
-                    // Die Kennung IMMER frisch ermitteln, nie auf den gemerkten
-                    // Wert vertrauen: Ist ein Bildschirmwechsel unbemerkt
-                    // geblieben, wuerde die Anordnung sonst unter der ALTEN
-                    // Konfiguration abgelegt — man verschiebt am Laptop und
-                    // findet die Aenderung anschliessend am Doppelmonitor wieder.
+                    // Kennung frisch ermitteln — nie auf den gemerkten Wert vertrauen.
                     DisplayConfig.Invalidate();
                     var aktuell = DisplayConfig.Current;
 
                     if (!string.Equals(aktuell, _currentLayoutKey, StringComparison.Ordinal))
                     {
-                        StartupLog.Write($"ACHTUNG: Kennung hatte sich unbemerkt geaendert: {_currentLayoutKey} → {aktuell}");
-                        _currentLayoutKey = aktuell;
+                        // WICHTIG: Der Bildschirmwechsel ist unbemerkt geblieben —
+                        // das kommt vor, wenn ein Monitor nur ein- statt
+                        // angeschaltet wird und Windows kein Ereignis meldet.
+                        //
+                        // Jetzt zu speichern waere fatal: Die Fenster stehen noch
+                        // an den Positionen der VORHERIGEN Konfiguration, und die
+                        // wuerden unter der NEUEN Kennung abgelegt. Genau dadurch
+                        // tauchten am Laptop vorgenommene Verschiebungen
+                        // anschliessend am Doppelmonitor wieder auf.
+                        //
+                        // Stattdessen wird die Anordnung der neuen Konfiguration
+                        // angewandt. Gespeichert wird erst wieder, wenn danach
+                        // wirklich etwas verschoben wird.
+                        StartupLog.Write($"Kennung hatte sich unbemerkt geaendert: {_currentLayoutKey} → {aktuell}. " +
+                                          "Es wird NICHT gespeichert, sondern die passende Anordnung geladen.");
+                        ApplyLayoutsForCurrentDisplays();
+                        return;
                     }
 
                     StoreLayout(aktuell);
