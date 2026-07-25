@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using MSDesk.Models;
 using MSDesk.ViewModels;
@@ -488,22 +488,28 @@ public sealed class FenceManager
         // durch diese Zwischenlage zu ersetzen. Gesichert wird stattdessen
         // laufend beim Verschieben (siehe LayoutChanged) sowie beim Beenden.
 
-        // Unbekannte Konfiguration (z. B. erstes Abstecken des zweiten Monitors):
-        // die Anordnung anteilig auf die neue Flaeche uebertragen, statt die
-        // Bereiche auf ihren alten Koordinaten stehen zu lassen. Das geschieht
-        // fuer ALLE betroffenen Bereiche GEMEINSAM — nur so lassen sich
-        // Ueberschneidungen vermeiden, wenn zwei Monitore zu einem werden.
-        ApplyTransferForUnknownDisplays(key);
+        // Die gesamte Entscheidung steckt in DisplaySwitchPlan — als reine
+        // Rechnung, damit sich der komplette Ablauf (anstecken → abstecken →
+        // verschieben → wieder anstecken) vollstaendig durchspielen laesst.
+        var fences = _windows
+            .Select(w => new DisplaySwitchPlan.Fence(
+                new LayoutRect { X = w.Left, Y = w.Top, Width = w.Width, Height = w.Height },
+                w.ViewModel.Config.Layouts))
+            .ToList();
 
-        foreach (var window in _windows)
+        var plan = DisplaySwitchPlan.Compute(fences, key, VirtualArea(), CurrentDesktopArea());
+
+        for (var i = 0; i < _windows.Count; i++)
         {
+            var window = _windows[i];
             var cfg = window.ViewModel.Config;
-            if (cfg.Layouts.TryGetValue(key, out var rect))
-            {
-                cfg.X = rect.X; cfg.Y = rect.Y;
-                cfg.Width = Math.Max(rect.Width, 110); cfg.Height = Math.Max(rect.Height, 80);
-            }
-            EnsureOnScreen(cfg);
+            var ziel = plan.Positions[i];
+
+            cfg.X = ziel.X;
+            cfg.Y = ziel.Y;
+            cfg.Width = Math.Max(ziel.Width, 110);
+            cfg.Height = Math.Max(ziel.Height, 80);
+
             window.Left = cfg.X;
             window.Top = cfg.Y;
             window.Width = cfg.Width;
@@ -511,11 +517,12 @@ public sealed class FenceManager
             cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
         }
 
-        // Sicherheitsnetz: Auch eine GESPEICHERTE Anordnung kann Bereiche
-        // uebereinander enthalten — etwa wenn sie aus einer aelteren Fassung
-        // stammt. Sie ungeprueft anzuwenden hiesse, den Fehler dauerhaft
-        // mitzuschleppen. Aufgeraeumt wird nur, wenn es wirklich noetig ist.
-        ResolveOverlapsNow(key);
+        StartupLog.Write(plan.Kind switch
+        {
+            DisplaySwitchPlan.PlanKind.Restored  => "Gespeicherte Anordnung exakt wiederhergestellt.",
+            DisplaySwitchPlan.PlanKind.Unchanged => "Anordnung passt unveraendert — nichts verschoben.",
+            _                                    => "Anordnung neu abgeleitet."
+        });
 
         // Gesamtflaeche dieser Konfiguration festhalten — Grundlage fuer ein
         // spaeteres anteiliges Uebertragen auf die naechste unbekannte.
@@ -530,37 +537,6 @@ public sealed class FenceManager
         ResumeLayoutSaving();    // ab jetzt darf wieder laufend gesichert werden
 
         StartupLog.Write($"Anordnung angewandt: {_windows.Count} Bereiche, Kennung {key}");
-    }
-
-    /// <summary>
-    /// Loest Ueberlappungen der aktuell gesetzten Fenster auf — verschiebt dabei
-    /// so wenig wie moeglich. Ohne Ueberlappung geschieht nichts.
-    /// </summary>
-    private void ResolveOverlapsNow(string key)
-    {
-        if (_windows.Count < 2) return;
-
-        var flaeche = VirtualArea();
-        var lage = _windows
-            .Select(w => new LayoutRect { X = w.Left, Y = w.Top, Width = w.Width, Height = w.Height })
-            .ToList();
-
-        if (LayoutTransfer.FitsWithoutChange(lage, flaeche)) return;
-
-        var bereinigt = LayoutTransfer.Arrange(lage, flaeche, flaeche);
-        for (var i = 0; i < _windows.Count; i++)
-        {
-            var window = _windows[i];
-            var cfg = window.ViewModel.Config;
-
-            window.Left = cfg.X = bereinigt[i].X;
-            window.Top = cfg.Y = bereinigt[i].Y;
-            window.Width = cfg.Width = bereinigt[i].Width;
-            window.Height = cfg.Height = bereinigt[i].Height;
-            cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
-        }
-
-        StartupLog.Write("Überlappungen aufgelöst.");
     }
 
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
@@ -766,69 +742,6 @@ public sealed class FenceManager
         return keys.Count;
     }
 
-    /// <summary>
-    /// Ordnet alle Bereiche, fuer die es unter <paramref name="key"/> noch keine
-    /// gespeicherte Anordnung gibt, gemeinsam auf dem Hauptbildschirm an —
-    /// moeglichst aehnlich zur bisherigen Anordnung und ueberschneidungsfrei.
-    /// </summary>
-    private void ApplyTransferForUnknownDisplays(string key)
-    {
-        var betroffen = _windows
-            .Select(w => w.ViewModel.Config)
-            .Where(cfg => !cfg.Layouts.ContainsKey(key))
-            .ToList();
-        if (betroffen.Count == 0) return;
-
-        var vorher = betroffen
-            .Select(cfg => new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height })
-            .ToList();
-
-        // Passt alles unveraendert auf die jetzt verfuegbare Gesamtflaeche?
-        // Dann NICHTS anfassen. Das ist der Praesentationsfall: kommt ein Beamer
-        // dazu, wird die Flaeche nur groesser — jedes Verschieben waere hier
-        // unnoetig und wuerde die gewohnte Anordnung zerstoeren.
-        if (LayoutTransfer.FitsWithoutChange(vorher, VirtualArea())) return;
-
-        if (TransferAreasFor(key, vorher) is not var (from, to)) return;
-
-        var nachher = LayoutTransfer.Arrange(vorher, from, to);
-
-        for (var i = 0; i < betroffen.Count; i++)
-        {
-            betroffen[i].X = nachher[i].X;
-            betroffen[i].Y = nachher[i].Y;
-            betroffen[i].Width = nachher[i].Width;
-            betroffen[i].Height = nachher[i].Height;
-        }
-    }
-
-    /// <summary>
-    /// Liefert Quell- und Zielflaeche fuer das anteilige Uebertragen — oder null,
-    /// wenn nichts zu uebertragen ist (erster Start). Beides in DIP.
-    ///
-    /// Die Quellflaeche muss ALLE Bildschirme umfassen: Bereiche auf dem zweiten
-    /// Monitor lagen sonst ausserhalb, ihre relative Lage kam ueber 100 % und sie
-    /// wurden allesamt an den rechten Rand geklemmt — die Anordnung sah danach
-    /// voellig anders aus. Zur Sicherheit wird die gemerkte Flaeche zusaetzlich
-    /// um die tatsaechliche Lage der Bereiche erweitert.
-    /// </summary>
-    private (LayoutTransfer.Area From, LayoutTransfer.Area To)? TransferAreasFor(
-        string newKey, IReadOnlyList<LayoutRect> current)
-    {
-        if (_currentLayoutKey == null || string.Equals(_currentLayoutKey, newKey, StringComparison.Ordinal))
-            return null;
-
-        _config.Config.DisplayAreas.TryGetValue(_currentLayoutKey, out var previous);
-        var from = LayoutTransfer.Enclose(
-            previous is { Width: > 0, Height: > 0 }
-                ? new LayoutTransfer.Area(previous.X, previous.Y, previous.Width, previous.Height)
-                : null,
-            current);
-        if (from is not { } source) return null;
-
-        return (source, CurrentDesktopArea());
-    }
-
     /// Nutzbare Flaeche des Hauptbildschirms in DIP (dorthin wird zusammengefuehrt).
     private static LayoutTransfer.Area CurrentDesktopArea()
     {
@@ -836,12 +749,44 @@ public sealed class FenceManager
         return new LayoutTransfer.Area(work.X, work.Y, work.Width, work.Height);
     }
 
+    /// <summary>
     /// Gesamte Flaeche ueber ALLE Bildschirme in DIP.
+    ///
+    /// Bewusst ueber Screen.AllScreens statt SystemParameters: WPF haelt die
+    /// Bildschirmmasse zwischengespeichert und liefert direkt nach dem An- oder
+    /// Abstecken noch die alten Werte. Die Bereiche des neuen Monitors gaelten
+    /// dann als „ausserhalb" — und die gerade geladene Anordnung wuerde
+    /// faelschlich umgeraeumt.
+    /// </summary>
     private static LayoutTransfer.Area VirtualArea()
-        => new(System.Windows.SystemParameters.VirtualScreenLeft,
-               System.Windows.SystemParameters.VirtualScreenTop,
-               System.Windows.SystemParameters.VirtualScreenWidth,
-               System.Windows.SystemParameters.VirtualScreenHeight);
+    {
+        try
+        {
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            if (screens.Length == 0) return CurrentDesktopArea();
+
+            var scale = DipScale();
+            var left = screens.Min(s => s.Bounds.Left) / scale;
+            var top = screens.Min(s => s.Bounds.Top) / scale;
+            var right = screens.Max(s => s.Bounds.Right) / scale;
+            var bottom = screens.Max(s => s.Bounds.Bottom) / scale;
+
+            return new LayoutTransfer.Area(left, top, right - left, bottom - top);
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "FenceManager.VirtualArea");
+            return CurrentDesktopArea();
+        }
+    }
+
+    /// Umrechnungsfaktor Pixel → DIP (Screen liefert Pixel, WPF rechnet in DIP).
+    private static double DipScale()
+    {
+        var source = System.Windows.PresentationSource.FromVisual(Application.Current?.MainWindow!);
+        var m11 = source?.CompositionTarget?.TransformToDevice.M11 ?? 0;
+        return m11 > 0 ? m11 : 1.0;
+    }
 
     /// Schreibt die aktuelle Fenster-Geometrie aller Bereiche unter dem Schluessel fest.
     private void StoreLayout(string key)

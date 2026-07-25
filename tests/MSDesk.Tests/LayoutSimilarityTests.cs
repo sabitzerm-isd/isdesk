@@ -13,24 +13,31 @@ namespace MSDesk.Tests;
 /// </summary>
 public class LayoutSimilarityTests
 {
-    // Nachbildung der tatsaechlichen Lage: linker Ultrawide + rechter Monitor.
-    private static readonly LayoutTransfer.Area ZweiMonitore = new(0, 0, 6000, 1440);
-    private static readonly LayoutTransfer.Area NurLaptop = new(0, 0, 1707, 1040);
+    // Danach nur noch der Laptop (2560 x 1600, Arbeitsflaeche 1520 hoch).
+    private static readonly LayoutTransfer.Area NurLaptop = new(0, 0, 2560, 1520);
 
-    /// Bereiche wie im echten Aufbau: einer links, der Rest rechts gruppiert.
+    /// Quellflaeche wie im Programm: die tatsaechliche Ausdehnung der Bereiche.
+    private static LayoutTransfer.Area Ausdehnung(IReadOnlyList<LayoutRect> items)
+        => LayoutTransfer.Enclose(null, items)!.Value;
+
+    /// <summary>
+    /// Die TATSAECHLICHE Anordnung aus der Konfiguration des Anwenders
+    /// (Doppelmonitor). Bewusst die echten Zahlen: nur so pruefen die Tests den
+    /// Fall, der wirklich auftritt.
+    /// </summary>
     private static List<LayoutRect> EchteAnordnung() => new()
     {
-        /* 0 Lesezeichen */ new LayoutRect { X = 20,   Y = 20,   Width = 430, Height = 430 },
-        /* 1 ISD         */ new LayoutRect { X = 3620, Y = 250,  Width = 460, Height = 145 },
-        /* 2 Support     */ new LayoutRect { X = 4110, Y = 250,  Width = 380, Height = 145 },
-        /* 3 EigeneProg  */ new LayoutRect { X = 3620, Y = 420,  Width = 460, Height = 150 },
-        /* 4 KI          */ new LayoutRect { X = 4110, Y = 420,  Width = 380, Height = 150 },
-        /* 5 Kunden      */ new LayoutRect { X = 3620, Y = 600,  Width = 460, Height = 150 },
-        /* 6 Papierkorb  */ new LayoutRect { X = 4110, Y = 600,  Width = 200, Height = 150 },
-        /* 7 Cloud       */ new LayoutRect { X = 3620, Y = 780,  Width = 460, Height = 150 },
-        /* 8 Ablage      */ new LayoutRect { X = 3100, Y = 960,  Width = 560, Height = 190 },
-        /* 9 Launcher    */ new LayoutRect { X = 3700, Y = 960,  Width = 200, Height = 190 },
-        /*10 Programme   */ new LayoutRect { X = 3940, Y = 960,  Width = 560, Height = 190 },
+        /* 0 Lesezeichen */ new LayoutRect { X =   40, Y =  710, Width = 700, Height = 644 },
+        /* 1 ISD         */ new LayoutRect { X = 2820, Y =  340, Width = 572, Height = 175 },
+        /* 2 Support     */ new LayoutRect { X = 2400, Y =  340, Width = 400, Height = 180 },
+        /* 3 EigeneProg  */ new LayoutRect { X = 2990, Y =  540, Width = 400, Height = 172 },
+        /* 4 Papierkorb  */ new LayoutRect { X = 2800, Y =  540, Width = 180, Height = 175 },
+        /* 5 Kunden      */ new LayoutRect { X = 2990, Y =  730, Width = 400, Height = 189 },
+        /* 6 Cloud       */ new LayoutRect { X = 2990, Y =  940, Width = 400, Height = 183 },
+        /* 7 KI          */ new LayoutRect { X = 2650, Y =  940, Width = 330, Height = 180 },
+        /* 8 Ablage      */ new LayoutRect { X = 1700, Y = 1130, Width = 929, Height = 244 },
+        /* 9 Launcher    */ new LayoutRect { X = 2650, Y = 1130, Width = 180, Height = 244 },
+        /*10 Programme   */ new LayoutRect { X = 2840, Y = 1130, Width = 554, Height = 238 },
     };
 
     private static bool Ueberschneidet(LayoutRect a, LayoutRect b)
@@ -50,14 +57,14 @@ public class LayoutSimilarityTests
     [Fact]
     public void Anordnen_ErzeugtKeineUeberschneidungen()
     {
-        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
         KeineUeberschneidungen(ergebnis);
     }
 
     [Fact]
     public void Anordnen_AllesInnerhalbDesBildschirms()
     {
-        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
 
         foreach (var r in ergebnis)
         {
@@ -72,35 +79,38 @@ public class LayoutSimilarityTests
     public void Anordnen_BehaeltDieLinksRechtsBeziehung()
     {
         var vorher = EchteAnordnung();
-        var nachher = LayoutTransfer.Arrange(vorher, ZweiMonitore, NurLaptop);
+        var nachher = LayoutTransfer.Arrange(vorher, Ausdehnung(vorher), NurLaptop);
 
-        // ISD (1) lag links von Support (2) — das muss so bleiben.
-        Assert.True(Mitte(nachher[1]).X < Mitte(nachher[2]).X,
-            "ISD muss links von Support bleiben.");
-        // Kunden (5) links von Papierkorb (6)
-        Assert.True(Mitte(nachher[5]).X < Mitte(nachher[6]).X,
-            "Kunden muss links von Papierkorb bleiben.");
-        // Ablage (8) links von Programme (10)
-        Assert.True(Mitte(nachher[8]).X < Mitte(nachher[10]).X,
-            "Ablage muss links von Programme bleiben.");
+        // Support (2) lag links von ISD (1) — das muss so bleiben.
+        Assert.True(Mitte(nachher[2]).X < Mitte(nachher[1]).X,
+            "Support muss links von ISD bleiben.");
+        // Papierkorb (4) links von Eigene Programme (3)
+        Assert.True(Mitte(nachher[4]).X < Mitte(nachher[3]).X,
+            "Papierkorb muss links von Eigene Programme bleiben.");
+        // Ablage (8) links von Launcher (9) links von Programme (10)
+        Assert.True(Mitte(nachher[8]).X < Mitte(nachher[9]).X,
+            "Ablage muss links von Launcher bleiben.");
+        Assert.True(Mitte(nachher[9]).X < Mitte(nachher[10]).X,
+            "Launcher muss links von Programme bleiben.");
     }
 
     [Fact]
     public void Anordnen_BehaeltDieObenUntenBeziehung()
     {
-        var nachher = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var nachher = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
 
-        // Die rechte Spalte war von oben nach unten: ISD, EigeneProg, Kunden, Cloud, Programme
+        // Die rechte Spalte war von oben nach unten:
+        // ISD (1), Eigene Programme (3), Kunden (5), Cloud (6), Programme (10)
         Assert.True(Mitte(nachher[1]).Y < Mitte(nachher[3]).Y, "ISD über Eigene Programme");
         Assert.True(Mitte(nachher[3]).Y < Mitte(nachher[5]).Y, "Eigene Programme über Kunden");
-        Assert.True(Mitte(nachher[5]).Y < Mitte(nachher[7]).Y, "Kunden über Cloud");
-        Assert.True(Mitte(nachher[7]).Y < Mitte(nachher[10]).Y, "Cloud über Programme");
+        Assert.True(Mitte(nachher[5]).Y < Mitte(nachher[6]).Y, "Kunden über Cloud");
+        Assert.True(Mitte(nachher[6]).Y < Mitte(nachher[10]).Y, "Cloud über Programme");
     }
 
     [Fact]
     public void Anordnen_LesezeichenBleibtLinksAussen()
     {
-        var nachher = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var nachher = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
 
         // Lesezeichen (0) lag als einziger Bereich ganz links — es muss der
         // linkeste bleiben, sonst sieht die Anordnung fremd aus.
@@ -122,8 +132,8 @@ public class LayoutSimilarityTests
         };
 
         Assert.True(LayoutTransfer.FitsWithoutChange(lage, NurLaptop));
-        // Und erst recht auf der groesseren Flaeche.
-        Assert.True(LayoutTransfer.FitsWithoutChange(lage, ZweiMonitore));
+        // Und erst recht auf der groesseren Flaeche (Beamer dazu).
+        Assert.True(LayoutTransfer.FitsWithoutChange(lage, new LayoutTransfer.Area(0, 0, 6000, 1440)));
     }
 
     [Fact]
@@ -156,8 +166,8 @@ public class LayoutSimilarityTests
         // Wichtig fuer haeufiges Umstecken: dieselbe Ausgangslage muss immer
         // dieselbe Anordnung ergeben, sonst wandern die Bereiche bei jedem
         // Anstecken ein Stueck weiter.
-        var erste = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
-        var zweite = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var erste = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
+        var zweite = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
 
         for (var i = 0; i < erste.Count; i++)
         {
@@ -171,8 +181,40 @@ public class LayoutSimilarityTests
     {
         // Nach dem Anordnen muss FitsWithoutChange true liefern — sonst wuerde
         // beim naechsten Wechsel erneut umsortiert.
-        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), ZweiMonitore, NurLaptop);
+        var ergebnis = LayoutTransfer.Arrange(EchteAnordnung(), Ausdehnung(EchteAnordnung()), NurLaptop);
         Assert.True(LayoutTransfer.FitsWithoutChange(ergebnis, NurLaptop));
+    }
+
+    [Fact]
+    public void Groessen_BleibenImmerUnveraendert()
+    {
+        // Kernanforderung: Beim automatischen Anordnen darf sich die Groesse
+        // NIE aendern — sonst werden Beschriftungen und Symbole abgeschnitten.
+        var vorher = EchteAnordnung();
+        var nachher = LayoutTransfer.Arrange(vorher, Ausdehnung(vorher), NurLaptop);
+
+        for (var i = 0; i < vorher.Count; i++)
+        {
+            Assert.Equal(vorher[i].Width, nachher[i].Width);
+            Assert.Equal(vorher[i].Height, nachher[i].Height);
+        }
+    }
+
+    [Fact]
+    public void Groessen_BleibenAuchBeiEngemPlatzUnveraendert()
+    {
+        // Selbst wenn die vertraute Anordnung nicht mehr passt und dicht
+        // gepackt werden muss: die Groessen bleiben.
+        var eng = new LayoutTransfer.Area(0, 0, 1280, 800);
+        var vorher = EchteAnordnung();
+        var nachher = LayoutTransfer.Arrange(vorher, Ausdehnung(vorher), eng);
+
+        for (var i = 0; i < vorher.Count; i++)
+        {
+            Assert.Equal(Math.Min(vorher[i].Width, eng.Width), nachher[i].Width);
+            Assert.Equal(Math.Min(vorher[i].Height, eng.Height), nachher[i].Height);
+        }
+        KeineUeberschneidungen(nachher);
     }
 
     [Fact]

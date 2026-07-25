@@ -163,9 +163,6 @@ public static class LayoutTransfer
     /// Abstand zwischen zwei Bereichen bei der Neuanordnung (DIP).
     private const double Gap = 8;
 
-    /// Wie stark bei jedem Versuch verkleinert wird, wenn nicht alles passt.
-    private const double ShrinkStep = 0.85;
-
     /// Hoehe eines „Zeilenfachs" fuer die Sortierung — Bereiche innerhalb
     /// dieses Bandes gelten als in derselben Zeile liegend.
     private const double RowBand = 120;
@@ -191,33 +188,17 @@ public static class LayoutTransfer
         if (items.Count == 0) return items;
         if (to.Width <= 0 || to.Height <= 0) return items;
 
-        var scale = 1.0;
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            var mapped = items
-                .Select(i => Map(i, from, to))
-                .Select(r => Shrink(r, scale, to))
-                .ToList();
+        // Die GROESSEN bleiben in jedem Fall unveraendert. Frueher wurde bei
+        // Platzmangel schrittweise verkleinert — dabei wurden Beschriftungen und
+        // Symbole abgeschnitten, was niemand will. Reicht der Platz nicht fuer
+        // die vertraute Anordnung, wird stattdessen dicht gepackt.
+        var mapped = items.Select(i => Map(i, from, to)).ToList();
+        if (Relax(mapped, to)) return Round(mapped);
 
-            if (Relax(mapped, to)) return Round(mapped);
-            scale *= ShrinkStep;
-        }
-
-        // Notfall (sehr viele oder sehr grosse Bereiche): aufreihen. Haesslicher,
-        // aber garantiert ueberschneidungsfrei.
-        return PackInReadingOrder(items, from, to);
+        // Rueckfall: am Raster aufreihen (von unten rechts), ebenfalls ohne
+        // Groessenaenderung — garantiert ueberschneidungsfrei.
+        return ArrangeOnGrid(items, to, Gap);
     }
-
-    private static LayoutRect Shrink(LayoutRect r, double scale, Area to)
-        => scale >= 1.0
-            ? r
-            : new LayoutRect
-            {
-                X = r.X,
-                Y = r.Y,
-                Width = Math.Min(to.Width, Math.Max(MinWidth, r.Width * scale)),
-                Height = Math.Min(to.Height, Math.Max(MinHeight, r.Height * scale))
-            };
 
     /// <summary>
     /// Schiebt ueberlappende Bereiche auseinander, bis sich keine mehr beruehren.
@@ -254,17 +235,30 @@ public static class LayoutTransfer
                     // Waagerecht trennen — der kuerzere Weg.
                     // Bei exakt gleicher Lage entscheidet der Index, sonst
                     // bewegte sich nichts und die Schleife liefe leer.
-                    var push = overlapX / 2;
                     var aLinks = aCx < bCx || (Math.Abs(aCx - bCx) < 0.01 && i < j);
-                    rects[i] = Offset(a, aLinks ? -push : push, 0);
-                    rects[j] = Offset(b, aLinks ? push : -push, 0);
+                    var (nachLinks, nachRechts) = aLinks ? (i, j) : (j, i);
+
+                    // Wer am Rand steht, kann nicht ausweichen — dann geht der
+                    // andere den GANZEN Weg. Ohne das blockieren sich Bereiche
+                    // am Bildschirmrand gegenseitig und es konvergiert nie.
+                    var platzLinks = rects[nachLinks].X - to.X;
+                    var platzRechts = (to.X + to.Width) - (rects[nachRechts].X + rects[nachRechts].Width);
+
+                    var (schubLinks, schubRechts) = Verteilen(overlapX, platzLinks, platzRechts);
+                    rects[nachLinks] = Offset(rects[nachLinks], -schubLinks, 0);
+                    rects[nachRechts] = Offset(rects[nachRechts], schubRechts, 0);
                 }
                 else
                 {
-                    var push = overlapY / 2;
                     var aOben = aCy < bCy || (Math.Abs(aCy - bCy) < 0.01 && i < j);
-                    rects[i] = Offset(a, 0, aOben ? -push : push);
-                    rects[j] = Offset(b, 0, aOben ? push : -push);
+                    var (nachOben, nachUnten) = aOben ? (i, j) : (j, i);
+
+                    var platzOben = rects[nachOben].Y - to.Y;
+                    var platzUnten = (to.Y + to.Height) - (rects[nachUnten].Y + rects[nachUnten].Height);
+
+                    var (schubOben, schubUnten) = Verteilen(overlapY, platzOben, platzUnten);
+                    rects[nachOben] = Offset(rects[nachOben], 0, -schubOben);
+                    rects[nachUnten] = Offset(rects[nachUnten], 0, schubUnten);
                 }
             }
 
@@ -275,6 +269,30 @@ public static class LayoutTransfer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Verteilt den Ueberlapp auf beide Seiten — je nachdem, wie viel Platz
+    /// jede Seite noch hat. Steht eine Seite am Rand, uebernimmt die andere den
+    /// ganzen Weg; sonst blockieren sich Bereiche am Bildschirmrand gegenseitig.
+    /// </summary>
+    private static (double A, double B) Verteilen(double overlap, double platzA, double platzB)
+    {
+        platzA = Math.Max(0, platzA);
+        platzB = Math.Max(0, platzB);
+
+        var haelfte = overlap / 2;
+        if (platzA >= haelfte && platzB >= haelfte) return (haelfte, haelfte);
+
+        // Eine Seite kann nicht (genug) ausweichen → die andere macht mehr.
+        var vonA = Math.Min(platzA, overlap);
+        var vonB = Math.Min(platzB, overlap - vonA);
+        if (vonA + vonB < overlap)
+        {
+            // Beide am Anschlag: soweit es geht, den Rest traegt A.
+            vonA = Math.Min(platzA, overlap - vonB);
+        }
+        return (vonA, vonB);
     }
 
     private static LayoutRect Offset(LayoutRect r, double dx, double dy)
@@ -306,12 +324,14 @@ public static class LayoutTransfer
         }).ToList();
 
     /// <summary>
-    /// Ordnet alle Bereiche an einem gedachten Raster an: zeilenweise in
-    /// Leserichtung, mit ueberall GLEICHEM Zwischenraum. Die Groessen bleiben
-    /// dabei unveraendert — es wird ausschliesslich verschoben.
+    /// Ordnet alle Bereiche an einem gedachten Raster an: zeilenweise, mit
+    /// ueberall GLEICHEM Zwischenraum. Die Groessen bleiben dabei unveraendert —
+    /// es wird ausschliesslich verschoben.
     ///
-    /// Die bisherige Reihenfolge (oben links nach unten rechts) bleibt erhalten,
-    /// damit die Anordnung vertraut wirkt.
+    /// Aufgebaut wird von UNTEN RECHTS nach oben links: dort sitzen die Bereiche
+    /// ueblicherweise, und die linke Bildschirmhaelfte bleibt fuer die Symbole
+    /// des Desktops frei. Die bisherige Reihenfolge bleibt erhalten, damit die
+    /// Anordnung vertraut wirkt.
     /// </summary>
     public static IReadOnlyList<LayoutRect> ArrangeOnGrid(
         IReadOnlyList<LayoutRect> items, Area area, double gap)
@@ -319,50 +339,78 @@ public static class LayoutTransfer
         if (items.Count == 0) return items;
         if (area.Width <= 0 || area.Height <= 0) return items;
 
+        // Reihenfolge von unten rechts aus: unterste Zeile zuerst, darin von rechts.
         var order = Enumerable.Range(0, items.Count)
-            .OrderBy(i => (int)Math.Floor(items[i].Y / RowBand))
-            .ThenBy(i => items[i].X)
+            .OrderByDescending(i => (int)Math.Floor(items[i].Y / RowBand))
+            .ThenByDescending(i => items[i].X)
             .ToList();
 
-        var result = new LayoutRect[items.Count];
-        double x = area.X + gap, y = area.Y + gap, rowHeight = 0;
+        var links = area.X + gap;
+        var rechts = area.X + area.Width - gap;
+        var unten = area.Y + area.Height - gap;
+
+        // 1. Zeilen bilden. Bewusst getrennt vom Platzieren: nur so steht die
+        //    Hoehe einer Zeile fest, bevor ihre Bereiche gesetzt werden — und
+        //    nur dann liefert ein zweiter Aufruf dasselbe Ergebnis.
+        var zeilen = new List<List<int>>();
+        var aktuelle = new List<int>();
+        var breite = 0.0;
 
         foreach (var index in order)
         {
-            var item = items[index];
-
-            // Zeilenumbruch, sobald die Zeile voll ist (nie bei leerer Zeile).
-            if (x > area.X + gap && x + item.Width > area.X + area.Width - gap)
+            var benoetigt = items[index].Width + (aktuelle.Count > 0 ? gap : 0);
+            if (aktuelle.Count > 0 && breite + benoetigt > rechts - links)
             {
-                x = area.X + gap;
-                y += rowHeight + gap;
-                rowHeight = 0;
+                zeilen.Add(aktuelle);
+                aktuelle = new List<int>();
+                breite = 0;
+                benoetigt = items[index].Width;
+            }
+            aktuelle.Add(index);
+            breite += benoetigt;
+        }
+        if (aktuelle.Count > 0) zeilen.Add(aktuelle);
+
+        // 2. Platzieren: von unten nach oben, in jeder Zeile von rechts nach links.
+        //    Innerhalb einer Zeile stehen alle Bereiche auf gleicher Hoehe.
+        var result = new LayoutRect[items.Count];
+        var zeilenUnterkante = unten;
+
+        foreach (var zeile in zeilen)
+        {
+            var zeilenHoehe = zeile.Max(i => items[i].Height);
+            var y = zeilenUnterkante - zeilenHoehe;
+            var x = rechts;
+
+            foreach (var index in zeile)
+            {
+                var item = items[index];
+                result[index] = new LayoutRect
+                {
+                    X = Math.Round(x - item.Width),
+                    Y = Math.Round(y),
+                    Width = item.Width,   // Groesse bleibt unangetastet
+                    Height = item.Height
+                };
+                x -= item.Width + gap;
             }
 
-            result[index] = new LayoutRect
-            {
-                X = Math.Round(x),
-                Y = Math.Round(y),
-                Width = item.Width,   // Groesse bleibt unangetastet
-                Height = item.Height
-            };
-
-            x += item.Width + gap;
-            rowHeight = Math.Max(rowHeight, item.Height);
+            zeilenUnterkante -= zeilenHoehe + gap;
         }
 
-        // Ragt die letzte Zeile unten heraus, alles gemeinsam nach oben schieben,
+        // Ragt die oberste Zeile hinaus, alles gemeinsam nach unten schieben —
         // ohne den gleichmaessigen Abstand zu veraendern.
-        var unten = result.Max(r => r.Y + r.Height);
-        var ueberstand = unten - (area.Y + area.Height - gap);
+        var oben = result.Min(r => r.Y);
+        var ueberstand = area.Y + gap - oben;
         if (ueberstand > 0)
         {
-            var verschiebung = Math.Min(ueberstand, result.Min(r => r.Y) - area.Y);
+            var platzUnten = (area.Y + area.Height - gap) - result.Max(r => r.Y + r.Height);
+            var verschiebung = Math.Min(ueberstand, Math.Max(0, platzUnten));
             if (verschiebung > 0)
                 for (var i = 0; i < result.Length; i++)
                     result[i] = new LayoutRect
                     {
-                        X = result[i].X, Y = Math.Round(result[i].Y - verschiebung),
+                        X = result[i].X, Y = Math.Round(result[i].Y + verschiebung),
                         Width = result[i].Width, Height = result[i].Height
                     };
         }
@@ -370,65 +418,6 @@ public static class LayoutTransfer
         return result;
     }
 
-    /// Notfall-Anordnung: alles in Leserichtung aufreihen.
-    private static IReadOnlyList<LayoutRect> PackInReadingOrder(
-        IReadOnlyList<LayoutRect> items, Area from, Area to)
-    {
-        var mapped = items.Select(i => Map(i, from, to)).ToList();
-        var order = Enumerable.Range(0, mapped.Count)
-            .OrderBy(i => (int)Math.Floor(mapped[i].Y / RowBand))
-            .ThenBy(i => mapped[i].X)
-            .ToList();
-
-        var scale = 1.0;
-        for (var attempt = 0; attempt < 8; attempt++)
-        {
-            if (TryPack(mapped, order, to, scale, out var packed)) return packed;
-            scale *= ShrinkStep;
-        }
-
-        TryPack(mapped, order, to, scale, out var last);
-        return last;
-    }
-
-    /// Legt die Bereiche zeilenweise nebeneinander. false = passt in der Hoehe nicht.
-    private static bool TryPack(List<LayoutRect> mapped, List<int> order, Area to, double scale,
-                                out List<LayoutRect> result)
-    {
-        result = new List<LayoutRect>(new LayoutRect[mapped.Count]);
-
-        double x = to.X, y = to.Y, rowHeight = 0;
-        var fits = true;
-
-        foreach (var index in order)
-        {
-            var width = Math.Min(to.Width, Math.Max(MinWidth, mapped[index].Width * scale));
-            var height = Math.Min(to.Height, Math.Max(MinHeight, mapped[index].Height * scale));
-
-            // Zeilenumbruch, sobald die Zeile voll ist (aber nie bei leerer Zeile).
-            if (x > to.X && x + width > to.X + to.Width)
-            {
-                x = to.X;
-                y += rowHeight + Gap;
-                rowHeight = 0;
-            }
-
-            if (y + height > to.Y + to.Height) fits = false;
-
-            result[index] = new LayoutRect
-            {
-                X = Math.Round(x),
-                Y = Math.Round(Clamp(y, to.Y, Math.Max(to.Y, to.Y + to.Height - height))),
-                Width = Math.Round(width),
-                Height = Math.Round(height)
-            };
-
-            x += width + Gap;
-            rowHeight = Math.Max(rowHeight, height);
-        }
-
-        return fits;
-    }
 
     private static double Clamp(double value, double min, double max)
         => max < min ? min : Math.Min(Math.Max(value, min), max);

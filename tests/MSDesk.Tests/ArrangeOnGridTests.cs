@@ -70,19 +70,49 @@ public class ArrangeOnGridTests
     }
 
     [Fact]
-    public void ReihenfolgeInLeserichtungBleibtErhalten()
+    public void ReihenfolgeBleibtErhalten()
     {
         var nachher = LayoutTransfer.ArrangeOnGrid(Bereiche(), Flaeche, Gap);
 
-        // Die Zeilen werden dicht gefuellt — ein Bereich kann also in einer
-        // frueheren Zeile landen. Die REIHENFOLGE in Leserichtung muss aber
-        // dieselbe bleiben: 0 vor 1 vor 2 vor 3 vor 4.
+        // Aufgebaut wird von unten rechts. Die Zeilen werden dicht gefuellt, ein
+        // Bereich kann also die Zeile wechseln — die REIHENFOLGE muss aber
+        // dieselbe bleiben: 0 vor 1 vor 2 vor 3 vor 4 (von oben links gelesen).
         var reihenfolge = Enumerable.Range(0, nachher.Count)
             .OrderBy(i => nachher[i].Y)
             .ThenBy(i => nachher[i].X)
             .ToList();
 
         Assert.Equal(new[] { 0, 1, 2, 3, 4 }, reihenfolge);
+    }
+
+    [Fact]
+    public void BeginntUntenRechts()
+    {
+        var nachher = LayoutTransfer.ArrangeOnGrid(Bereiche(), Flaeche, Gap);
+
+        // Der zuletzt gelesene Bereich (4) sitzt rechts aussen — dort beginnt
+        // der Aufbau. Innerhalb einer Zeile stehen alle auf gleicher Hoehe,
+        // deshalb beruehrt der HOECHSTE Bereich der untersten Zeile den Rand.
+        Assert.Equal(Flaeche.Width - Gap, nachher[4].X + nachher[4].Width);
+        Assert.Equal(Flaeche.Height - Gap, nachher.Max(r => r.Y + r.Height));
+    }
+
+    [Fact]
+    public void LinkeBildschirmhaelfteBleibtMoeglichstFrei()
+    {
+        // Fuer die Desktop-Symbole: wenn der Platz reicht, darf nichts unnoetig
+        // in die linke Haelfte ragen.
+        var wenige = new List<LayoutRect>
+        {
+            new() { X = 100, Y = 100, Width = 300, Height = 200 },
+            new() { X = 500, Y = 100, Width = 300, Height = 200 },
+        };
+
+        var nachher = LayoutTransfer.ArrangeOnGrid(wenige, Flaeche, Gap);
+
+        foreach (var r in nachher)
+            Assert.True(r.X > Flaeche.Width / 2,
+                $"Bereich ragt unnötig in die linke Hälfte: X={r.X}");
     }
 
     [Fact]
@@ -99,12 +129,12 @@ public class ArrangeOnGridTests
     }
 
     [Fact]
-    public void ErsterBereichBeginntMitAbstandZumRand()
+    public void HaeltDenAbstandZumRechtenRand()
     {
         var nachher = LayoutTransfer.ArrangeOnGrid(Bereiche(), Flaeche, Gap);
-        var linkester = nachher.OrderBy(r => r.X).First();
+        var rechtester = nachher.OrderByDescending(r => r.X + r.Width).First();
 
-        Assert.Equal(Gap, linkester.X);
+        Assert.Equal(Flaeche.Width - Gap, rechtester.X + rechtester.Width);
     }
 
     [Fact]

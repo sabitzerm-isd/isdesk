@@ -74,17 +74,19 @@ public class LayoutArrangeTests
     }
 
     [Fact]
-    public void Arrange_ErsterBereichBleibtLinksOben()
+    public void Arrange_GroessenBleibenUnveraendert()
     {
-        // Der Bereich, der vorher links oben lag, muss auch danach der linkeste
-        // und oberste sein. Er wird bewusst NICHT in die Ecke gezwungen — die
-        // Anordnung soll der gewohnten aehneln, nicht neu aufgereiht werden.
-        var ergebnis = LayoutTransfer.Arrange(ElfBereicheAufZweiMonitoren(), ZweiMonitore, NurLaptop);
+        // Diese Ausgangslage ist bewusst ungünstig (die Bereiche überlappen sich
+        // schon vorher). Selbst dann darf die Größe nicht angetastet werden —
+        // sonst würden Beschriftungen abgeschnitten.
+        var vorher = ElfBereicheAufZweiMonitoren();
+        var nachher = LayoutTransfer.Arrange(vorher, ZweiMonitore, NurLaptop);
 
-        var lesezeichen = ergebnis[0];
-        for (var i = 1; i < ergebnis.Count; i++)
-            Assert.True(lesezeichen.X < ergebnis[i].X + ergebnis[i].Width,
-                $"Lesezeichen muss links von Bereich {i} beginnen.");
+        for (var i = 0; i < vorher.Count; i++)
+        {
+            Assert.Equal(Math.Min(vorher[i].Width, NurLaptop.Width), nachher[i].Width);
+            Assert.Equal(Math.Min(vorher[i].Height, NurLaptop.Height), nachher[i].Height);
+        }
     }
 
     [Fact]
