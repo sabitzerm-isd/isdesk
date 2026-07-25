@@ -24,33 +24,109 @@ public static class LayoutTransfer
     /// <summary>
     /// Rechnet <paramref name="item"/> aus der Flaeche <paramref name="from"/>
     /// in die Flaeche <paramref name="to"/> um.
+    ///
+    /// Massgeblich ist der MITTELPUNKT, nicht die linke obere Ecke: sonst
+    /// wandern breite Bereiche am rechten Rand beim Verkleinern nach links weg,
+    /// und die Anordnung sieht danach anders aus als vorher.
     /// </summary>
     public static LayoutRect Map(LayoutRect item, Area from, Area to)
     {
         if (from.Width <= 0 || from.Height <= 0 || to.Width <= 0 || to.Height <= 0)
             return item; // ohne brauchbare Flaechen nichts veraendern
 
-        var scaleX = to.Width / from.Width;
-        var scaleY = to.Height / from.Height;
+        // Die Groesse bleibt zunaechst UNVERAENDERT — nur begrenzt auf das, was
+        // auf die Zielflaeche passt. Generell zu verkleinern waere falsch: wird
+        // die Flaeche nur schmaler, aber nicht niedriger, wuerden die Bereiche
+        // unnoetig geschrumpft und Beschriftungen abgeschnitten. Reicht der Platz
+        // wirklich nicht, verkleinert <see cref="Arrange"/> schrittweise alle
+        // gemeinsam.
+        var width = Math.Min(to.Width, Math.Max(MinWidth, item.Width));
+        var height = Math.Min(to.Height, Math.Max(MinHeight, item.Height));
 
-        // Groesse einheitlich skalieren: erhaelt die Form der Bereiche.
-        var sizeScale = Math.Min(scaleX, scaleY);
-        var width = Math.Max(MinWidth, item.Width * sizeScale);
-        var height = Math.Max(MinHeight, item.Height * sizeScale);
+        // Relative Lage des Mittelpunkts beibehalten.
+        var relX = (item.X + item.Width / 2 - from.X) / from.Width;
+        var relY = (item.Y + item.Height / 2 - from.Y) / from.Height;
 
-        // Nie breiter/hoeher als die Zielflaeche.
-        width = Math.Min(width, to.Width);
-        height = Math.Min(height, to.Height);
-
-        // Position anteilig: was links oben lag, liegt danach wieder links oben.
-        var x = to.X + (item.X - from.X) * scaleX;
-        var y = to.Y + (item.Y - from.Y) * scaleY;
+        var x = to.X + relX * to.Width - width / 2;
+        var y = to.Y + relY * to.Height - height / 2;
 
         // Vollstaendig innerhalb der Zielflaeche halten.
         x = Clamp(x, to.X, to.X + to.Width - width);
         y = Clamp(y, to.Y, to.Y + to.Height - height);
 
         return new LayoutRect { X = Math.Round(x), Y = Math.Round(y), Width = Math.Round(width), Height = Math.Round(height) };
+    }
+
+    /// <summary>
+    /// Liegen alle Bereiche bereits vollstaendig in der Flaeche und ueberschneiden
+    /// sich nicht? Dann darf NICHTS veraendert werden.
+    ///
+    /// Wichtig fuer Praesentationen: Wird ein Beamer zusaetzlich angesteckt, wird
+    /// die Flaeche nur groesser — die Anordnung muss dann unangetastet bleiben.
+    /// Jedes unnoetige Verschieben waere hier ein Fehler.
+    /// </summary>
+    public static bool FitsWithoutChange(IReadOnlyList<LayoutRect> items, Area area)
+    {
+        if (items.Count == 0) return true;
+        if (area.Width <= 0 || area.Height <= 0) return true;
+
+        foreach (var item in items)
+        {
+            if (item.X < area.X - 0.5 || item.Y < area.Y - 0.5) return false;
+            if (item.X + item.Width > area.X + area.Width + 0.5) return false;
+            if (item.Y + item.Height > area.Y + area.Height + 0.5) return false;
+        }
+
+        for (var i = 0; i < items.Count; i++)
+        for (var j = i + 1; j < items.Count; j++)
+            if (Overlaps(items[i], items[j])) return false;
+
+        return true;
+    }
+
+    private static bool Overlaps(LayoutRect a, LayoutRect b)
+        => a.X < b.X + b.Width && b.X < a.X + a.Width
+        && a.Y < b.Y + b.Height && b.Y < a.Y + a.Height;
+
+    /// <summary>
+    /// Kleinste Flaeche, die sowohl <paramref name="known"/> als auch alle
+    /// <paramref name="items"/> enthaelt. Damit ist sichergestellt, dass beim
+    /// Uebertragen jeder Bereich innerhalb der Quellflaeche liegt — sonst kaeme
+    /// seine relative Lage ueber 100 % und er wuerde an den Rand geklemmt.
+    /// null, wenn es weder eine bekannte Flaeche noch Bereiche gibt.
+    /// </summary>
+    public static Area? Enclose(Area? known, IReadOnlyList<LayoutRect> items)
+    {
+        double left, top, right, bottom;
+
+        if (known is { Width: > 0, Height: > 0 } k)
+        {
+            left = k.X; top = k.Y;
+            right = k.X + k.Width; bottom = k.Y + k.Height;
+        }
+        else if (items.Count > 0)
+        {
+            left = items.Min(i => i.X);
+            top = items.Min(i => i.Y);
+            right = items.Max(i => i.X + i.Width);
+            bottom = items.Max(i => i.Y + i.Height);
+        }
+        else
+        {
+            return null;
+        }
+
+        foreach (var item in items)
+        {
+            left = Math.Min(left, item.X);
+            top = Math.Min(top, item.Y);
+            right = Math.Max(right, item.X + item.Width);
+            bottom = Math.Max(bottom, item.Y + item.Height);
+        }
+
+        return right > left && bottom > top
+            ? new Area(left, top, right - left, bottom - top)
+            : null;
     }
 
     /// Mindestens sichtbarer Anteil eines Bereichs (DIP), damit er greifbar bleibt.
@@ -95,14 +171,18 @@ public static class LayoutTransfer
     private const double RowBand = 120;
 
     /// <summary>
-    /// Ordnet ALLE Bereiche gemeinsam auf der neuen Flaeche an — anteilig wie
-    /// bisher, aber anschliessend ueberschneidungsfrei.
+    /// Ordnet ALLE Bereiche gemeinsam auf der neuen Flaeche an — so aehnlich wie
+    /// moeglich zur bisherigen Anordnung und ohne Ueberschneidungen.
     ///
-    /// Das einzelne Abbilden genuegt nicht: Bereiche, die vorher auf
-    /// VERSCHIEDENEN Monitoren an aehnlicher Stelle lagen, landen sonst
-    /// uebereinander. Deshalb werden sie danach in Leserichtung (oben links
-    /// nach unten rechts) nebeneinandergelegt und bei Bedarf gemeinsam
-    /// verkleinert, bis alles nebeneinander Platz hat.
+    /// Vorgehen:
+    ///   1. Jeden Bereich anteilig abbilden (Mittelpunkt-treu, einheitlich
+    ///      skaliert) — damit bleibt die vertraute Anordnung erhalten.
+    ///   2. Verbleibende Ueberschneidungen durch VERSCHIEBEN aufloesen, jeweils
+    ///      in die Richtung des kuerzeren Weges. Die Nachbarschaften bleiben so
+    ///      erhalten; frueher wurde stattdessen alles in Leserichtung neu
+    ///      aufgereiht, wodurch die Anordnung voellig anders aussah.
+    ///   3. Geht es nicht auf, alles gemeinsam etwas verkleinern und erneut
+    ///      versuchen. Erst wenn selbst das scheitert, wird aufgereiht.
     ///
     /// Die Rueckgabe hat dieselbe Reihenfolge wie die Eingabe.
     /// </summary>
@@ -111,17 +191,130 @@ public static class LayoutTransfer
         if (items.Count == 0) return items;
         if (to.Width <= 0 || to.Height <= 0) return items;
 
-        // 1. Anteilig abbilden — daraus ergeben sich Wunschgroesse und -reihenfolge.
-        var mapped = items.Select(i => Map(i, from, to)).ToList();
+        var scale = 1.0;
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var mapped = items
+                .Select(i => Map(i, from, to))
+                .Select(r => Shrink(r, scale, to))
+                .ToList();
 
-        // 2. Leserichtung bestimmen: erst Zeile (grob gebuendelt), dann von links.
+            if (Relax(mapped, to)) return Round(mapped);
+            scale *= ShrinkStep;
+        }
+
+        // Notfall (sehr viele oder sehr grosse Bereiche): aufreihen. Haesslicher,
+        // aber garantiert ueberschneidungsfrei.
+        return PackInReadingOrder(items, from, to);
+    }
+
+    private static LayoutRect Shrink(LayoutRect r, double scale, Area to)
+        => scale >= 1.0
+            ? r
+            : new LayoutRect
+            {
+                X = r.X,
+                Y = r.Y,
+                Width = Math.Min(to.Width, Math.Max(MinWidth, r.Width * scale)),
+                Height = Math.Min(to.Height, Math.Max(MinHeight, r.Height * scale))
+            };
+
+    /// <summary>
+    /// Schiebt ueberlappende Bereiche auseinander, bis sich keine mehr beruehren.
+    /// true = geschafft (und alles liegt innerhalb der Flaeche).
+    /// </summary>
+    private static bool Relax(List<LayoutRect> rects, Area to)
+    {
+        const int MaxIterations = 260;
+
+        for (var iteration = 0; iteration < MaxIterations; iteration++)
+        {
+            var moved = false;
+
+            for (var i = 0; i < rects.Count; i++)
+            for (var j = i + 1; j < rects.Count; j++)
+            {
+                var a = rects[i];
+                var b = rects[j];
+
+                // Mit Abstand pruefen, damit zwischen den Bereichen eine Luecke bleibt.
+                var overlapX = Math.Min(a.X + a.Width, b.X + b.Width) - Math.Max(a.X, b.X) + Gap;
+                var overlapY = Math.Min(a.Y + a.Height, b.Y + b.Height) - Math.Max(a.Y, b.Y) + Gap;
+                if (overlapX <= 0 || overlapY <= 0) continue;
+
+                moved = true;
+
+                var aCx = a.X + a.Width / 2;
+                var bCx = b.X + b.Width / 2;
+                var aCy = a.Y + a.Height / 2;
+                var bCy = b.Y + b.Height / 2;
+
+                if (overlapX <= overlapY)
+                {
+                    // Waagerecht trennen — der kuerzere Weg.
+                    // Bei exakt gleicher Lage entscheidet der Index, sonst
+                    // bewegte sich nichts und die Schleife liefe leer.
+                    var push = overlapX / 2;
+                    var aLinks = aCx < bCx || (Math.Abs(aCx - bCx) < 0.01 && i < j);
+                    rects[i] = Offset(a, aLinks ? -push : push, 0);
+                    rects[j] = Offset(b, aLinks ? push : -push, 0);
+                }
+                else
+                {
+                    var push = overlapY / 2;
+                    var aOben = aCy < bCy || (Math.Abs(aCy - bCy) < 0.01 && i < j);
+                    rects[i] = Offset(a, 0, aOben ? -push : push);
+                    rects[j] = Offset(b, 0, aOben ? push : -push);
+                }
+            }
+
+            // Nach jedem Durchgang zurueck in die Flaeche holen.
+            for (var i = 0; i < rects.Count; i++) rects[i] = ForceIntoArea(rects[i], to);
+
+            if (!moved) return NoOverlaps(rects);
+        }
+
+        return false;
+    }
+
+    private static LayoutRect Offset(LayoutRect r, double dx, double dy)
+        => new() { X = r.X + dx, Y = r.Y + dy, Width = r.Width, Height = r.Height };
+
+    /// Haelt den Bereich vollstaendig innerhalb der Flaeche (ohne Groessenaenderung).
+    private static LayoutRect ForceIntoArea(LayoutRect r, Area area)
+        => new()
+        {
+            X = Clamp(r.X, area.X, Math.Max(area.X, area.X + area.Width - r.Width)),
+            Y = Clamp(r.Y, area.Y, Math.Max(area.Y, area.Y + area.Height - r.Height)),
+            Width = r.Width,
+            Height = r.Height
+        };
+
+    private static bool NoOverlaps(List<LayoutRect> rects)
+    {
+        for (var i = 0; i < rects.Count; i++)
+        for (var j = i + 1; j < rects.Count; j++)
+            if (Overlaps(rects[i], rects[j])) return false;
+        return true;
+    }
+
+    private static List<LayoutRect> Round(List<LayoutRect> rects)
+        => rects.Select(r => new LayoutRect
+        {
+            X = Math.Round(r.X), Y = Math.Round(r.Y),
+            Width = Math.Round(r.Width), Height = Math.Round(r.Height)
+        }).ToList();
+
+    /// Notfall-Anordnung: alles in Leserichtung aufreihen.
+    private static IReadOnlyList<LayoutRect> PackInReadingOrder(
+        IReadOnlyList<LayoutRect> items, Area from, Area to)
+    {
+        var mapped = items.Select(i => Map(i, from, to)).ToList();
         var order = Enumerable.Range(0, mapped.Count)
             .OrderBy(i => (int)Math.Floor(mapped[i].Y / RowBand))
             .ThenBy(i => mapped[i].X)
             .ToList();
 
-        // 3. Nebeneinanderlegen; passt es in der Hoehe nicht, alles gemeinsam
-        //    verkleinern und erneut versuchen.
         var scale = 1.0;
         for (var attempt = 0; attempt < 8; attempt++)
         {
@@ -129,7 +322,6 @@ public static class LayoutTransfer
             scale *= ShrinkStep;
         }
 
-        // Notfall: letzter Versuch, Ergebnis in jedem Fall innerhalb der Flaeche.
         TryPack(mapped, order, to, scale, out var last);
         return last;
     }

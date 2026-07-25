@@ -16,9 +16,13 @@ public class LayoutTransferTests
         var links = new LayoutRect { X = 0, Y = 0, Width = 400, Height = 300 };
         var abgebildet = LayoutTransfer.Map(links, ZweiMonitore, NurLaptop);
 
-        // … liegt danach wieder am linken Rand.
+        // … liegt danach wieder am linken Rand. Massgeblich ist der MITTELPUNKT
+        // (nicht die Ecke), damit breite Bereiche am rechten Rand beim
+        // Verkleinern nicht nach links wegwandern — in der Hoehe ergibt das
+        // deshalb einen kleinen Versatz, der die relative Lage genau wahrt.
         Assert.Equal(0, abgebildet.X);
-        Assert.Equal(0, abgebildet.Y);
+        Assert.True(abgebildet.Y < NurLaptop.Height * 0.25,
+            "Ein Bereich aus dem oberen Viertel muss oben bleiben.");
     }
 
     [Fact]
@@ -28,9 +32,11 @@ public class LayoutTransferTests
         var rechts = new LayoutRect { X = 2880, Y = 100, Width = 400, Height = 300 };
         var abgebildet = LayoutTransfer.Map(rechts, ZweiMonitore, NurLaptop);
 
-        // 2880 von 3840 = 75 % → auf 1920 sind das 1440
-        Assert.Equal(1440, abgebildet.X);
-        Assert.True(abgebildet.X > NurLaptop.Width / 2, "Der rechte Bereich muss rechts bleiben.");
+        // Seine Mitte lag bei 80 % der Breite — sie muss danach wieder dort
+        // liegen. Auf die konkrete Zahl kommt es nicht an, auf die Lage schon.
+        var mitte = abgebildet.X + abgebildet.Width / 2;
+        Assert.True(mitte > NurLaptop.Width * 0.7, $"Der rechte Bereich muss rechts bleiben (Mitte: {mitte}).");
+        Assert.True(abgebildet.X + abgebildet.Width <= NurLaptop.Width + 0.5);
     }
 
     [Fact]

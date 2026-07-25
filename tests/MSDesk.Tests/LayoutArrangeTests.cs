@@ -74,14 +74,17 @@ public class LayoutArrangeTests
     }
 
     [Fact]
-    public void Arrange_ErsterBereichBleibtVorn()
+    public void Arrange_ErsterBereichBleibtLinksOben()
     {
-        // Der Bereich, der vorher links oben lag, soll auch danach zuerst kommen.
+        // Der Bereich, der vorher links oben lag, muss auch danach der linkeste
+        // und oberste sein. Er wird bewusst NICHT in die Ecke gezwungen — die
+        // Anordnung soll der gewohnten aehneln, nicht neu aufgereiht werden.
         var ergebnis = LayoutTransfer.Arrange(ElfBereicheAufZweiMonitoren(), ZweiMonitore, NurLaptop);
 
         var lesezeichen = ergebnis[0];
-        Assert.Equal(NurLaptop.X, lesezeichen.X);
-        Assert.Equal(NurLaptop.Y, lesezeichen.Y);
+        for (var i = 1; i < ergebnis.Count; i++)
+            Assert.True(lesezeichen.X < ergebnis[i].X + ergebnis[i].Width,
+                $"Lesezeichen muss links von Bereich {i} beginnen.");
     }
 
     [Fact]

@@ -208,6 +208,42 @@ public partial class SettingsDialog : Window
             : "Keine Bereiche vorhanden.";
     }
 
+    /// Gemerkte Anordnung EINER Konfiguration vergessen (zum Testen).
+    private void ResetDisplay_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string key) return;
+
+        var istAktiv = string.Equals(key, DisplayConfig.Current, StringComparison.Ordinal);
+        var (bestaetigt, _) = ConfirmDialog.Show(
+            istAktiv
+                ? "Die gemerkte Anordnung dieser Konfiguration wird verworfen und sofort neu abgeleitet.\n\n" +
+                  "Die Bereiche werden dabei neu angeordnet."
+                : "Die gemerkte Anordnung dieser Konfiguration wird verworfen.\n\n" +
+                  "Beim nächsten Wechsel dorthin wird sie neu aus der aktuellen Anordnung abgeleitet.",
+            this, okText: "Zurücksetzen");
+        if (!bestaetigt) return;
+
+        var anzahl = _manager?.ForgetLayout(key) ?? 0;
+        LoadDisplays();
+        LayoutSaveHint.Text = istAktiv
+            ? "Anordnung verworfen und neu abgeleitet."
+            : $"Anordnung von {anzahl} Bereich(en) verworfen.";
+    }
+
+    /// ALLE gemerkten Anordnungen vergessen.
+    private void ResetAllDisplays_Click(object sender, RoutedEventArgs e)
+    {
+        var (bestaetigt, _) = ConfirmDialog.Show(
+            "Alle gemerkten Bildschirm-Anordnungen werden verworfen.\n\n" +
+            "Die Bereiche bleiben, wo sie jetzt sind — diese Lage wird zum neuen Ausgangspunkt.",
+            this, okText: "Alle zurücksetzen");
+        if (!bestaetigt) return;
+
+        var anzahl = _manager?.ForgetAllLayouts() ?? 0;
+        LoadDisplays();
+        LayoutSaveHint.Text = $"{anzahl} gespeicherte Konfiguration(en) verworfen.";
+    }
+
     /// Eigenen Namen fuer eine Bildschirm-Konfiguration vergeben.
     private void RenameDisplay_Click(object sender, RoutedEventArgs e)
     {

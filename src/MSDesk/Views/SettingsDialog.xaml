@@ -679,10 +679,15 @@
                                                     <Run Text="Bereich(e)" />
                                                 </TextBlock>
                                             </StackPanel>
-                                            <Button Grid.Column="1" Content="Benennen…" MinWidth="0" Margin="8,0,0,0"
-                                                    VerticalAlignment="Center" Click="RenameDisplay_Click"
-                                                    Tag="{Binding Key}"
-                                                    ToolTip="Eigenen Namen vergeben, z. B. „Homeoffice“, „Mobil“ oder „Dortmund“." />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                        VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <Button Content="Benennen…" MinWidth="0" Click="RenameDisplay_Click"
+                                                        Tag="{Binding Key}"
+                                                        ToolTip="Eigenen Namen vergeben, z. B. „Homeoffice“, „Mobil“ oder „Dortmund“." />
+                                                <Button Content="Zurücksetzen" MinWidth="0" Margin="0"
+                                                        Click="ResetDisplay_Click" Tag="{Binding Key}"
+                                                        ToolTip="Vergisst die gemerkte Anordnung dieser Konfiguration. Beim nächsten Wechsel dorthin wird sie neu aus der aktuellen Anordnung abgeleitet — so lässt sich das automatische Anordnen testen, ohne Kabel zu stecken." />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -693,7 +698,9 @@
                             <Button Content="Anordnung jetzt sichern" MinWidth="0" Click="SaveLayoutNow_Click"
                                     ToolTip="Normalerweise nicht nötig — das Sichern läuft automatisch. Dieser Knopf schreibt sofort, ohne die kurze Wartezeit." />
                             <Button Content="Bereiche neu anordnen" MinWidth="0" Click="RearrangeFences_Click"
-                                    ToolTip="Legt alle Bereiche überschneidungsfrei nebeneinander — hilft, wenn nach einem Bildschirmwechsel Bereiche übereinanderliegen." />
+                                    ToolTip="Schiebt überlappende Bereiche auseinander und holt alle auf den sichtbaren Bildschirm — die gewohnte Anordnung bleibt dabei so weit wie möglich erhalten." />
+                            <Button Content="Alle zurücksetzen" MinWidth="0" Click="ResetAllDisplays_Click"
+                                    ToolTip="Vergisst ALLE gemerkten Bildschirm-Anordnungen. Die aktuelle Anordnung bleibt bestehen und wird zum neuen Ausgangspunkt." />
                             <Button Content="Aktualisieren" MinWidth="0" Click="RefreshDisplays_Click" />
                         </StackPanel>
                         <TextBlock x:Name="LayoutSaveHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0" />
