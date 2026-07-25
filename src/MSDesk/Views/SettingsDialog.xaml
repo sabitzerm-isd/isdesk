@@ -704,6 +704,8 @@
                             <Button Content="Alle zurücksetzen" MinWidth="0" Click="ResetAllDisplays_Click"
                                     ToolTip="Vergisst ALLE gemerkten Bildschirm-Anordnungen. Die aktuelle Anordnung bleibt bestehen und wird zum neuen Ausgangspunkt." />
                             <Button Content="Aktualisieren" MinWidth="0" Click="RefreshDisplays_Click" />
+                            <Button Content="Protokoll öffnen" MinWidth="0" Click="OpenLayoutLog_Click"
+                                    ToolTip="Zeigt auf, welche Bildschirme erkannt wurden, welche Anordnung geladen bzw. gespeichert wurde und wo jeder Bereich liegt." />
                             <Button Content="Diagnose…" MinWidth="0" Click="ShowDiagnostics_Click"
                                     ToolTip="Zeigt, ob die Einstellungen tatsächlich gespeichert werden und wann zuletzt geschrieben wurde." />
                         </StackPanel>

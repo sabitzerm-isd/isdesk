@@ -517,12 +517,16 @@ public sealed class FenceManager
             cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
         }
 
-        StartupLog.Write(plan.Kind switch
-        {
-            DisplaySwitchPlan.PlanKind.Restored  => "Gespeicherte Anordnung exakt wiederhergestellt.",
-            DisplaySwitchPlan.PlanKind.Unchanged => "Anordnung passt unveraendert — nichts verschoben.",
-            _                                    => "Anordnung neu abgeleitet."
-        });
+        StartupLog.Layout(
+            "BILDSCHIRM-WECHSEL / START",
+            key,
+            plan.Kind switch
+            {
+                DisplaySwitchPlan.PlanKind.Restored  => "gespeicherte Anordnung EXAKT wiederhergestellt",
+                DisplaySwitchPlan.PlanKind.Unchanged => "passt unveraendert — nichts verschoben",
+                _                                    => "neu abgeleitet (keine vollstaendige Anordnung gemerkt)"
+            },
+            Bereichsliste());
 
         // Gesamtflaeche dieser Konfiguration festhalten — Grundlage fuer ein
         // spaeteres anteiliges Uebertragen auf die naechste unbekannte.
@@ -535,9 +539,11 @@ public sealed class FenceManager
         _currentLayoutKey = key;
         _config.Save();          // sofort, nicht gebuendelt: der Wechsel ist abgeschlossen
         ResumeLayoutSaving();    // ab jetzt darf wieder laufend gesichert werden
-
-        StartupLog.Write($"Anordnung angewandt: {_windows.Count} Bereiche, Kennung {key}");
     }
+
+    /// Aktuelle Lage aller Bereiche — fuer das Anordnungs-Protokoll.
+    private IEnumerable<(string, double, double, double, double)> Bereichsliste()
+        => _windows.Select(w => (w.ViewModel.Title, w.Left, w.Top, w.Width, w.Height));
 
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
     public Models.AppConfig ConfigForDisplayOverview => _config.Config;
@@ -601,12 +607,15 @@ public sealed class FenceManager
 
                     if (!string.Equals(aktuell, _currentLayoutKey, StringComparison.Ordinal))
                     {
-                        StartupLog.Write($"Kennung hatte sich unbemerkt geaendert: {_currentLayoutKey} → {aktuell}");
+                        StartupLog.Write($"ACHTUNG: Kennung hatte sich unbemerkt geaendert: {_currentLayoutKey} → {aktuell}");
                         _currentLayoutKey = aktuell;
                     }
 
                     StoreLayout(aktuell);
                     _config.Save();
+
+                    StartupLog.Layout("GESICHERT (nach Verschieben)", aktuell,
+                                      $"{_windows.Count} Bereiche gespeichert", Bereichsliste());
                 });
             };
         }
@@ -636,6 +645,9 @@ public sealed class FenceManager
         _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
+
+        StartupLog.Layout("VON HAND GESICHERT", _currentLayoutKey,
+                          $"{_windows.Count} Bereiche gespeichert", Bereichsliste());
     }
 
     /// <summary>
@@ -671,6 +683,9 @@ public sealed class FenceManager
         _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
+
+        StartupLog.Layout("VON HAND: Bereiche neu anordnen", _currentLayoutKey,
+                          "ueberschneidungsfrei geschoben", Bereichsliste());
         return _windows.Count;
     }
 
@@ -703,6 +718,9 @@ public sealed class FenceManager
         _currentLayoutKey = DisplayConfig.Current;
         StoreLayout(_currentLayoutKey);
         _config.Save();
+
+        StartupLog.Layout("VON HAND: Am Raster anordnen", _currentLayoutKey,
+                          $"Abstand {abstand}, Groessen unveraendert", Bereichsliste());
         return _windows.Count;
     }
 
@@ -795,12 +813,33 @@ public sealed class FenceManager
         }
     }
 
+    /// <summary>
     /// Umrechnungsfaktor Pixel → DIP (Screen liefert Pixel, WPF rechnet in DIP).
+    ///
+    /// Ermittelt aus dem Verhaeltnis der Arbeitsflaeche des Hauptbildschirms in
+    /// beiden Einheiten. Bewusst OHNE PresentationSource: MSDesk hat kein
+    /// Hauptfenster (nur Bereichsfenster), der Aufruf lief deshalb mit null ins
+    /// Leere — und die gesamte Flaechenberechnung fiel auf einen falschen Wert
+    /// zurueck, sodass beim Anstecken falsch entschieden wurde.
+    /// </summary>
     private static double DipScale()
     {
-        var source = System.Windows.PresentationSource.FromVisual(Application.Current?.MainWindow!);
-        var m11 = source?.CompositionTarget?.TransformToDevice.M11 ?? 0;
-        return m11 > 0 ? m11 : 1.0;
+        try
+        {
+            var primary = System.Windows.Forms.Screen.PrimaryScreen?.WorkingArea;
+            var work = System.Windows.SystemParameters.WorkArea;
+            if (primary is { Width: > 0 } p && work.Width > 0)
+            {
+                var scale = p.Width / work.Width;
+                // Nur plausible Werte uebernehmen (100 % bis 400 %).
+                if (scale >= 0.9 && scale <= 4.5) return scale;
+            }
+        }
+        catch (Exception)
+        {
+            // Unkritisch: ohne brauchbares Verhaeltnis wird 1:1 gerechnet.
+        }
+        return 1.0;
     }
 
     /// Schreibt die aktuelle Fenster-Geometrie aller Bereiche unter dem Schluessel fest.

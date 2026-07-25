@@ -218,6 +218,29 @@ public partial class SettingsDialog : Window
             : "Keine Bereiche vorhanden.";
     }
 
+    /// Oeffnet das Anordnungs-Protokoll im Editor.
+    private void OpenLayoutLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var pfad = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MSDesk", "start.log");
+
+            if (!File.Exists(pfad))
+            {
+                ConfirmDialog.Info("Es liegt noch kein Protokoll vor.", this);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(pfad) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ConfirmDialog.Info($"Das Protokoll konnte nicht geöffnet werden:\n{ex.Message}", this);
+        }
+    }
+
     /// Zeigt, ob wirklich gespeichert wird — sonst bleibt jeder Fehler unbemerkt.
     private void ShowDiagnostics_Click(object sender, RoutedEventArgs e)
     {

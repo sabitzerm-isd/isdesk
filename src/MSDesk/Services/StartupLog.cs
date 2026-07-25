@@ -19,6 +19,13 @@ public static class StartupLog
     private static string? _path;
     private static bool _fresh = true;
 
+    /// <summary>
+    /// Aus, solange kein Fenster-Programm laeuft. Verhindert, dass automatisierte
+    /// Tests in das echte Benutzerverzeichnis schreiben und dort das Protokoll
+    /// der Anwendung ueberschreiben.
+    /// </summary>
+    private static bool Enabled => System.Windows.Application.Current != null;
+
     private static string Path_
     {
         get
@@ -33,6 +40,8 @@ public static class StartupLog
 
     public static void Write(string message)
     {
+        if (!Enabled) return;
+
         try
         {
             lock (Sync)
@@ -41,13 +50,64 @@ public static class StartupLog
                 if (_fresh)
                 {
                     _fresh = false;
-                    var kopf = $"=== MSDesk {UpdateService.CurrentVersion} — Start {DateTime.Now:dd.MM.yyyy HH:mm:ss} ==={Environment.NewLine}";
+                    var version = Versionstext();
+                    var kopf = $"=== MSDesk {version} — Start {DateTime.Now:dd.MM.yyyy HH:mm:ss} ==={Environment.NewLine}";
                     File.WriteAllText(Path_, kopf + line, Encoding.UTF8);
                 }
                 else
                 {
                     File.AppendAllText(Path_, line, Encoding.UTF8);
                 }
+            }
+        }
+        catch (Exception)
+        {
+            // Protokollieren darf niemals selbst stoeren.
+        }
+    }
+
+    private static string Versionstext()
+    {
+        try { return UpdateService.CurrentVersion; }
+        catch (Exception) { return "?"; }
+    }
+
+    /// <summary>
+    /// Haelt einen kompletten Anordnungs-Vorgang fest: welche Bildschirme
+    /// angeschlossen sind, welche Kennung daraus folgt, was entschieden wurde
+    /// und wo jeder Bereich anschliessend liegt (absolute Koordinaten).
+    ///
+    /// Damit laesst sich der ganze Ablauf — anstecken, abstecken, von Hand
+    /// verschieben, sichern — spaeter Schritt fuer Schritt nachvollziehen.
+    /// </summary>
+    public static void Layout(string anlass, string kennung, string entscheidung,
+                              IEnumerable<(string Titel, double X, double Y, double Breite, double Hoehe)> bereiche)
+    {
+        if (!Enabled) return;
+
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine($"--- {anlass} — {DateTime.Now:dd.MM.yyyy HH:mm:ss} ---");
+
+            foreach (var screen in System.Windows.Forms.Screen.AllScreens)
+            {
+                var b = screen.Bounds;
+                sb.AppendLine($"  Bildschirm {(screen.Primary ? "(Haupt)" : "       ")} " +
+                              $"{b.Width}x{b.Height} an {b.X}/{b.Y}");
+            }
+
+            sb.AppendLine($"  Kennung      : {kennung}");
+            sb.AppendLine($"  Entscheidung : {entscheidung}");
+
+            foreach (var (titel, x, y, breite, hoehe) in bereiche)
+                sb.AppendLine($"    {titel,-22} X={x,7:F0} Y={y,7:F0}  {breite,5:F0} x {hoehe,4:F0}");
+
+            lock (Sync)
+            {
+                if (_fresh) { Write("Protokoll begonnen."); }
+                File.AppendAllText(Path_, sb.ToString(), Encoding.UTF8);
             }
         }
         catch (Exception)
