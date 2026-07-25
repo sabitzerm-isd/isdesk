@@ -2,9 +2,16 @@ using System.Runtime.InteropServices;
 
 namespace MSDesk.Services;
 
-/// Ueberwacht den Fuellstand des Papierkorbs (SHQueryRecycleBin, alle 15 s)
-/// und meldet Wechsel leer/voll — damit Papierkorb-Objekte in Bereichen ihr
-/// Icon aktualisieren (das Shell-Icon wird bei uns sonst nur einmal geladen).
+/// <summary>
+/// Ueberwacht den Fuellstand des Papierkorbs und meldet Wechsel leer/voll —
+/// damit Papierkorb-Objekte in Bereichen ihr Symbol aktualisieren (das
+/// System-Symbol wird sonst nur einmal geladen).
+///
+/// Abgefragt wird alle 4 Sekunden. Frueher waren es 15 — dadurch zeigte der
+/// Papierkorb im Bereich spuerbar laenger den alten Zustand als der auf dem
+/// Desktop, was wie ein Fehler wirkte. Die Abfrage selbst ist sehr billig
+/// (sie liest nur den Zaehler des Papierkorbs, nicht dessen Inhalt).
+/// </summary>
 public static class RecycleBinMonitor
 {
     public const string ClsidMarker = "{645FF040-5081-101B-9F08-00AA002F954E}";
@@ -27,7 +34,7 @@ public static class RecycleBinMonitor
         lock (Sync)
         {
             if (_timer != null) return;
-            _timer = new System.Timers.Timer(15000) { AutoReset = true };
+            _timer = new System.Timers.Timer(4000) { AutoReset = true };
             _timer.Elapsed += (_, _) => Poll();
             _timer.Start();
         }

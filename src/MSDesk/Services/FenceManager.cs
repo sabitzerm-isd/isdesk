@@ -607,6 +607,18 @@ public sealed class FenceManager
         _currentLayoutKey = key;
         _config.Save();          // sofort, nicht gebuendelt: der Wechsel ist abgeschlossen
         ResumeLayoutSaving();    // ab jetzt darf wieder laufend gesichert werden
+
+        // Kurz warten, bis Windows den Bildschirm fertig aufgebaut hat — sonst
+        // zeigt die Vorschau einen halb gezeichneten Zustand.
+        var kennung = key;
+        var timer = new System.Timers.Timer(2500) { AutoReset = false };
+        timer.Elapsed += (_, _) =>
+        {
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                () => LayoutPreview.Capture(kennung, erzwingen: true));
+            timer.Dispose();
+        };
+        timer.Start();
     }
 
     /// Aktuelle Lage aller Bereiche — fuer das Anordnungs-Protokoll.
@@ -753,6 +765,9 @@ public sealed class FenceManager
 
                     StartupLog.Layout("GESICHERT (nach Verschieben)", aktuell,
                                       $"{_windows.Count} Bereiche gespeichert", Bereichsliste());
+
+                    // Vorschaubild auffrischen (gedrosselt, siehe LayoutPreview).
+                    LayoutPreview.Capture(aktuell);
                 });
             };
         }
@@ -785,6 +800,9 @@ public sealed class FenceManager
 
         StartupLog.Layout("VON HAND GESICHERT", _currentLayoutKey,
                           $"{_windows.Count} Bereiche gespeichert", Bereichsliste());
+
+        // Von Hand gesichert = ausdruecklich gewollter Stand → Bild in jedem Fall.
+        LayoutPreview.Capture(_currentLayoutKey, erzwingen: true);
     }
 
     /// <summary>
@@ -875,6 +893,7 @@ public sealed class FenceManager
             if (fence.Layouts.Remove(key)) entfernt++;
 
         _config.Config.DisplayAreas.Remove(key);
+        LayoutPreview.Remove(key); // Vorschaubild gehoert zur Anordnung
 
         // Ist es die AKTIVE Konfiguration, sofort neu ableiten — sonst saehe man
         // erst beim naechsten Umstecken eine Wirkung.

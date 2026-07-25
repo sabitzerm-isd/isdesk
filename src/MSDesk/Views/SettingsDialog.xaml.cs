@@ -49,6 +49,7 @@ public partial class SettingsDialog : Window
         SelectGridSize(grid > 0 ? grid : 20);
 
         SelectSnapGap(manager?.SnapGapMillimeters ?? 6);
+        HideRecycleBinCheck.IsChecked = DesktopIcons.IsRecycleBinHidden();
         BlurCheck.IsChecked = manager?.BlurEnabled ?? true;
         FaviconCheck.IsChecked = manager?.AutoFavicons ?? true;
         EdgeSnapCheck.IsChecked = manager?.EdgeSnapEnabled ?? true;
@@ -207,6 +208,29 @@ public partial class SettingsDialog : Window
         LayoutSaveHint.Text = count > 0
             ? $"{count} Bereiche überschneidungsfrei angeordnet und gesichert."
             : "Keine Bereiche vorhanden.";
+    }
+
+    // --- Papierkorb ---
+
+    private void HideRecycleBin_Checked(object sender, RoutedEventArgs e) => SetRecycleBinHidden(true);
+    private void HideRecycleBin_Unchecked(object sender, RoutedEventArgs e) => SetRecycleBinHidden(false);
+
+    private void SetRecycleBinHidden(bool ausblenden)
+    {
+        if (!_initialized) return;
+
+        if (DesktopIcons.SetRecycleBinHidden(ausblenden))
+        {
+            RecycleBinHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+            RecycleBinHint.Text = ausblenden
+                ? "Ausgeblendet. Falls er noch zu sehen ist: einmal auf den Desktop klicken und F5 drücken."
+                : "Wieder eingeblendet.";
+        }
+        else
+        {
+            RecycleBinHint.Foreground = System.Windows.Media.Brushes.Khaki;
+            RecycleBinHint.Text = "Die Einstellung konnte nicht geändert werden — Näheres im Absturzprotokoll.";
+        }
     }
 
     /// Alle Bereiche an einem gedachten Raster ausrichten (Größen bleiben).

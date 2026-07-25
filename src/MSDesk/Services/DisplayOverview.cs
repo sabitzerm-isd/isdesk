@@ -8,7 +8,9 @@ public sealed record MonitorInfo(string Name, string Details, bool IsPrimary);
 /// Eine gespeicherte Bildschirm-Konfiguration samt Anzahl der darin gemerkten Bereiche.
 /// <paramref name="Name"/> ist der selbst vergebene Name (z. B. „Homeoffice"),
 /// <paramref name="Description"/> die technische Beschreibung der Monitore.
-public sealed record SavedLayoutInfo(string Key, string Name, string Description, int FenceCount, bool IsCurrent);
+/// <paramref name="PreviewPath"/> = Vorschaubild der Anordnung (leer, wenn keins vorliegt).
+public sealed record SavedLayoutInfo(string Key, string Name, string Description, int FenceCount,
+                                     bool IsCurrent, string PreviewPath, bool HasPreview);
 
 /// <summary>
 /// Bereitet auf, welche Bildschirme gerade angeschlossen sind und welche
@@ -57,14 +59,21 @@ public static class DisplayOverview
         if (!counts.ContainsKey(current)) counts[current] = 0;
 
         return counts
-            .Select(kv => new SavedLayoutInfo(
-                kv.Key,
-                config.DisplayNames.TryGetValue(kv.Key, out var name) && !string.IsNullOrWhiteSpace(name)
-                    ? name
-                    : "Ohne Namen",
-                Describe(kv.Key),
-                kv.Value,
-                string.Equals(kv.Key, current, StringComparison.Ordinal)))
+            .Select(kv =>
+            {
+                var bild = LayoutPreview.FileFor(kv.Key);
+                var vorhanden = System.IO.File.Exists(bild);
+                return new SavedLayoutInfo(
+                    kv.Key,
+                    config.DisplayNames.TryGetValue(kv.Key, out var name) && !string.IsNullOrWhiteSpace(name)
+                        ? name
+                        : "Ohne Namen",
+                    Describe(kv.Key),
+                    kv.Value,
+                    string.Equals(kv.Key, current, StringComparison.Ordinal),
+                    vorhanden ? bild : "",
+                    vorhanden);
+            })
             .OrderByDescending(i => i.IsCurrent)
             .ThenByDescending(i => i.FenceCount)
             .ToList();

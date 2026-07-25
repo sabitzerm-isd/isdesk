@@ -113,6 +113,20 @@ public sealed class BackupService
         using var zip = ZipFile.Open(fileName, ZipArchiveMode.Create);
         zip.CreateEntryFromFile(_config.ConfigPath, "config.json");
 
+        // Vorschaubilder der Bildschirm-Anordnungen mitnehmen: nach einem
+        // Neuaufsetzen sieht man damit sofort wieder, wie jede Konfiguration
+        // aussah. Zusammen nur wenige hundert Kilobyte.
+        try
+        {
+            if (Directory.Exists(LayoutPreview.Folder))
+                foreach (var bild in Directory.EnumerateFiles(LayoutPreview.Folder, "*.jpg"))
+                    zip.CreateEntryFromFile(bild, $"Vorschau/{Path.GetFileName(bild)}");
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "BackupService.Vorschau"); // Sicherung trotzdem fortsetzen
+        }
+
         var baseFolder = _config.Config.BaseFolder;
         if (Directory.Exists(baseFolder))
         {
@@ -204,6 +218,26 @@ public sealed class BackupService
 
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 entry.ExtractToFile(target, overwrite: true);
+            }
+
+            // Vorschaubilder der Anordnungen ebenfalls zurueckspielen.
+            try
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    if (!entry.FullName.StartsWith("Vorschau/", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (entry.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
+
+                    var name = Path.GetFileName(entry.FullName);
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    Directory.CreateDirectory(LayoutPreview.Folder);
+                    entry.ExtractToFile(Path.Combine(LayoutPreview.Folder, name), overwrite: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogCrash(ex, "RestoreBackup.Vorschau"); // nicht wesentlich
             }
 
             ((App)Application.Current).RestartForRestore();

@@ -9,9 +9,11 @@
         Topmost="True"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
-        Width="880" Height="700" MinWidth="620" MinHeight="440">
+        Width="880" Height="700" MinWidth="620" MinHeight="440"
+        xmlns:v="clr-namespace:MSDesk.Views">
 
     <Window.Resources>
+        <v:PreviewImageConverter x:Key="VorschauBild" />
         <Style TargetType="TextBlock" x:Key="LabelStyle">
             <Setter Property="Foreground" Value="#CCFFFFFF" />
             <Setter Property="FontSize" Value="12.5" />
@@ -404,6 +406,31 @@
                                   Foreground="#DDFFFFFF" FontSize="12.5" TextBlock.LineHeight="16"
                                   Checked="Sweep_Checked" Unchecked="Sweep_Unchecked" />
 
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="PAPIERKORB" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="360">
+                                            <TextBlock Text="Papierkorb doppelt?" Style="{StaticResource TipTitle}" />
+                                            <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                       Text="Der Papierkorb auf dem Desktop ist kein gewöhnliches Symbol, sondern ein Systemobjekt — er lässt sich weder verschieben noch löschen. Legst du ihn zusätzlich in einen Bereich, siehst du ihn doppelt." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Dieser Schalter blendet ihn auf dem Desktop aus. Es ist dieselbe Einstellung, die Windows unter „Desktopsymboleinstellungen“ anbietet — jederzeit umkehrbar." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Der Papierkorb im Bereich zeigt voll und leer weiterhin richtig an; er wird alle paar Sekunden abgeglichen." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
+                        <CheckBox x:Name="HideRecycleBinCheck"
+                                  Content="Papierkorb auf dem Desktop ausblenden"
+                                  Foreground="#DDFFFFFF" FontSize="12.5"
+                                  Checked="HideRecycleBin_Checked" Unchecked="HideRecycleBin_Unchecked" />
+                        <TextBlock x:Name="RecycleBinHint" Style="{StaticResource HintStyle}" Margin="0,6,0,0"
+                                   Text="Sinnvoll, wenn du den Papierkorb bereits in einem Bereich abgelegt hast." />
+
                         <TextBlock Text="INHALTE ZURÜCKGEBEN" Style="{StaticResource SectionStyle}" />
                         <Button Content="Alle Inhalte zurück auf den Desktop legen" MinWidth="0"
                                 Click="RestoreToDesktop_Click"
@@ -662,10 +689,37 @@
                                         </Border.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
+
+                                            <!-- Vorschaubild: Bildschirmausdruck des Augenblicks,
+                                                 in dem die Anordnung gesichert wurde. -->
+                                            <Border Grid.Column="0" Width="132" Height="76" Margin="0,0,12,0"
+                                                    CornerRadius="4" Background="#22000000"
+                                                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                <Grid>
+                                                    <TextBlock Text="ohne Bild" Foreground="#55FFFFFF" FontSize="10"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Image Stretch="UniformToFill" ClipToBounds="True">
+                                                        <Image.Style>
+                                                            <Style TargetType="Image">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasPreview}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                        <Setter Property="Source"
+                                                                                Value="{Binding PreviewPath, Converter={StaticResource VorschauBild}}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Image.Style>
+                                                    </Image>
+                                                </Grid>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1">
                                                 <StackPanel Orientation="Horizontal">
                                                     <!-- Eigener Name, falls vergeben — sonst die technische Beschreibung -->
                                                     <TextBlock Text="{Binding Name}" Foreground="#F2FFFFFF"
