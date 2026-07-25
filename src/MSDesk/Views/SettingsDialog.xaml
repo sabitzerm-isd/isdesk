@@ -649,6 +649,9 @@
                                                 <TextBlock Text="{Binding Name}" Foreground="#F2FFFFFF" FontSize="12.5"
                                                            FontWeight="SemiBold" />
                                                 <TextBlock Text="{Binding Details}" Foreground="#99FFFFFF" FontSize="11.5" />
+                                                <TextBlock Text="{Binding Lage}" Foreground="#77FFFFFF" FontSize="11"
+                                                           TextWrapping="Wrap" Margin="0,1,0,0"
+                                                           ToolTip="Windows legt alle Bildschirme in ein gemeinsames Koordinatensystem. Der Hauptbildschirm liegt dabei immer im Nullpunkt (0/0), alle anderen werden relativ dazu angegeben." />
                                             </StackPanel>
                                             <Border Grid.Column="2" Background="#3A6EA5" CornerRadius="4" Padding="7,2"
                                                     VerticalAlignment="Center">

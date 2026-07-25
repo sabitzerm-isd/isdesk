@@ -2,8 +2,12 @@ using MSDesk.Models;
 
 namespace MSDesk.Services;
 
+/// <summary>
 /// Ein angeschlossener Bildschirm, aufbereitet fuer die Anzeige in den Optionen.
-public sealed record MonitorInfo(string Name, string Details, bool IsPrimary);
+/// <paramref name="Lage"/> beschreibt in Worten, wo er steht — die nackten
+/// Koordinaten allein sind erklaerungsbeduerftig.
+/// </summary>
+public sealed record MonitorInfo(string Name, string Details, string Lage, bool IsPrimary);
 
 /// Eine gespeicherte Bildschirm-Konfiguration samt Anzahl der darin gemerkten Bereiche.
 /// <paramref name="Name"/> ist der selbst vergebene Name (z. B. „Homeoffice"),
@@ -32,7 +36,8 @@ public static class DisplayOverview
                 var b = screen.Bounds;
                 list.Add(new MonitorInfo(
                     FriendlyName(screen.DeviceName),
-                    $"{b.Width} × {b.Height}  ·  Position {b.X}/{b.Y}",
+                    $"{b.Width} × {b.Height} Pixel",
+                    Lagebeschreibung(screen),
                     screen.Primary));
             }
         }
@@ -88,6 +93,39 @@ public static class DisplayOverview
         var sizes = monitors.Select(m => $"{m.Width} × {m.Height}").ToList();
         var count = sizes.Count == 1 ? "1 Bildschirm" : $"{sizes.Count} Bildschirme";
         return $"{count}: {string.Join(", ", sizes)}";
+    }
+
+    /// <summary>
+    /// Beschreibt in Worten, wo ein Bildschirm steht.
+    ///
+    /// Windows legt alle Bildschirme in EIN gemeinsames Koordinatensystem; der
+    /// Hauptbildschirm liegt dabei immer im Nullpunkt. Die Zahlen „3440/172"
+    /// bedeuten also: rechts neben dem Hauptbildschirm und 172 Pixel tiefer.
+    /// Das versteht man ohne Erklaerung nicht — deshalb hier im Klartext.
+    /// </summary>
+    private static string Lagebeschreibung(System.Windows.Forms.Screen screen)
+    {
+        var b = screen.Bounds;
+        if (screen.Primary) return $"Hauptbildschirm · Nullpunkt der Anordnung ({b.X}/{b.Y})";
+
+        var haupt = System.Windows.Forms.Screen.PrimaryScreen?.Bounds
+                    ?? new System.Drawing.Rectangle(0, 0, 0, 0);
+
+        var teile = new List<string>();
+
+        if (b.X >= haupt.Right) teile.Add("rechts daneben");
+        else if (b.Right <= haupt.X) teile.Add("links daneben");
+        else if (b.Y >= haupt.Bottom) teile.Add("darunter");
+        else if (b.Bottom <= haupt.Y) teile.Add("darüber");
+        else teile.Add("überlappend angeordnet");
+
+        var versatz = b.Y - haupt.Y;
+        if (Math.Abs(versatz) >= 10)
+            teile.Add(versatz > 0 ? $"{versatz} Pixel tiefer" : $"{-versatz} Pixel höher");
+        else
+            teile.Add("oben bündig");
+
+        return $"{string.Join(", ", teile)} · Position {b.X}/{b.Y}";
     }
 
     /// "\\.\DISPLAY1" → "Bildschirm 1"
