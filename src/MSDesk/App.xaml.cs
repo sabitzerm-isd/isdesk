@@ -18,6 +18,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Ganz zuerst: ohne Protokoll bleibt jeder fruehe Fehler unsichtbar.
+        StartupLog.Enable();
+        StartupLog.Write($"OnStartup erreicht (Argumente: {e.Args.Length})");
+
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             LogCrash(args.ExceptionObject as Exception, "AppDomain.UnhandledException");
         DispatcherUnhandledException += (_, args) =>

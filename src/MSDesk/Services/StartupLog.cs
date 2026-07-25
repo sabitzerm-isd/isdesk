@@ -20,11 +20,19 @@ public static class StartupLog
     private static bool _fresh = true;
 
     /// <summary>
-    /// Aus, solange kein Fenster-Programm laeuft. Verhindert, dass automatisierte
-    /// Tests in das echte Benutzerverzeichnis schreiben und dort das Protokoll
-    /// der Anwendung ueberschreiben.
+    /// Muss von der Anwendung ausdruecklich eingeschaltet werden. Verhindert,
+    /// dass automatisierte Tests in das echte Benutzerverzeichnis schreiben und
+    /// dort das Protokoll der Anwendung ueberschreiben.
+    ///
+    /// Bewusst ein eigener Schalter statt einer Abfrage auf Application.Current:
+    /// eine solche Abfrage ist von aussen nicht nachpruefbar — bleibt das
+    /// Protokoll leer, weiss man nicht, ob nichts passiert ist oder ob die
+    /// Bedingung nie zutraf.
     /// </summary>
-    private static bool Enabled => System.Windows.Application.Current != null;
+    private static bool _enabled;
+
+    /// Schaltet das Protokoll ein (nur die Anwendung ruft das auf).
+    public static void Enable() => _enabled = true;
 
     private static string Path_
     {
@@ -40,7 +48,7 @@ public static class StartupLog
 
     public static void Write(string message)
     {
-        if (!Enabled) return;
+        if (!_enabled) return;
 
         try
         {
@@ -60,9 +68,12 @@ public static class StartupLog
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Protokollieren darf niemals selbst stoeren.
+            // Protokollieren darf den Ablauf nicht stoeren — aber lautlos
+            // scheitern darf es auch nicht, sonst steht man vor einer leeren
+            // Datei und weiss nicht warum.
+            Fehlgeschlagen(ex);
         }
     }
 
@@ -70,6 +81,16 @@ public static class StartupLog
     {
         try { return UpdateService.CurrentVersion; }
         catch (Exception) { return "?"; }
+    }
+
+    private static bool _fehlerGemeldet;
+
+    /// Meldet EINMAL, dass das Protokoll nicht geschrieben werden kann.
+    private static void Fehlgeschlagen(Exception ex)
+    {
+        if (_fehlerGemeldet) return;
+        _fehlerGemeldet = true;
+        try { App.LogCrash(ex, "StartupLog"); } catch (Exception) { /* dann eben nicht */ }
     }
 
     /// <summary>
@@ -83,7 +104,7 @@ public static class StartupLog
     public static void Layout(string anlass, string kennung, string entscheidung,
                               IEnumerable<(string Titel, double X, double Y, double Breite, double Hoehe)> bereiche)
     {
-        if (!Enabled) return;
+        if (!_enabled) return;
 
         try
         {
@@ -110,9 +131,12 @@ public static class StartupLog
                 File.AppendAllText(Path_, sb.ToString(), Encoding.UTF8);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Protokollieren darf niemals selbst stoeren.
+            // Protokollieren darf den Ablauf nicht stoeren — aber lautlos
+            // scheitern darf es auch nicht, sonst steht man vor einer leeren
+            // Datei und weiss nicht warum.
+            Fehlgeschlagen(ex);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using MSDesk.Models;
 
@@ -98,19 +99,55 @@ public sealed class ConfigService
         }
     }
 
+    /// <summary>
     /// Blockiert alle weiteren Saves — noetig waehrend einer Wiederherstellung,
     /// damit die alte In-Memory-Config die zurueckgespielte Datei nicht ueberschreibt.
+    ///
+    /// Die Sperre loest sich nach kurzer Zeit von selbst wieder: Bricht die
+    /// Wiederherstellung ab, bliebe sonst dauerhaft gesperrt und es wuerde nie
+    /// wieder etwas gespeichert — ohne dass das erkennbar waere.
+    /// </summary>
     public void SuppressSaves()
     {
         lock (_sync)
         {
             _suppressSaves = true;
             _debounceTimer.Stop();
+            StartupLog.Write("Speichern gesperrt (Wiederherstellung).");
+
+            _unsuppressTimer?.Dispose();
+            _unsuppressTimer = new System.Timers.Timer(30_000) { AutoReset = false };
+            _unsuppressTimer.Elapsed += (_, _) =>
+            {
+                lock (_sync)
+                {
+                    if (!_suppressSaves) return;
+                    _suppressSaves = false;
+                    StartupLog.Write("Speicher-Sperre automatisch aufgehoben (Wiederherstellung lief nicht durch).");
+                }
+            };
+            _unsuppressTimer.Start();
         }
     }
 
+    private System.Timers.Timer? _unsuppressTimer;
+
     /// Zaehlt die erfolgreichen Speichervorgaenge (fuer das Startprotokoll).
     public int SaveCount { get; private set; }
+
+    /// Liest die Datei zurueck und prueft, ob wirklich das Erwartete darin steht.
+    private bool Angekommen(string erwartet)
+    {
+        try
+        {
+            return new FileInfo(_path) is { Exists: true } info
+                && Math.Abs(info.Length - Encoding.UTF8.GetByteCount(erwartet)) <= 3; // BOM-Toleranz
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     public void Save()
     {
@@ -126,10 +163,29 @@ public sealed class ConfigService
             {
                 var dir = Path.GetDirectoryName(_path)!;
                 Directory.CreateDirectory(dir);
-                var tmp = _path + ".tmp";
                 var json = JsonSerializer.Serialize(Config, JsonOptions);
+
+                // 1. Weg: erst in eine Nebendatei, dann umbenennen. Dadurch kann
+                //    ein Abbruch mitten im Schreiben die Konfiguration nicht
+                //    zerstoeren.
+                var tmp = _path + ".tmp";
                 File.WriteAllText(tmp, json);
                 File.Move(tmp, _path, overwrite: true);
+
+                // NACHPRUEFEN. Es hat sich gezeigt, dass ein Speichervorgang
+                // ohne Fehlermeldung durchlaufen kann, ohne dass die Datei
+                // tatsaechlich veraendert wird. Ohne diese Pruefung meldet das
+                // Programm Erfolg, waehrend jede Einstellung verloren geht.
+                if (!Angekommen(json))
+                {
+                    // 2. Weg: unmittelbar in die Zieldatei schreiben.
+                    File.WriteAllText(_path, json);
+
+                    StartupLog.Write(Angekommen(json)
+                        ? $"Gespeichert ({json.Length} Zeichen) — auf dem zweiten Weg, Umbenennen kam nicht an."
+                        : $"SPEICHERN KAM NICHT AN! Datei unveraendert: {_path}");
+                    return;
+                }
 
                 // Nur die ersten Male protokollieren — danach waere es nur Rauschen.
                 if (++SaveCount <= 3) StartupLog.Write($"Gespeichert ({json.Length} Zeichen) → {_path}");
