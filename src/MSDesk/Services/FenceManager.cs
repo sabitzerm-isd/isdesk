@@ -505,16 +505,38 @@ public sealed class FenceManager
             var cfg = window.ViewModel.Config;
             var ziel = plan.Positions[i];
 
-            cfg.X = ziel.X;
-            cfg.Y = ziel.Y;
-            cfg.Width = Math.Max(ziel.Width, 110);
-            cfg.Height = Math.Max(ziel.Height, 80);
+            // Zielwerte in EIGENEN Variablen halten — nicht ueber cfg.X/cfg.Y
+            // arbeiten.
+            //
+            // Grund: window.Left zu setzen loest sofort OnLocationChanged aus.
+            // Dieser Handler schreibt Left UND Top in das ViewModel zurueck —
+            // Top hat zu diesem Zeitpunkt aber noch den ALTEN Wert der
+            // vorherigen Bildschirm-Konfiguration. Ueber cfg.Y wurde damit der
+            // gerade gesetzte Zielwert wieder ueberschrieben, und die
+            // anschliessende Zeile "window.Top = cfg.Y" setzte den alten Wert.
+            //
+            // Genau daraus entstand das lange gesuchte Bild: X stimmte, Y kam
+            // aus der zuvor aktiven Konfiguration.
+            var zielX = ziel.X;
+            var zielY = ziel.Y;
+            var zielBreite = Math.Max(ziel.Width, 110);
+            var zielHoehe = Math.Max(ziel.Height, 80);
 
-            window.Left = cfg.X;
-            window.Top = cfg.Y;
-            window.Width = cfg.Width;
-            window.Height = cfg.Height;
-            cfg.Layouts[key] = new LayoutRect { X = cfg.X, Y = cfg.Y, Width = cfg.Width, Height = cfg.Height };
+            window.Left = zielX;
+            window.Top = zielY;
+            window.Width = zielBreite;
+            window.Height = zielHoehe;
+
+            // Erst NACH dem Setzen festschreiben: die Handler haben in der
+            // Zwischenzeit Uebergangswerte hineingeschrieben.
+            cfg.X = zielX;
+            cfg.Y = zielY;
+            cfg.Width = zielBreite;
+            cfg.Height = zielHoehe;
+            cfg.Layouts[key] = new LayoutRect
+            {
+                X = zielX, Y = zielY, Width = zielBreite, Height = zielHoehe
+            };
         }
 
         StartupLog.Layout(
