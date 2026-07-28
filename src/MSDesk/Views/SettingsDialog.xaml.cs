@@ -218,7 +218,8 @@ public partial class SettingsDialog : Window
         if (_manager == null) return;
 
         var vorschau = _manager.ReclaimDesktopIcons(nurVorschau: true);
-        if (vorschau.Gesamt == 0)
+
+        if (vorschau.Gesamt == 0 && vorschau.Gesperrt.Count == 0)
         {
             ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
             ReclaimHint.Text = "Auf dem Desktop liegt nichts, das in einen Bereich gehört.";
@@ -226,21 +227,47 @@ public partial class SettingsDialog : Window
         }
 
         var text = new System.Text.StringBuilder();
-        text.AppendLine("Auf dem Desktop wurden Symbole gefunden, deren Platz bekannt ist:\n");
-        if (vorschau.Zurueckgeholt > 0)
-            text.AppendLine($"• {vorschau.Zurueckgeholt} wandern zurück in ihren Bereich");
-        if (vorschau.Ersetzt > 0)
-            text.AppendLine($"• {vorschau.Ersetzt} ersetzen eine ältere Verknüpfung desselben Programms");
-        text.AppendLine("\nAlles andere bleibt unberührt auf dem Desktop liegen.");
+
+        if (vorschau.Gesamt > 0)
+        {
+            text.AppendLine("Auf dem Desktop wurden Symbole gefunden, deren Platz bekannt ist:\n");
+            if (vorschau.Zurueckgeholt > 0)
+                text.AppendLine($"• {vorschau.Zurueckgeholt} wandern zurück in ihren Bereich");
+            if (vorschau.Ersetzt > 0)
+                text.AppendLine($"• {vorschau.Ersetzt} ersetzen eine ältere Verknüpfung desselben Programms");
+            text.AppendLine("\nAlles andere bleibt unberührt auf dem Desktop liegen.");
+        }
+
+        // Der Desktop „für alle Benutzer" ist ohne Administratorrechte gesperrt.
+        // Das gehört klar gesagt — sonst sucht man den Fehler bei MSDesk.
+        if (vorschau.Gesperrt.Count > 0)
+        {
+            if (text.Length > 0) text.AppendLine();
+            text.AppendLine($"Nicht möglich bei: {string.Join(", ", vorschau.Gesperrt)}");
+            text.AppendLine("\nDiese Verknüpfungen wurden bei der Installation für ALLE Benutzer " +
+                            "angelegt und liegen in C:\\Users\\Public\\Desktop. Dieser Ordner ist " +
+                            "ohne Administratorrechte schreibgeschützt — MSDesk darf sie weder " +
+                            "verschieben noch löschen.");
+        }
+
+        if (vorschau.Gesamt == 0)
+        {
+            ConfirmDialog.Info(text.ToString(), this);
+            ReclaimHint.Foreground = System.Windows.Media.Brushes.Khaki;
+            ReclaimHint.Text = $"{vorschau.Gesperrt.Count} Verknüpfung(en) benötigen Administratorrechte.";
+            return;
+        }
 
         var (ok, _) = ConfirmDialog.Show(text.ToString(), this, okText: "Einordnen");
         if (!ok) return;
 
         var ergebnis = _manager.ReclaimDesktopIcons();
         ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
-        ReclaimHint.Text = ergebnis.Fehlgeschlagen > 0
-            ? $"{ergebnis.Gesamt} Symbole eingeordnet, {ergebnis.Fehlgeschlagen} nicht (vermutlich gerade in Benutzung)."
-            : $"{ergebnis.Gesamt} Symbole eingeordnet.";
+
+        var meldung = $"{ergebnis.Gesamt} Symbole eingeordnet";
+        if (ergebnis.Fehlgeschlagen > 0) meldung += $", {ergebnis.Fehlgeschlagen} nicht (in Benutzung)";
+        if (ergebnis.Gesperrt.Count > 0) meldung += $", {ergebnis.Gesperrt.Count} ohne Administratorrechte";
+        ReclaimHint.Text = meldung + ".";
     }
 
     /// Doppelte Verknuepfungen in den Bereichen entfernen — ebenfalls mit Vorschau.

@@ -23,11 +23,15 @@ public static class DesktopReclaim
     /// Was ein Durchlauf bewirkt hat.
     /// <paramref name="Zurueckgeholt"/> = an den gemerkten Platz gelegt,
     /// <paramref name="Ersetzt"/> = eine aeltere Verknuepfung desselben
-    /// Programms an deren Stelle abgeloest.
+    /// Programms an deren Stelle abgeloest,
+    /// <paramref name="Gesperrt"/> = liegt auf dem Desktop FUER ALLE BENUTZER
+    /// und laesst sich ohne Administratorrechte nicht anfassen.
     /// </summary>
-    public sealed record Ergebnis(int Zurueckgeholt, int Ersetzt, int Fehlgeschlagen)
+    public sealed record Ergebnis(int Zurueckgeholt, int Ersetzt, int Fehlgeschlagen,
+                                  IReadOnlyList<string> Gesperrt)
     {
         public int Gesamt => Zurueckgeholt + Ersetzt;
+        public static Ergebnis Leer => new(0, 0, 0, Array.Empty<string>());
     }
 
     /// <summary>
@@ -37,28 +41,53 @@ public static class DesktopReclaim
     public static Ergebnis Run(ConfigService config, bool nurVorschau = false)
     {
         int zurueck = 0, ersetzt = 0, fehler = 0;
+        var gesperrt = new List<string>();
 
         try
         {
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            if (!Directory.Exists(desktop)) return new Ergebnis(0, 0, 0);
+            // BEIDE Desktops durchsehen. Installationen „fuer alle Benutzer"
+            // legen ihre Verknuepfung in den oeffentlichen Desktop — dort lag
+            // z. B. Camtasia, weshalb sie nie gefunden wurde.
+            var eigener = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            var oeffentlich = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+
+            var quellen = new List<string>();
+            if (Directory.Exists(eigener)) quellen.Add(eigener);
+            if (Directory.Exists(oeffentlich)
+                && !string.Equals(oeffentlich, eigener, StringComparison.OrdinalIgnoreCase))
+                quellen.Add(oeffentlich);
+
+            if (quellen.Count == 0) return Ergebnis.Leer;
 
             // Was liegt bereits in den Bereichen? Ziel → Datei, um Doppelte zu erkennen.
             var vorhanden = BestandNachZiel(config);
 
-            foreach (var eintrag in new DirectoryInfo(desktop).EnumerateFileSystemInfos())
+            foreach (var eintrag in quellen.SelectMany(q => new DirectoryInfo(q).EnumerateFileSystemInfos()))
             {
                 try
                 {
                     if ((eintrag.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
                     if (string.Equals(eintrag.Name, "desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    var ziel = PlacementRegistry.LookupByPath(eintrag.FullName);
+                    var ziel = PlacementRegistry.LookupByPath(eintrag.FullName)
+                               ?? RegelOrdner(config, eintrag);   // z. B. die Ordner-Regel der Ablage
                     var zielSchluessel = PlacementRegistry.ZielSchluessel(eintrag.FullName);
 
                     // Liegt dasselbe Programm schon in einem Bereich?
                     var bereitsDa = zielSchluessel != null
                                     && vorhanden.TryGetValue(zielSchluessel, out var alt) ? alt : null;
+
+                    if (bereitsDa == null && ziel == null) continue;   // unbekannt → liegen lassen
+                    if (bereitsDa == null && !Directory.Exists(ziel!)) continue;
+
+                    // Liegt der Eintrag auf dem Desktop FUER ALLE BENUTZER, darf
+                    // ihn nur ein Administrator anfassen. Das ehrlich melden,
+                    // statt es stillschweigend zu versuchen und zu scheitern.
+                    if (!Beschreibbar(eintrag))
+                    {
+                        gesperrt.Add(eintrag.Name);
+                        continue;
+                    }
 
                     if (bereitsDa != null)
                     {
@@ -70,10 +99,7 @@ public static class DesktopReclaim
                         continue;
                     }
 
-                    if (ziel == null) continue;                       // unbekannt → liegen lassen
-                    if (!Directory.Exists(ziel)) continue;             // Bereich existiert nicht mehr
-
-                    if (!nurVorschau) Verschiebe(eintrag, ziel);
+                    if (!nurVorschau) Verschiebe(eintrag, ziel!);
                     zurueck++;
                 }
                 catch (Exception)
@@ -87,11 +113,68 @@ public static class DesktopReclaim
             App.LogCrash(ex, "DesktopReclaim.Run");
         }
 
-        var ergebnis = new Ergebnis(zurueck, ersetzt, fehler);
-        if (!nurVorschau && ergebnis.Gesamt > 0)
+        var ergebnis = new Ergebnis(zurueck, ersetzt, fehler, gesperrt);
+        if (!nurVorschau && (ergebnis.Gesamt > 0 || gesperrt.Count > 0))
             StartupLog.Write($"Symbole eingeordnet: {zurueck} zurueckgeholt, {ersetzt} ersetzt, " +
-                             $"{fehler} fehlgeschlagen.");
+                             $"{fehler} fehlgeschlagen, {gesperrt.Count} ohne Berechtigung.");
         return ergebnis;
+    }
+
+    /// <summary>
+    /// Ist der Eintrag ueberhaupt veraenderbar? Der Desktop fuer alle Benutzer
+    /// (C:\Users\Public\Desktop) ist ohne Administratorrechte schreibgeschuetzt.
+    /// </summary>
+    private static bool Beschreibbar(FileSystemInfo eintrag)
+    {
+        try
+        {
+            var ordner = eintrag is DirectoryInfo d ? d.Parent?.FullName : ((FileInfo)eintrag).DirectoryName;
+            if (ordner == null) return false;
+
+            var probe = Path.Combine(ordner, $".msdesk-probe-{Guid.NewGuid():N}");
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Zielordner aus den Ablage-Regeln — vor allem fuer ORDNER, die auf dem
+    /// Desktop liegen. Ohne das blieben sie liegen, weil fuer sie kein
+    /// gemerkter Platz existiert.
+    /// </summary>
+    private static string? RegelOrdner(ConfigService config, FileSystemInfo eintrag)
+    {
+        try
+        {
+            var istOrdner = ShortcutFactory.PointsToFolder(eintrag.FullName);
+
+            foreach (var fence in config.Config.Fences)
+            {
+                foreach (var tab in fence.Tabs)
+                {
+                    if (!Directory.Exists(tab.FolderPath)) continue;
+
+                    if (istOrdner && FileCategories.IsFolderRule(tab.AutoExtensions))
+                        return tab.FolderPath;
+
+                    if (istOrdner) continue;
+
+                    var endung = Path.GetExtension(eintrag.Name).TrimStart('.').ToLowerInvariant();
+                    if (endung.Length > 0 && FileCategories.MatchesExact(tab.AutoExtensions, endung))
+                        return tab.FolderPath;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Regel nicht auswertbar → Eintrag bleibt liegen
+        }
+        return null;
     }
 
     /// <summary>
@@ -105,29 +188,62 @@ public static class DesktopReclaim
 
         try
         {
-            // Ziel → alle Dateien, die darauf zeigen.
-            var nachZiel = new Dictionary<string, List<FileInfo>>(StringComparer.OrdinalIgnoreCase);
+            // Zwei Wege der Erkennung, weil beide allein Luecken haben:
+            //   1. gleiches ZIEL — auch bei unterschiedlichen Namen
+            //   2. gleicher NAME — auch wenn ein Ziel nicht auflösbar ist
+            //
+            // Der zweite Weg ist noetig: Eine Verknuepfung kann ins Leere
+            // zeigen (Programm deinstalliert, Pfad geaendert). Ihr Ziel ist
+            // dann nicht ermittelbar, und ueber Weg 1 faellt sie durch — sie
+            // blieb dadurch als Doppelte liegen, obwohl daneben eine
+            // funktionierende Verknuepfung gleichen Namens stand.
+            var gruppen = new Dictionary<string, List<FileInfo>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var ordner in TabOrdner(config))
             {
                 foreach (var datei in new DirectoryInfo(ordner).EnumerateFiles("*.lnk"))
                 {
                     var ziel = PlacementRegistry.ZielSchluessel(datei.FullName);
-                    if (ziel == null) continue;
 
-                    if (!nachZiel.TryGetValue(ziel, out var liste))
-                        nachZiel[ziel] = liste = new List<FileInfo>();
+                    // Ohne Ziel nach Namen gruppieren; mit Ziel nach dem Ziel.
+                    var schluessel = ziel ?? "name:" + datei.Name;
+                    if (!gruppen.TryGetValue(schluessel, out var liste))
+                        gruppen[schluessel] = liste = new List<FileInfo>();
                     liste.Add(datei);
                 }
             }
 
-            foreach (var (_, liste) in nachZiel)
+            // Namensgleiche mit den zielgleichen zusammenfuehren: liegt derselbe
+            // Name einmal mit und einmal ohne auflösbares Ziel vor, gehoert
+            // beides in eine Gruppe.
+            foreach (var schluessel in gruppen.Keys.Where(k => k.StartsWith("name:", StringComparison.Ordinal)).ToList())
+            {
+                var name = schluessel[5..];
+                var passend = gruppen
+                    .Where(g => !g.Key.StartsWith("name:", StringComparison.Ordinal)
+                                && g.Value.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+
+                if (passend == null) continue;
+                gruppen[passend].AddRange(gruppen[schluessel]);
+                gruppen.Remove(schluessel);
+            }
+
+            foreach (var (_, liste) in gruppen)
             {
                 if (liste.Count < 2) continue;
 
-                // Die zuletzt geaenderte behalten — das ist die aus dem Update.
-                var behalten = liste.OrderByDescending(f => f.LastWriteTimeUtc).First();
-                foreach (var datei in liste.Where(f => f.FullName != behalten.FullName))
+                // Welche bleibt? Zuerst eine, die tatsaechlich funktioniert —
+                // eine Verknuepfung ins Leere zu behalten waere sinnlos.
+                // Unter mehreren funktionierenden die zuletzt geaenderte.
+                var behalten = liste
+                    .OrderByDescending(f => PlacementRegistry.ZielSchluessel(f.FullName) != null)
+                    .ThenByDescending(f => f.LastWriteTimeUtc)
+                    .First();
+
+                foreach (var datei in liste.Where(f => !string.Equals(f.FullName, behalten.FullName,
+                                                                     StringComparison.OrdinalIgnoreCase)))
                 {
                     try
                     {

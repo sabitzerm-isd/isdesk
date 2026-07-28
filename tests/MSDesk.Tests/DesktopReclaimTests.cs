@@ -128,7 +128,28 @@ public class DesktopReclaimTests : IDisposable
     [Fact]
     public void Ergebnis_ZaehltGesamtRichtig()
     {
-        var e = new DesktopReclaim.Ergebnis(Zurueckgeholt: 3, Ersetzt: 2, Fehlgeschlagen: 1);
-        Assert.Equal(5, e.Gesamt); // Fehlgeschlagene zaehlen nicht mit
+        var e = new DesktopReclaim.Ergebnis(Zurueckgeholt: 3, Ersetzt: 2, Fehlgeschlagen: 1,
+                                            Gesperrt: new[] { "Camtasia.lnk" });
+        // Weder Fehlgeschlagene noch Gesperrte zaehlen als erledigt.
+        Assert.Equal(5, e.Gesamt);
+        Assert.Single(e.Gesperrt);
+    }
+
+    [Fact]
+    public void Duplikate_KaputteVerknuepfungGleichenNamens_WirdErkannt()
+    {
+        // Der gemeldete Fall: zwei Mal „Admin Tool Anpassungen.lnk", eine davon
+        // zeigt ins Leere. Ueber das Ziel allein faellt sie durch — deshalb
+        // wird zusaetzlich nach dem Namen gruppiert.
+        var zweiterTab = Path.Combine(_root, "Administration");
+        Directory.CreateDirectory(zweiterTab);
+        _config.Config.Fences[0].Tabs.Add(new TabConfig { Title = "Administration", FolderPath = zweiterTab });
+
+        Datei(_bereich, "Admin Tool.lnk", "kaputt A");
+        Datei(zweiterTab, "Admin Tool.lnk", "kaputt B");
+
+        var gefunden = DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true);
+
+        Assert.Equal(1, gefunden); // eine von zweien fliegt
     }
 }

@@ -1,4 +1,4 @@
-using MSDesk.Models;
+﻿using MSDesk.Models;
 
 namespace MSDesk.Services;
 
@@ -16,6 +16,16 @@ public static class TabIconRules
     /// stehen spezielle Begriffe vor allgemeinen ("lesezeichenleiste" vor "lesezeichen").
     private static readonly (string Icon, string[] Keywords)[] Rules =
     {
+        // --- Haeufige Sammelnamen ---
+        // Stehen bewusst weit oben: „Allgemein" ist der Standardname jedes
+        // ersten Tabs und blieb bisher ohne Symbol.
+        ("allgemein",        new[] { "allgemein", "alles", "sonstiges", "diverse", "misch" }),
+        ("rakete",           new[] { "launcher", "starter", "schnellstart" }),
+        ("support",          new[] { "support", "hilfe", "service", "hotline", "unterstuetzung" }),
+        ("bug",              new[] { "trac", "ticket", "bug", "fehler", "problem", "stoerung", "störung" }),
+        ("lesezeichenleiste", new[] { "lesezeichenleiste", "lesezeichen-symbolleiste", "bookmarks bar",
+                                      "leiste", "symbolleiste" }),
+
         // --- Arbeit / Organisation ---
         ("verwaltung",       new[] { "verwaltung", "organisation", "buero", "büro" }),
         ("administration",   new[] { "administration", "admin", "it-admin", "systemverwaltung" }),
@@ -48,7 +58,6 @@ public static class TabIconRules
                                      "security", "zugang", "zertifikat", "firewall" }),
         ("remote",           new[] { "remote", "fernwartung", "rdp", "teamviewer", "fernzugriff" }),
         ("monitor",          new[] { "monitor", "ueberwachung", "überwachung", "bildschirm", "status", "dashboard" }),
-        ("bug",              new[] { "bug", "fehler", "problem", "stoerung", "störung", "ticket" }),
         ("werkzeugkasten",   new[] { "werkzeugkasten", "toolbox", "hilfsmittel" }),
         ("werkzeuge",        new[] { "werkzeug", "tool", "tools", "utility", "dienstprogramm" }),
         ("einstellungen",    new[] { "einstellung", "konfiguration", "optionen", "setup", "system" }),
@@ -61,13 +70,11 @@ public static class TabIconRules
         ("drucker3d",        new[] { "3d-druck", "3d druck", "drucker", "druck" }),
 
         // --- Internet / Kommunikation ---
-        ("lesezeichenleiste", new[] { "lesezeichenleiste", "lesezeichen-symbolleiste", "bookmarks bar" }),
         ("web",              new[] { "lesezeichen", "bookmark", "internet", "web", "seiten", "links", "favoriten web" }),
         ("mail",             new[] { "mail", "e-mail", "outlook", "post", "nachricht" }),
         ("chat",             new[] { "chat", "teams", "messenger", "slack", "kommunikation" }),
         ("cloud",            new[] { "cloud", "onedrive", "sharepoint", "dropbox", "online" }),
         ("wiki",             new[] { "wiki", "dokumentation", "handbuch", "anleitung", "wissen" }),
-        ("support",          new[] { "support", "hilfe", "service", "hotline" }),
         ("import",           new[] { "import", "importiert", "uebernahme", "übernahme", "eingelesen" }),
         ("download",         new[] { "download", "downloads", "herunterladen" }),
         ("ki",               new[] { "ki", "ai", "kuenstliche", "künstliche", "chatgpt", "claude" }),
@@ -89,7 +96,6 @@ public static class TabIconRules
         ("stern",            new[] { "favorit", "favoriten", "wichtig", "merkliste" }),
         ("herz",             new[] { "herz", "lieblings", "beliebt" }),
         ("papierkorb",       new[] { "papierkorb", "muell", "müll", "geloescht", "gelöscht" }),
-        ("rakete",           new[] { "rakete", "schnellstart", "launcher", "start" }),
         ("blitz",            new[] { "blitz", "schnell", "sofort", "express" }),
         ("warnung",          new[] { "warnung", "achtung", "wichtig!", "dringend" }),
         ("info",             new[] { "info", "information", "hinweise" }),
@@ -125,10 +131,27 @@ public static class TabIconRules
         var changed = 0;
         foreach (var fence in config.Fences)
         {
+            // Auch der BEREICH selbst bekommt ein Symbol. Bisher galt die
+            // Automatik nur fuer Tabs, weshalb Bereiche wie „Support",
+            // „Launcher" oder „Papierkorb" ohne Symbol blieben.
+            if (string.IsNullOrWhiteSpace(fence.IconPath))
+            {
+                var fuerBereich = Suggest(fence.Title);
+                if (fuerBereich != null)
+                {
+                    fence.IconPath = fuerBereich;
+                    changed++;
+                }
+            }
+
             foreach (var tab in fence.Tabs)
             {
                 if (!string.IsNullOrWhiteSpace(tab.IconPath)) continue;
-                var suggestion = Suggest(tab.Title);
+
+                // Erst der Tab-Name, sonst der Name des Bereichs. So bekommt
+                // auch ein Tab „Allgemein" in einem Bereich „Papierkorb" ein
+                // sinnvolles Symbol, statt leer zu bleiben.
+                var suggestion = Suggest(tab.Title) ?? Suggest(fence.Title);
                 if (suggestion == null) continue;
                 tab.IconPath = suggestion;
                 changed++;
