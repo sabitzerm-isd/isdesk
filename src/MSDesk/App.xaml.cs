@@ -162,6 +162,11 @@ public partial class App : Application
         // Die Anleitung bewusst ZULETZT: sie haelt den Start an, bis sie
         // geschlossen wird — die Bereiche stehen bis dahin schon.
         StartupLog.Step("Anleitung", () => HelpPage.OpenOnFirstRun(_config));
+
+        // Erst wenn die Bereiche stehen: dann ist der doppelte Papierkorb auch
+        // wirklich zu sehen, und die Frage kommt im richtigen Augenblick.
+        StartupLog.Step("Papierkorb-Doppelung", () =>
+            DesktopIcons.OfferHideIfDuplicated(_config.Config, _config.Save));
         StartupLog.Step("Update-Pruefung", () => CheckForUpdatesAsync());
 
         StartupLog.Write("Start abgeschlossen.");

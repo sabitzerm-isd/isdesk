@@ -88,6 +88,65 @@ public static class DesktopIcons
         return IntPtr.Zero;
     }
 
+    /// <summary>
+    /// Bietet EINMALIG an, den Papierkorb vom Desktop auszublenden — aber nur,
+    /// wenn er tatsaechlich doppelt zu sehen ist: einmal in einem Bereich und
+    /// einmal auf dem Desktop.
+    ///
+    /// Bewusst eine Frage und keine stille Aenderung: Es geht um eine
+    /// Windows-Einstellung, nicht um etwas, das MSDesk gehoert. Gefragt wird
+    /// genau einmal; danach entscheidet der Schalter in den Optionen.
+    /// </summary>
+    public static void OfferHideIfDuplicated(Models.AppConfig config, Action speichern)
+    {
+        try
+        {
+            if (config.RecycleBinHideAsked) return;
+            if (IsRecycleBinHidden()) return;          // schon ausgeblendet
+            if (!LiegtInEinemBereich(config)) return;  // gar nicht doppelt
+
+            config.RecycleBinHideAsked = true;
+            speichern();
+
+            var (ja, _) = Views.ConfirmDialog.Show(
+                "Der Papierkorb liegt in einem Bereich — und steht trotzdem noch auf dem Desktop. " +
+                "Windows lässt ihn dort weder verschieben noch löschen, deshalb siehst du ihn doppelt.\n\n" +
+                "Soll der Papierkorb auf dem Desktop ausgeblendet werden? Der im Bereich zeigt " +
+                "genauso an, ob etwas darin liegt.\n\n" +
+                "Rückgängig machen kannst du das jederzeit unter Optionen → Allgemein.",
+                null, okText: "Ausblenden");
+
+            if (ja) SetRecycleBinHidden(true);
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "DesktopIcons.OfferHideIfDuplicated");
+        }
+    }
+
+    /// Enthaelt irgendein Tab-Ordner ein Papierkorb-Objekt?
+    private static bool LiegtInEinemBereich(Models.AppConfig config)
+    {
+        foreach (var fence in config.Fences)
+            foreach (var tab in fence.Tabs)
+            {
+                if (string.IsNullOrWhiteSpace(tab.FolderPath)) continue;
+                try
+                {
+                    // Einstufig und nur nach dem NAMEN — der Papierkorb liegt als
+                    // Ordner mit angehaengter Kennung im Tab-Ordner.
+                    foreach (var eintrag in System.IO.Directory.EnumerateDirectories(tab.FolderPath))
+                        if (eintrag.Contains(RecycleBinClsid, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                }
+                catch (Exception)
+                {
+                    // Ordner nicht lesbar → zaehlt nicht
+                }
+            }
+        return false;
+    }
+
     /// Ist der Papierkorb auf dem Desktop derzeit ausgeblendet?
     public static bool IsRecycleBinHidden()
     {

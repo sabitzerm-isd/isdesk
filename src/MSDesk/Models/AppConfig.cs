@@ -94,6 +94,16 @@ public sealed class AppConfig
     /// Fehlende Website-Symbole beim Anzeigen automatisch aus dem Netz holen.
     public bool AutoFavicons { get; set; } = true;
 
+    /// <summary>
+    /// Wurde schon einmal angeboten, den Papierkorb vom Desktop auszublenden?
+    ///
+    /// Liegt er in einem Bereich, steht er trotzdem weiter auf dem Desktop —
+    /// Windows laesst ihn dort weder verschieben noch loeschen. Man sieht ihn
+    /// dann doppelt. Ausblenden ist eine Windows-Einstellung; MSDesk fragt
+    /// deshalb EINMAL nach und nie wieder, egal wie die Antwort ausfaellt.
+    /// </summary>
+    public bool RecycleBinHideAsked { get; set; }
+
     /// Eigene Namen fuer Bildschirm-Konfigurationen: Fingerabdruck → Name
     /// (z. B. „Homeoffice", „Mobil", „Dortmund"). Reine Anzeigehilfe.
     public Dictionary<string, string> DisplayNames { get; set; } = new();

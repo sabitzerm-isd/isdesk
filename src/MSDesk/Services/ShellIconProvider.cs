@@ -121,6 +121,14 @@ public sealed class ShellIconProvider
             if (custom != null) return custom;
         }
 
+        if (Zustandsabhaengig(path))
+        {
+            var papierkorb = PapierkorbSymbol(size);
+            if (papierkorb != null) return papierkorb;
+            // Sonst weiter auf dem ueblichen Weg — lieber das falsche Symbol
+            // als gar keines.
+        }
+
         IntPtr hbm = IntPtr.Zero;
         try
         {
@@ -144,6 +152,88 @@ public sealed class ShellIconProvider
         finally
         {
             if (hbm != IntPtr.Zero) DeleteObject(hbm);
+        }
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHDefExtractIcon(string pszIconFile, int iIndex, uint uFlags,
+        out IntPtr phiconLarge, out IntPtr phiconSmall, uint nIconSize);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    /// <summary>
+    /// Holt das Papierkorb-Symbol passend zum Fuellstand — an der Shell vorbei,
+    /// direkt aus der Symboldatei.
+    ///
+    /// Warum nicht der uebliche Weg: Der Papierkorb in einem Bereich ist kein
+    /// echtes Papierkorb-Objekt, sondern ein Ordner mit angehaengter Kennung
+    /// („Papierkorb.{645FF040-…}"). Fragt man die Shell nach dem Symbol DIESES
+    /// Ordners, liefert sie den Standardeintrag der Kennung — und der zeigt in
+    /// der Registrierung fest auf „leer" (imageres.dll,-55). Deshalb blieb der
+    /// Papierkorb im Bereich dauerhaft leer, waehrend der auf dem Desktop voll
+    /// war. Nachladen half nicht: die Auskunft war jedes Mal dieselbe.
+    ///
+    /// Die Registrierung fuehrt neben dem Standard aber beide Faelle getrennt
+    /// („Empty" und „Full"). Genau die werden hier gelesen — damit stimmt das
+    /// Symbol auch bei einem anderen Symbolpaket, das der Anwender gesetzt hat.
+    /// </summary>
+    private static ImageSource? PapierkorbSymbol(int size)
+    {
+        try
+        {
+            var voll = RecycleBinMonitor.IsFull();
+
+            using var key = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey(
+                $@"CLSID\{RecycleBinMonitor.ClsidMarker}\DefaultIcon");
+            if (key == null) return null;
+
+            // Faellt der gesuchte Eintrag aus, bleibt der Standard — besser als nichts.
+            var eintrag = key.GetValue(voll ? "Full" : "Empty") as string
+                          ?? key.GetValue("") as string;
+            if (string.IsNullOrWhiteSpace(eintrag)) return null;
+
+            var komma = eintrag.LastIndexOf(',');
+            if (komma <= 0) return null;
+
+            var datei = Environment.ExpandEnvironmentVariables(eintrag[..komma].Trim().Trim('"'));
+            if (!int.TryParse(eintrag[(komma + 1)..].Trim(), out var index)) return null;
+
+            return AusSymboldatei(datei, index, size);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static ImageSource? AusSymboldatei(string datei, int index, int size)
+    {
+        var gross = IntPtr.Zero;
+        var klein = IntPtr.Zero;
+        try
+        {
+            // Beide Groessen in EINEM Wert: unteres Wort gross, oberes klein.
+            var groessen = (uint)((size & 0xFFFF) | ((size & 0xFFFF) << 16));
+            if (SHDefExtractIcon(datei, index, 0, out gross, out klein, groessen) != 0)
+                return null;
+
+            var handle = gross != IntPtr.Zero ? gross : klein;
+            if (handle == IntPtr.Zero) return null;
+
+            var bild = Imaging.CreateBitmapSourceFromHIcon(
+                handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            bild.Freeze();
+            return bild;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        finally
+        {
+            if (gross != IntPtr.Zero) DestroyIcon(gross);
+            if (klein != IntPtr.Zero) DestroyIcon(klein);
         }
     }
 

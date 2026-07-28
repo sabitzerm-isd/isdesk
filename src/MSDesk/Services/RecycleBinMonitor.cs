@@ -29,6 +29,24 @@ public static class RecycleBinMonitor
 
     public static event Action? StateChanged;
 
+    /// <summary>
+    /// Liegt gerade etwas im Papierkorb? Fragt das System unmittelbar — der
+    /// Aufruf liest nur den Zaehler, nicht den Inhalt, und ist damit billig.
+    /// </summary>
+    public static bool IsFull()
+    {
+        try
+        {
+            var info = new SHQUERYRBINFO { cbSize = Marshal.SizeOf<SHQUERYRBINFO>() };
+            if (SHQueryRecycleBin(null, ref info) != 0) return false;
+            return info.i64NumItems > 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public static void Ensure()
     {
         lock (Sync)

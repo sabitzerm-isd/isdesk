@@ -99,8 +99,15 @@ public partial class SettingsDialog : Window
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await CheckUpdateAsync();
 
-    /// Oeffnet den Dialog direkt beim Abschnitt „Allgemein" (dort steht Update ganz oben).
-    public void ShowUpdateSection() => NavAllgemein.IsChecked = true;
+    /// <summary>
+    /// Oeffnet den Dialog direkt beim Abschnitt „Update".
+    ///
+    /// Hier stand frueher NavAllgemein — aus einer Zeit, als Update noch oben
+    /// unter „Allgemein" lag. Seit es einen eigenen Abschnitt hat, landete man
+    /// ueber „Nach Updates suchen…" auf der falschen Seite und musste links
+    /// noch einmal umschalten.
+    /// </summary>
+    public void ShowUpdateSection() => NavUpdate.IsChecked = true;
 
     private void OpenHelp_Click(object sender, RoutedEventArgs e) => HelpPage.Open();
 
