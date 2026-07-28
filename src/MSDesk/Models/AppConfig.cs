@@ -15,6 +15,16 @@ public sealed class AppConfig
     /// So findet z. B. die neue Verknuepfung nach einem Programm-Update ihren Bereich wieder.
     public Dictionary<string, string> Placements { get; set; } = new();
 
+    /// <summary>
+    /// Zweites Platz-Gedaechtnis, diesmal ueber das ZIEL einer Verknuepfung
+    /// (die zugehoerige Programmdatei, klein geschrieben) → Tab-Ordner.
+    ///
+    /// Noetig, weil Programm-Updates die Verknuepfung oft umbenennen
+    /// („Camtasia 2024.lnk" → „Camtasia 2025.lnk"). Ueber den Dateinamen allein
+    /// findet man den alten Platz dann nicht mehr wieder, ueber das Ziel schon.
+    /// </summary>
+    public Dictionary<string, string> TargetPlacements { get; set; } = new();
+
     /// Zielordner fuer die Ein-Klick-Sicherung ("Automatische Sicherung").
     public string? AutoBackupFolder { get; set; }
 

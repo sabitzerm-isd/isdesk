@@ -210,6 +210,64 @@ public partial class SettingsDialog : Window
             : "Keine Bereiche vorhanden.";
     }
 
+    // --- Symbole nach einem Programm-Update ---
+
+    /// Holt bekannte Symbole vom Desktop zurueck — mit Vorschau vor dem Verschieben.
+    private void ReclaimIcons_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+
+        var vorschau = _manager.ReclaimDesktopIcons(nurVorschau: true);
+        if (vorschau.Gesamt == 0)
+        {
+            ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+            ReclaimHint.Text = "Auf dem Desktop liegt nichts, das in einen Bereich gehört.";
+            return;
+        }
+
+        var text = new System.Text.StringBuilder();
+        text.AppendLine("Auf dem Desktop wurden Symbole gefunden, deren Platz bekannt ist:\n");
+        if (vorschau.Zurueckgeholt > 0)
+            text.AppendLine($"• {vorschau.Zurueckgeholt} wandern zurück in ihren Bereich");
+        if (vorschau.Ersetzt > 0)
+            text.AppendLine($"• {vorschau.Ersetzt} ersetzen eine ältere Verknüpfung desselben Programms");
+        text.AppendLine("\nAlles andere bleibt unberührt auf dem Desktop liegen.");
+
+        var (ok, _) = ConfirmDialog.Show(text.ToString(), this, okText: "Einordnen");
+        if (!ok) return;
+
+        var ergebnis = _manager.ReclaimDesktopIcons();
+        ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+        ReclaimHint.Text = ergebnis.Fehlgeschlagen > 0
+            ? $"{ergebnis.Gesamt} Symbole eingeordnet, {ergebnis.Fehlgeschlagen} nicht (vermutlich gerade in Benutzung)."
+            : $"{ergebnis.Gesamt} Symbole eingeordnet.";
+    }
+
+    /// Doppelte Verknuepfungen in den Bereichen entfernen — ebenfalls mit Vorschau.
+    private void RemoveDuplicates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+
+        var anzahl = _manager.RemoveDuplicateShortcuts(nurVorschau: true);
+        if (anzahl == 0)
+        {
+            ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+            ReclaimHint.Text = "Keine doppelten Verknüpfungen gefunden.";
+            return;
+        }
+
+        var (ok, _) = ConfirmDialog.Show(
+            $"{anzahl} doppelte Verknüpfung(en) gefunden — also zwei Einträge, die auf dasselbe " +
+            "Programm zeigen.\n\nDie neuere bleibt, die ältere wandert in den Papierkorb " +
+            "(von dort holst du sie notfalls zurück).",
+            this, okText: "Doppelte entfernen");
+        if (!ok) return;
+
+        var entfernt = _manager.RemoveDuplicateShortcuts();
+        ReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+        ReclaimHint.Text = $"{entfernt} doppelte Verknüpfung(en) in den Papierkorb gelegt.";
+    }
+
     // --- Papierkorb ---
 
     private void HideRecycleBin_Checked(object sender, RoutedEventArgs e) => SetRecycleBinHidden(true);

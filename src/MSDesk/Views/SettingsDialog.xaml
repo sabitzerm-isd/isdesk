@@ -431,6 +431,34 @@
                         <TextBlock x:Name="RecycleBinHint" Style="{StaticResource HintStyle}" Margin="0,6,0,0"
                                    Text="Sinnvoll, wenn du den Papierkorb bereits in einem Bereich abgelegt hast." />
 
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="SYMBOLE NACH EINEM PROGRAMM-UPDATE" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="380">
+                                            <TextBlock Text="Warum liegen Symbole plötzlich auf dem Desktop?" Style="{StaticResource TipTitle}" />
+                                            <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                       Text="Programm-Updates legen ihre Desktop-Verknüpfung neu an — auch dann, wenn du das Programm längst in einen Bereich einsortiert hast. Sie liegt danach lose auf dem Desktop." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="MSDesk merkt sich für jede Verknüpfung zwei Dinge: ihren Namen und das Programm, auf das sie zeigt. Deshalb wird sie auch dann wiedererkannt, wenn das Update sie umbenannt hat („Camtasia 2024“ → „Camtasia 2025“)." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Zurückgeholt wird gezielt: nur Einträge, deren Platz bekannt ist. Alles andere bleibt unberührt auf dem Desktop liegen. Ist dasselbe Programm im Bereich schon vorhanden, ersetzt die neue Verknüpfung die alte an genau deren Stelle." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
+                        <WrapPanel>
+                            <Button Content="Symbole zurück in ihre Bereiche" MinWidth="0" Margin="0,0,8,8"
+                                    Click="ReclaimIcons_Click"
+                                    ToolTip="Holt Verknüpfungen, die nach einem Programm-Update wieder auf dem Desktop gelandet sind, an ihren gewohnten Platz zurück." />
+                            <Button Content="Doppelte entfernen" MinWidth="0" Margin="0,0,8,8"
+                                    Click="RemoveDuplicates_Click"
+                                    ToolTip="Sucht in allen Bereichen nach zwei Verknüpfungen auf dasselbe Programm. Die neuere bleibt, die ältere wandert in den Papierkorb." />
+                        </WrapPanel>
+                        <TextBlock x:Name="ReclaimHint" Style="{StaticResource HintStyle}" Margin="0,2,0,0" />
+
                         <TextBlock Text="INHALTE ZURÜCKGEBEN" Style="{StaticResource SectionStyle}" />
                         <Button Content="Alle Inhalte zurück auf den Desktop legen" MinWidth="0"
                                 Click="RestoreToDesktop_Click"

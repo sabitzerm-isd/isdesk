@@ -635,6 +635,30 @@ public sealed class FenceManager
     /// Speichert die Konfiguration in Kuerze (gebuendelt, nicht bei jedem Tastendruck).
     public void SaveSoon() => _config.SaveDebounced();
 
+    /// Holt bekannte Symbole vom Desktop zurueck in ihre Bereiche.
+    public DesktopReclaim.Ergebnis ReclaimDesktopIcons(bool nurVorschau = false)
+    {
+        var ergebnis = DesktopReclaim.Run(_config, nurVorschau);
+        if (!nurVorschau && ergebnis.Gesamt > 0) RefreshAllTabs();
+        return ergebnis;
+    }
+
+    /// Entfernt doppelte Verknuepfungen innerhalb der Bereiche.
+    public int RemoveDuplicateShortcuts(bool nurVorschau = false)
+    {
+        var anzahl = DesktopReclaim.RemoveDuplicates(_config, nurVorschau);
+        if (!nurVorschau && anzahl > 0) RefreshAllTabs();
+        return anzahl;
+    }
+
+    /// Laedt die Inhalte aller angezeigten Tabs neu (nach dem Verschieben von Dateien).
+    private void RefreshAllTabs()
+    {
+        PlacementRegistry.ClearTargetCache(); // Pfade haben sich geaendert
+        foreach (var window in _windows)
+            window.ViewModel.ActiveTab?.Reload();
+    }
+
     private System.Timers.Timer? _layoutSaveTimer;
 
     /// <summary>

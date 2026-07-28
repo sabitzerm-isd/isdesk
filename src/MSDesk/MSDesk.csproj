@@ -6,9 +6,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyVersion>0.31.2</AssemblyVersion>
-    <FileVersion>0.31.2</FileVersion>
-    <Version>0.31.2</Version>
+    <AssemblyVersion>0.32.0</AssemblyVersion>
+    <FileVersion>0.32.0</FileVersion>
+    <Version>0.32.0</Version>
     <ApplicationIcon>Assets\MSDesk.ico</ApplicationIcon>
     <SatelliteResourceLanguages>de</SatelliteResourceLanguages>
     <!-- MUSS gesetzt bleiben: sonst legt der Einzeldatei-Build die nativen
