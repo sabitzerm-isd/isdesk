@@ -90,6 +90,62 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
 
     private void InvalidateNameCache() => _cachedNames = null;
 
+    // --- Vorschau beim Verweilen auf einem Reiter ---
+
+    /// So viele Eintraege zeigt die Vorschau hoechstens. Mehr passt weder auf
+    /// den Schirm noch in den Blick.
+    private const int VorschauMax = 12;
+
+    public IReadOnlyList<string> PreviewNames { get; private set; } = Array.Empty<string>();
+    public int PreviewMore { get; private set; }
+    public bool PreviewEmpty => PreviewNames.Count == 0;
+    public string PreviewMoreText => PreviewMore > 0 ? $"… und {PreviewMore} weitere" : "";
+
+    /// <summary>
+    /// Stellt die Vorschau zusammen — erst unmittelbar bevor sie gezeigt wird.
+    ///
+    /// Ist der Tab bereits geladen, kostet das gar nichts (die Namen stehen
+    /// schon da). Sonst wird der vorhandene Namens-Zwischenspeicher benutzt,
+    /// also hoechstens EIN Ordner-Lesevorgang je Verweilen — und der Tab bleibt
+    /// dabei ausdruecklich ungeladen, damit die Vorschau das verzoegerte Laden
+    /// (und die damit gesparte Speicherlast) nicht aushebelt.
+    /// </summary>
+    /// <summary>
+    /// Anzahl der Eintraege — aber NUR, wenn sie ohne Plattenzugriff zu haben
+    /// ist (Tab geladen oder Namen noch im Zwischenspeicher). Sonst null.
+    ///
+    /// Gebraucht fuer die Vorschau an der Bereichs-Ueberschrift: dort wuerde
+    /// ein Zugriff auf <see cref="ItemCount"/> je Reiter einen eigenen
+    /// Ordner-Lesevorgang ausloesen — bei acht Reitern acht Stueck, synchron im
+    /// Bedienfaden, und bei einem Ordner auf einer gerade nicht erreichbaren
+    /// Freigabe steht die Oberflaeche bis zum Zeitablauf still.
+    /// </summary>
+    public int? FreieAnzahl
+    {
+        get
+        {
+            if (_isLoaded) return Items.Count;
+            if (_cachedNames != null && (DateTime.UtcNow - _cachedAt).TotalSeconds < 2)
+                return _cachedNames.Count;
+            return null;
+        }
+    }
+
+    public void RefreshPreview()
+    {
+        IReadOnlyList<string> alle = _isLoaded
+            ? Items.Select(i => i.DisplayName).ToList()
+            : FolderNames();
+
+        PreviewNames = alle.Take(VorschauMax).ToList();
+        PreviewMore = Math.Max(0, alle.Count - VorschauMax);
+
+        OnChanged(nameof(PreviewNames));
+        OnChanged(nameof(PreviewMore));
+        OnChanged(nameof(PreviewEmpty));
+        OnChanged(nameof(PreviewMoreText));
+    }
+
     /// Erzwingt eine Neuberechnung des Tab-Zaehlers (liest den Ordner erneut).
     public void RefreshItemCount()
     {
@@ -344,12 +400,13 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
                 item.ShowFavoriteStar = true;
                 item.IsFavorite = FavoriteService.IsFavorite(FavoritesFolder, path);
             }
-            if (!item.IsFolder)
-            {
-                if (VisualSettings.AutoFavicons)
-                    WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
-                PlacementRegistry.Learn(path, _config.FolderPath); // Platz-Gedaechtnis
-            }
+            // Platz-Gedaechtnis AUCH fuer Ordner: sonst kennt der Einsammler
+            // ihren Platz nicht und legt sie beim naechsten Durchlauf erneut in
+            // die Ablage. Kostet nichts — Learn arbeitet nur auf dem Namen.
+            PlacementRegistry.Learn(path, _config.FolderPath);
+
+            if (!item.IsFolder && VisualSettings.AutoFavicons)
+                WebLinkFactory.EnsureFavicon(path); // heilt .url ohne Icon (prueft intern)
             if (path.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase))
                 hasRecycleBin = true;
         }

@@ -9,7 +9,7 @@
         Topmost="True"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Width="600" Height="560">
+        Width="600" Height="690">
 
     <Window.Resources>
         <Style TargetType="TextBlock" x:Key="LabelStyle">
@@ -78,10 +78,17 @@
                 <TextBlock Text="Willkommen bei MSDesk" Foreground="#F2FFFFFF"
                            FontSize="19" FontWeight="SemiBold" />
                 <TextBlock Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                           Text="Zwei kurze Angaben, dann ist alles eingerichtet. Beides lässt sich später in den Optionen ändern." />
+                           Text="Ein paar kurze Angaben, dann ist alles eingerichtet. Alles lässt sich später in den Optionen ändern." />
             </StackPanel>
 
-            <StackPanel Grid.Row="1" Margin="0,4,0,0">
+            <!-- Rollbar: die Knopfzeile in Zeile 2 muss auch dann erreichbar
+                 bleiben, wenn das Fenster auf einem kleinen oder stark
+                 skalierten Bildschirm nicht in voller Hoehe passt. Ohne das
+                 laege „Fertig" unterhalb des sichtbaren Bereichs — bei einem
+                 Fenster, das den Start anhaelt. -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,4,0,0">
                 <TextBlock Text="NAME" Style="{StaticResource SectionStyle}" Margin="0,10,0,8" />
                 <TextBlock Style="{StaticResource HintStyle}"
                            Text="Wird in den Optionen angezeigt und an die Dateinamen der Sicherungen angehängt — so ist auf einem gemeinsamen Laufwerk erkennbar, wessen Sicherung es ist." />
@@ -99,6 +106,19 @@
                     <TextBox Grid.Column="4" x:Name="LastNameBox" />
                 </Grid>
 
+                <TextBlock Text="ORDNER DER BEREICHE" Style="{StaticResource SectionStyle}" />
+                <TextBlock Style="{StaticResource HintStyle}"
+                           Text="Hier legt MSDesk die Ordner an, in denen die Inhalte der Bereiche liegen. Der Vorschlag passt in der Regel — ändere ihn nur, wenn du deine Arbeitsdaten woanders hast." />
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="BaseBox" Margin="0,0,8,0" />
+                    <Button Grid.Column="1" Content="Ordner wählen…" MinWidth="0" Margin="0"
+                            Click="ChooseBaseFolder_Click" />
+                </Grid>
+
                 <TextBlock Text="SICHERUNG" Style="{StaticResource SectionStyle}" />
                 <TextBlock Style="{StaticResource HintStyle}"
                            Text="MSDesk kann seine Einstellungen und alle Inhalte der Bereiche sichern. Lege den Ordner am besten auf ein Cloud-Laufwerk (OneDrive, SharePoint) — dann liegt die Sicherung nicht auf demselben Rechner und ist auch nach einer Neuinstallation noch da." />
@@ -114,6 +134,7 @@
                 <TextBlock x:Name="CloudHint" Style="{StaticResource HintStyle}" Margin="0,8,0,0"
                            Foreground="#8FD8A0" />
             </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Row="2" Margin="-28,16,-28,0" Background="#18000000">
                 <TextBlock x:Name="VersionText" HorizontalAlignment="Left" VerticalAlignment="Center"

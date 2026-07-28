@@ -237,6 +237,51 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         OnChanged(nameof(ShowTabStrip));
     }
 
+    // --- Vorschau beim Verweilen auf der Ueberschrift ---
+
+    private const int VorschauMax = 12;
+
+    public IReadOnlyList<string> PreviewLines { get; private set; } = Array.Empty<string>();
+    public bool PreviewEmpty => PreviewLines.Count == 0;
+    public string PreviewHint { get; private set; } = "";
+
+    /// <summary>
+    /// Baut die Vorschau fuer die Bereichs-Ueberschrift.
+    ///
+    /// Hat der Bereich mehrere Tabs, ist die Uebersicht „welcher Reiter, wie
+    /// viele Eintraege" die nuetzlichere Auskunft. Bei nur EINEM Reiter waere
+    /// die Zeile „1 Tab" wertlos — dann werden gleich die Eintraege selbst
+    /// gezeigt.
+    /// </summary>
+    public void RefreshPreview()
+    {
+        var sichtbar = Tabs.Where(t => !t.Hidden).ToList();
+
+        if (sichtbar.Count == 1)
+        {
+            var einziger = sichtbar[0];
+            einziger.RefreshPreview();
+            PreviewLines = einziger.PreviewNames;
+            PreviewHint = einziger.PreviewMoreText;
+        }
+        else
+        {
+            // Die Anzahl nur zeigen, wo sie ohne Plattenzugriff zu haben ist.
+            // Ueber ItemCount zu gehen haette je nicht geladenem Reiter einen
+            // eigenen Ordner-Lesevorgang ausgeloest — synchron im Bedienfaden,
+            // allein weil die Maus kurz auf der Ueberschrift steht.
+            PreviewLines = sichtbar.Take(VorschauMax)
+                                   .Select(t => t.FreieAnzahl is { } n ? $"{t.Title} ({n})" : t.Title)
+                                   .ToList();
+            var rest = sichtbar.Count - PreviewLines.Count;
+            PreviewHint = rest > 0 ? $"… und {rest} weitere" : $"{sichtbar.Count} Reiter";
+        }
+
+        OnChanged(nameof(PreviewLines));
+        OnChanged(nameof(PreviewEmpty));
+        OnChanged(nameof(PreviewHint));
+    }
+
     public void DisposeTabs()
     {
         // Abmelden, sonst reagierte ein geschlossener Bereich weiter auf die Suche.

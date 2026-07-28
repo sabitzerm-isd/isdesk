@@ -33,6 +33,20 @@
                         <StackPanel MaxWidth="360">
                             <TextBlock Text="{Binding DisplayName}" Foreground="White"
                                        FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <!-- Nur die Art, bewusst OHNE Anzahl oder Groesse: beides
+                                 wuerde bei jedem Anzeigen jeden Ordner lesen. -->
+                            <TextBlock Text="Ordner" Foreground="#99FFFFFF" FontSize="11">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding Note}" Foreground="#CCFFFFFF" Margin="0,4,0,0"
                                        FontSize="12" TextWrapping="Wrap">
                                 <TextBlock.Style>
@@ -131,6 +145,20 @@
                         <StackPanel MaxWidth="360">
                             <TextBlock Text="{Binding DisplayName}" Foreground="White"
                                        FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <!-- Nur die Art, bewusst OHNE Anzahl oder Groesse: beides
+                                 wuerde bei jedem Anzeigen jeden Ordner lesen. -->
+                            <TextBlock Text="Ordner" Foreground="#99FFFFFF" FontSize="11">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding Note}" Foreground="#CCFFFFFF" Margin="0,4,0,0"
                                        FontSize="12" TextWrapping="Wrap">
                                 <TextBlock.Style>
@@ -280,7 +308,55 @@
                     </Border.Style>
                 </Border>
                 <Border MouseLeftButtonDown="Tab_Click" CornerRadius="6" Padding="10,0" Cursor="Hand"
-                        AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop">
+                        AllowDrop="True" DragOver="Tab_DragOver" Drop="Tab_Drop"
+                        ToolTipService.InitialShowDelay="700" ToolTipService.BetweenShowDelay="0"
+                        ToolTipService.ShowDuration="30000" ToolTipService.Placement="Bottom"
+                        ToolTipService.VerticalOffset="4" ToolTipOpening="TabPreview_ToolTipOpening">
+                    <!-- BetweenShowDelay ausdruecklich auf 0: sonst ueberspringt WPF
+                         beim Wandern ueber die Reiter die Verzoegerung, und die
+                         Vorschauen blitzen im Vorbeifahren auf. -->
+                    <Border.ToolTip>
+                        <ToolTip>
+                            <StackPanel MaxWidth="320">
+                                <TextBlock Text="{Binding Title}" Foreground="White"
+                                           FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding PreviewNames}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Foreground="#CCFFFFFF"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding PreviewMoreText}" Foreground="#88FFFFFF"
+                                           FontSize="11" Margin="0,3,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewMore}" Value="0">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="Dieser Reiter ist leer." Foreground="#88FFFFFF"
+                                           FontSize="11.5" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewEmpty}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </ToolTip>
+                    </Border.ToolTip>
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Background" Value="Transparent" />
@@ -573,7 +649,62 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Background="Transparent": sonst faengt nur der Text selbst die
+                     Maus, und die Vorschau erschiene nur ueber den Buchstaben.
+                     Das Verschieben bleibt unberuehrt — der Mausklick blubbert
+                     zum Rahmen darueber, wo TitleBar_MouseLeftButtonDown haengt.
+                     Bewusst NICHT an diesem Rahmen selbst: dort liegen auch
+                     Suchfeld, Aktualisieren, „+" und Schloss. -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            Background="Transparent"
+                            ToolTipService.InitialShowDelay="700" ToolTipService.BetweenShowDelay="0"
+                            ToolTipService.ShowDuration="30000" ToolTipService.Placement="Bottom"
+                            ToolTipService.VerticalOffset="6" ToolTipOpening="FencePreview_ToolTipOpening">
+                    <StackPanel.ToolTip>
+                        <ToolTip>
+                            <StackPanel MaxWidth="320">
+                                <TextBlock Text="{Binding Title}" Foreground="White"
+                                           FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding PreviewLines}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Foreground="#CCFFFFFF"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Bei genau einem Reiter ohne Ueberhang ist der
+                                     Hinweis leer — ein leerer TextBlock belegt
+                                     trotzdem eine volle Zeile. -->
+                                <TextBlock Text="{Binding PreviewHint}" Foreground="#88FFFFFF"
+                                           FontSize="11" Margin="0,3,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewHint}" Value="">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="Dieser Bereich ist leer." Foreground="#88FFFFFF"
+                                           FontSize="11.5" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PreviewEmpty}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </ToolTip>
+                    </StackPanel.ToolTip>
                     <Image Source="{Binding IconImage}" Width="16" Height="16"
                            Margin="0,0,7,0" VerticalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality">

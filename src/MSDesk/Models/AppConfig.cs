@@ -2,7 +2,16 @@ namespace MSDesk.Models;
 
 public sealed class AppConfig
 {
-    public string BaseFolder { get; set; } = @"D:\Fences";
+    /// <summary>
+    /// Ordner, unter dem die Bereiche liegen.
+    ///
+    /// Leer = noch nicht festgelegt. Der Wert stand frueher fest auf „D:\Fences";
+    /// auf einem Rechner ohne dieses Laufwerk scheiterte damit schon das Anlegen
+    /// des ersten Bereichs, und MSDesk startete scheinbar gar nicht. Beim Start
+    /// bestimmt <see cref="Services.BaseFolderResolver"/> deshalb einen
+    /// nutzbaren Ort und traegt ihn hier ein.
+    /// </summary>
+    public string BaseFolder { get; set; } = "";
     public double DefaultOpacity { get; set; } = 0.75;
     public bool DefaultBlur { get; set; } = true;
     public List<FenceConfig> Fences { get; set; } = new();
@@ -27,6 +36,21 @@ public sealed class AppConfig
 
     /// Zielordner fuer die Ein-Klick-Sicherung ("Automatische Sicherung").
     public string? AutoBackupFolder { get; set; }
+
+    /// <summary>
+    /// Taegliche Sicherung ohne Zutun. Standardmaessig an — eine Sicherung, an
+    /// die man denken muss, ist keine. Sie laeuft still im Hintergrund: kein
+    /// Fenster, keine Meldung, auch nicht im Fehlerfall (der Zielordner kann in
+    /// der Cloud liegen und gerade nicht erreichbar sein).
+    /// </summary>
+    public bool AutoBackupDaily { get; set; } = true;
+
+    /// Zeitpunkt der letzten selbsttaetigen Sicherung (UTC). Null = noch keine.
+    /// Bewusst UTC: sonst verschiebt die Zeitumstellung den Abstand.
+    public DateTime? LastAutoBackupUtc { get; set; }
+
+    /// Anzahl der Sicherungen, die im Zielordner aufgehoben werden.
+    public int AutoBackupKeep { get; set; } = 5;
 
     /// Wurde der Autostart schon einmal eingerichtet? Beim allerersten Start
     /// schaltet MSDesk ihn automatisch ein (im Tray abschaltbar).

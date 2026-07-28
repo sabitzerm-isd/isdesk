@@ -46,10 +46,29 @@ public sealed class ShellIconProvider
 
     private static readonly Guid IShellItemImageFactoryGuid = new("bcc18b79-ba16-442f-80c4-8a59c30c463b");
 
+    /// <summary>
+    /// Symbole, deren Aussehen sich bei GLEICHBLEIBENDEM Pfad aendert, duerfen
+    /// nicht zwischengespeichert werden.
+    ///
+    /// Betrifft den Papierkorb: voll und leer sehen unterschiedlich aus, der
+    /// Pfad ist beide Male derselbe. Aus dem Zwischenspeicher kam deshalb immer
+    /// das Bild vom ersten Anzeigen — der Papierkorb in einem Bereich zeigte
+    /// dauerhaft „leer", waehrend der auf dem Desktop „voll" zeigte. Genau der
+    /// Widerspruch, der auffaellt.
+    ///
+    /// Der Aufwand ist zu vernachlaessigen: es geht um ein einzelnes Objekt,
+    /// das nur beim Anzeigen seines Reiters und bei einem Wechsel des
+    /// Fuellstands neu geholt wird.
+    /// </summary>
+    private static bool Zustandsabhaengig(string path)
+        => path.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase);
+
     public async Task<ImageSource?> GetIconAsync(string path, int size)
     {
+        var zwischenspeichern = !Zustandsabhaengig(path);
         var key = size.ToString() + "|" + path;
-        if (_cache.TryGetValue(key, out var cached))
+
+        if (zwischenspeichern && _cache.TryGetValue(key, out var cached))
             return cached;
 
         var icon = await LoadOnStaAsync(path, size).ConfigureAwait(false);
@@ -61,7 +80,7 @@ public sealed class ShellIconProvider
         }
 
         // Fehlschlaege NICHT cachen, damit der naechste Reload erneut versucht.
-        if (icon != null)
+        if (icon != null && zwischenspeichern)
         {
             // Obergrenze, damit der Cache ueber lange Laufzeiten nicht unbegrenzt waechst.
             if (_cache.Count > 1500) _cache.Clear();

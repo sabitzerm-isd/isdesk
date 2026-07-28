@@ -131,6 +131,13 @@ public static class PlacementRegistry
                         // den Start sichtbar verzoegern.
                         ZielSchluessel(file);
                     }
+
+                    // Ordner ebenfalls merken — bewusst EINSTUFIG (kein
+                    // AllDirectories): gemerkt wird der Ordner selbst, nicht
+                    // sein Inhalt. Ein Verknuepfungsziel gibt es hier nicht,
+                    // deshalb kein ZielSchluessel-Aufruf.
+                    foreach (var dir in Directory.EnumerateDirectories(folder))
+                        found.Add((dir, folder));
                 }
                 catch (Exception)
                 {

@@ -13,6 +13,7 @@ public partial class App : Application
     private FenceManager? _manager;
     private AutostartService? _autostart;
     private TrayService? _tray;
+    private AutoBackupService? _autoBackup;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -56,6 +57,7 @@ public partial class App : Application
 
         _config = new ConfigService();
         _config.Load();
+        StartupLog.Step("Ordner der Bereiche", EnsureBaseFolder);
         Interop.GridSnapBehavior.GridSize = _config.Config.GridSize; // Raster
         Interop.GridSnapBehavior.EdgeSnapEnabled = _config.Config.EdgeSnap; // Kanten-Einrasten
         Interop.GridSnapBehavior.GapMillimeters = _config.Config.SnapGapMillimeters; // Zwischenraum
@@ -82,8 +84,20 @@ public partial class App : Application
             _autostart.EnsureCurrentPath(); // ausdruecklich abgeschaltet → nur Pfadpflege
         }
 
+        // Erststart-Assistent VOR dem Anlegen des ersten Bereichs: dort laesst
+        // sich der Ordner der Bereiche waehlen, und der Willkommen-Bereich soll
+        // gleich am richtigen Ort entstehen. Fuer alle spaeteren Starts faellt
+        // der Aufruf sofort durch (SetupCompleted).
+        StartupLog.Step("Erststart-Assistent", () => Views.SetupDialog.RunOnFirstStart(_config));
+
+        // Ueber StartupLog.Step und damit abgesichert: Scheitert das Anlegen
+        // (Ordner nicht erreichbar, keine Rechte), lief bisher der GESAMTE
+        // restliche Start nicht mehr — kein Symbol im Infobereich, keine
+        // Bereiche, keine Meldung, und wegen OnExplicitShutdown blieb der
+        // Prozess unsichtbar stehen und sperrte ueber den Mutex jeden weiteren
+        // Versuch. Nach aussen: „MSDesk startet nicht."
         if (_config.Config.Fences.Count == 0)
-            CreateWelcomeFence();
+            StartupLog.Step("Willkommen-Bereich", CreateWelcomeFence);
 
         _manager.Backup = new BackupService(_config, _manager);
         PlacementRegistry.Init(_config);
@@ -137,9 +151,16 @@ public partial class App : Application
         });
         StartupLog.Step("Infobereich-Symbol", () => _tray = new TrayService(_manager, _autostart));
 
-        // Erststart: erst einrichten (Name, Sicherungsort), dann die Anleitung.
-        // Bewusst ZULETZT: der Dialog haelt den Start an, bis er geschlossen wird.
-        StartupLog.Step("Erststart-Assistent", () => Views.SetupDialog.RunOnFirstStart(_config));
+        // Taegliche Sicherung. Der Dienst schaut erst einige Minuten nach dem
+        // Start das erste Mal hin — der Start selbst bleibt davon unberuehrt.
+        StartupLog.Step("Selbsttaetige Sicherung", () =>
+        {
+            _autoBackup = new AutoBackupService(_config, _manager.Backup!);
+            _autoBackup.Start();
+        });
+
+        // Die Anleitung bewusst ZULETZT: sie haelt den Start an, bis sie
+        // geschlossen wird — die Bereiche stehen bis dahin schon.
         StartupLog.Step("Anleitung", () => HelpPage.OpenOnFirstRun(_config));
         StartupLog.Step("Update-Pruefung", () => CheckForUpdatesAsync());
 
@@ -252,11 +273,51 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         Interop.AlignmentGuides.Dispose();
         _displayDebounce?.Dispose();
+        _autoBackup?.Dispose();
         _manager?.Sweeper?.Dispose();
         _tray?.Dispose();
         _manager?.ShutdownAll();
         _singleInstanceMutex?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Stellt sicher, dass der Ordner der Bereiche wirklich benutzbar ist —
+    /// und zieht die gespeicherten Pfade mit, falls er sich aendert.
+    ///
+    /// Der Ort stand frueher fest auf „D:\Fences". Auf einem Rechner ohne
+    /// dieses Laufwerk brach schon das Anlegen des ersten Bereichs ab, ohne
+    /// Meldung; von aussen sah es aus, als starte MSDesk ueberhaupt nicht.
+    /// Genau das ist der Fall bei jedem Kollegen, der nicht dieselbe
+    /// Laufwerksaufteilung hat.
+    ///
+    /// Fuer eine bestehende Installation mit vorhandenem Laufwerk aendert sich
+    /// hier nichts: der eingetragene Ordner besteht die Pruefung und bleibt.
+    /// </summary>
+    private void EnsureBaseFolder()
+    {
+        var gewuenscht = _config!.Config.BaseFolder;
+
+        // Steht bereits ein Ordner drin, wird er NIE selbsttaetig umgeschrieben.
+        // Waere das anders, genuegte ein einziger Start mit gerade nicht
+        // erreichbarem Laufwerk (BitLocker noch nicht entsperrt, Netzlaufwerk
+        // noch nicht verbunden, Wechselplatte abgezogen), um die Verbindung zu
+        // saemtlichen Bereichen dauerhaft zu kappen. Fehlt der Ordner nur
+        // voruebergehend, bleiben die Bereiche eben leer — beim naechsten Start
+        // ist alles wieder da.
+        // Bewusst OHNE Directory.Exists: bei einem Netzpfad, dessen Server noch
+        // nicht antwortet (Autostart vor der VPN-Anmeldung), liefe der Aufruf in
+        // den Zeitablauf des Netzprotokolls — und bis dahin gaebe es weder
+        // Fenster noch Symbol im Infobereich. Fuer eine reine Protokollzeile ist
+        // das zu teuer; ob der Ordner da ist, zeigt sich ohnehin beim Oeffnen
+        // der Bereiche.
+        if (!string.IsNullOrWhiteSpace(gewuenscht)) return;
+
+        // Leer = Erststart. Erst hier wird ein Ort bestimmt und festgehalten.
+        var nutzbar = BaseFolderResolver.EnsureUsable(null);
+        _config.Config.BaseFolder = nutzbar;
+        _config.Save();
+        StartupLog.Write($"Ordner der Bereiche festgelegt: {nutzbar}");
     }
 
     /// Erststart: Bereich "Willkommen" mit Demo-Verknuepfungen. Es werden nur NEUE

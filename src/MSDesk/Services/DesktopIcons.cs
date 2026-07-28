@@ -31,6 +31,63 @@ public static class DesktopIcons
     [DllImport("shell32.dll")]
     private static extern void SHChangeNotify(int eventId, int flags, IntPtr item1, IntPtr item2);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string? klasse, string? fenstername);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindowEx(IntPtr eltern, IntPtr nachKind, string? klasse, string? fenstername);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private const uint WM_COMMAND = 0x0111;
+    private const int RefreshBefehl = 28931; // „Aktualisieren" des Explorer-Fensters (F5)
+
+    /// <summary>
+    /// Zeichnet den Desktop sofort neu.
+    ///
+    /// Die Meldung an die Shell allein genuegt nicht verlaesslich — je nach
+    /// Windows-Fassung bleibt das ausgeblendete Symbol bis zur naechsten
+    /// Anmeldung stehen. Dann sieht es aus, als haette der Schalter nichts
+    /// bewirkt. Deshalb wird dem Desktop zusaetzlich ausdruecklich sein
+    /// „Aktualisieren" geschickt.
+    ///
+    /// Der Desktop liegt je nach Fassung unter „Progman" oder unter einem der
+    /// „WorkerW"-Fenster — beide Wege werden probiert.
+    /// </summary>
+    private static void DesktopNeuZeichnen()
+    {
+        try
+        {
+            var liste = DesktopListe();
+            if (liste != IntPtr.Zero)
+                SendMessage(liste, WM_COMMAND, new IntPtr(RefreshBefehl), IntPtr.Zero);
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "DesktopIcons.DesktopNeuZeichnen");
+        }
+    }
+
+    private static IntPtr DesktopListe()
+    {
+        var progman = FindWindow("Progman", null);
+        var view = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
+        if (view != IntPtr.Zero)
+            return FindWindowEx(view, IntPtr.Zero, "SysListView32", null);
+
+        // Ist ein Hintergrundbild-Dienst aktiv, haengt der Desktop unter einem
+        // WorkerW-Fenster statt unter Progman.
+        var worker = IntPtr.Zero;
+        while ((worker = FindWindowEx(IntPtr.Zero, worker, "WorkerW", null)) != IntPtr.Zero)
+        {
+            view = FindWindowEx(worker, IntPtr.Zero, "SHELLDLL_DefView", null);
+            if (view != IntPtr.Zero)
+                return FindWindowEx(view, IntPtr.Zero, "SysListView32", null);
+        }
+        return IntPtr.Zero;
+    }
+
     /// Ist der Papierkorb auf dem Desktop derzeit ausgeblendet?
     public static bool IsRecycleBinHidden()
     {
@@ -63,6 +120,7 @@ public static class DesktopIcons
             // Ohne diese Meldung zeichnet der Explorer den Desktop erst beim
             // naechsten Anmelden neu.
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
+            DesktopNeuZeichnen();
 
             StartupLog.Write($"Papierkorb auf dem Desktop {(ausblenden ? "ausgeblendet" : "eingeblendet")}.");
             return true;

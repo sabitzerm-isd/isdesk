@@ -66,34 +66,79 @@ public sealed class BackupService
         }
     }
 
-    /// Ein-Klick-Sicherung in den hinterlegten Ordner (mit Zeitstempel im Namen).
-    public void CreateBackupAuto(Window? centerOn)
+    /// Ergebnis einer Sicherung ohne Fenster.
+    public sealed record Ergebnis(bool Erfolg, string? Datei, long Bytes,
+                                  int Ausgelassen, int Entfernt, string? Fehler)
+    {
+        public long Megabyte => Math.Max(1, Bytes / 1024 / 1024);
+        public static Ergebnis Fehlgeschlagen(string grund)
+            => new(false, null, 0, 0, 0, grund);
+    }
+
+    /// <summary>
+    /// Schreibt eine Sicherung in den hinterlegten Ordner — OHNE jedes Fenster.
+    /// Grundlage sowohl fuer den Knopf als auch fuer die taegliche Automatik;
+    /// letztere darf unter keinen Umstaenden etwas aufpoppen lassen.
+    /// </summary>
+    public Ergebnis WriteToConfiguredFolder()
     {
         var folder = _config.Config.AutoBackupFolder;
         if (string.IsNullOrWhiteSpace(folder))
-        {
-            ConfirmDialog.Info("Kein Sicherungspfad hinterlegt — bitte oben den Ordner setzen.", centerOn);
-            return;
-        }
+            return Ergebnis.Fehlgeschlagen("Kein Sicherungspfad hinterlegt — bitte oben den Ordner setzen.");
 
         try
         {
             Directory.CreateDirectory(folder);
-            var file = Path.Combine(folder, $"MSDesk-Sicherung-{DateTime.Now:yyyy-MM-dd_HHmm}.zip");
-            WriteBackup(file);
-            var removed = PruneOldBackups(folder);
 
-            var mb = Math.Max(1, new FileInfo(file).Length / 1024 / 1024);
-            var text = $"Sicherung erstellt ({mb} MB):\n{file}";
-            if (_skippedLarge > 0) text += $"\n\n{_skippedLarge} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
-            if (removed > 0) text += $"\n{removed} ältere Sicherung(en) entfernt – es bleiben die neuesten 3.";
-            ConfirmDialog.Info(text, centerOn);
+            // Name mit Anwender, sofern hinterlegt: auf einem gemeinsamen
+            // Laufwerk ist sonst nicht erkennbar, wessen Sicherung es ist.
+            var wer = _config.Config.UserFullName;
+            var kennung = string.IsNullOrWhiteSpace(wer) ? "" : "-" + SanitizeLeaf(wer);
+            var praefix = $"MSDesk-Sicherung{kennung}-";
+            var file = Path.Combine(folder, $"{praefix}{DateTime.Now:yyyy-MM-dd_HHmm}.zip");
+
+            WriteBackup(file);
+
+            // Aufgeraeumt wird NUR unter dem eigenen Namensanfang. Der
+            // Sicherungsordner liegt bewusst in der Cloud und wird oft von
+            // mehreren Kollegen genutzt — ein Muster ueber alle Dateien wuerde
+            // dort taeglich und unwiderruflich die Sicherungen der anderen
+            // wegraeumen.
+            var removed = PruneOldBackups(folder, praefix, Math.Max(1, _config.Config.AutoBackupKeep));
+
+            return new Ergebnis(true, file, new FileInfo(file).Length, _skippedLarge, removed, null);
         }
         catch (Exception ex)
         {
-            App.LogCrash(ex, "CreateBackupAuto");
-            ConfirmDialog.Info($"Sicherung fehlgeschlagen:\n{ex.Message}", centerOn);
+            App.LogCrash(ex, "BackupService.WriteToConfiguredFolder");
+            return Ergebnis.Fehlgeschlagen(ex.Message);
         }
+    }
+
+    /// Entfernt Zeichen, die in einem Dateinamen nicht vorkommen duerfen.
+    private static string SanitizeLeaf(string value)
+    {
+        var ungueltig = Path.GetInvalidFileNameChars();
+        var sauber = new string(value.Select(c => ungueltig.Contains(c) ? '_' : c).ToArray());
+        return sauber.Replace(' ', '-').Trim('-', '.');
+    }
+
+    /// Ein-Klick-Sicherung in den hinterlegten Ordner (mit Zeitstempel im Namen).
+    public void CreateBackupAuto(Window? centerOn)
+    {
+        var ergebnis = WriteToConfiguredFolder();
+        if (!ergebnis.Erfolg)
+        {
+            ConfirmDialog.Info($"Sicherung fehlgeschlagen:\n{ergebnis.Fehler}", centerOn);
+            return;
+        }
+
+        var text = $"Sicherung erstellt ({ergebnis.Megabyte} MB):\n{ergebnis.Datei}";
+        if (ergebnis.Ausgelassen > 0)
+            text += $"\n\n{ergebnis.Ausgelassen} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
+        if (ergebnis.Entfernt > 0)
+            text += $"\n{ergebnis.Entfernt} ältere Sicherung(en) entfernt – es bleiben die neuesten {Math.Max(1, _config.Config.AutoBackupKeep)}.";
+        ConfirmDialog.Info(text, centerOn);
     }
 
     /// Groessere Dateien kommen NICHT in die Sicherung: gesichert wird das Layout
@@ -104,7 +149,35 @@ public sealed class BackupService
     /// Anzahl der beim letzten Lauf uebersprungenen grossen Dateien.
     private int _skippedLarge;
 
+    /// <summary>
+    /// Schreibt die Sicherung erst unter einem Arbeitsnamen und benennt sie
+    /// zuletzt um.
+    ///
+    /// Bricht das Packen mittendrin ab (eine Datei verschwindet, das Ziel ist
+    /// voll), bliebe sonst eine unvollstaendige ZIP mit gueltigem Aufbau liegen.
+    /// Die zaehlt beim Aufraeumen als eine der neuesten mit und verdraengt eine
+    /// heile Sicherung — der Schaden faellt erst auf, wenn man sie braucht.
+    /// Seit die Sicherung ohne Zutun laeuft, sieht das ausserdem niemand mehr.
+    /// </summary>
     private void WriteBackup(string fileName)
+    {
+        var arbeitsdatei = fileName + ".unvollstaendig";
+        try
+        {
+            WriteZip(arbeitsdatei);
+        }
+        catch (Exception)
+        {
+            try { if (File.Exists(arbeitsdatei)) File.Delete(arbeitsdatei); }
+            catch (Exception) { /* dann bleibt sie eben liegen — sie heisst nicht wie eine Sicherung */ }
+            throw;
+        }
+
+        if (File.Exists(fileName)) File.Delete(fileName);
+        File.Move(arbeitsdatei, fileName);
+    }
+
+    private void WriteZip(string fileName)
     {
         _config.Save(); // aktuellen Stand auf die Platte bringen
         _skippedLarge = 0;
@@ -144,13 +217,28 @@ public sealed class BackupService
         }
     }
 
-    /// Behaelt nur die neuesten Sicherungen im Ordner (Standard: 3).
-    private static int PruneOldBackups(string folder, int keep = 3)
+    /// <summary>
+    /// Behaelt nur die neuesten EIGENEN Sicherungen im Ordner.
+    ///
+    /// Der Namensanfang ist entscheidend: er enthaelt den Namen des Anwenders,
+    /// und genau dafuer steht er im Dateinamen. Ein Muster ueber alle
+    /// „MSDesk-Sicherung*.zip" wuerde in einem gemeinsam genutzten Cloud- oder
+    /// Netzordner taeglich und unwiderruflich die Sicherungen der Kollegen
+    /// wegraeumen — ohne Papierkorb, ohne Rueckfrage, ohne Meldung.
+    ///
+    /// Von Hand ueber „Sicherung speichern unter…" abgelegte Dateien bleiben
+    /// ebenfalls unangetastet, solange sie anders heissen.
+    /// </summary>
+    private static int PruneOldBackups(string folder, string praefix, int keep)
     {
         try
         {
             var old = new DirectoryInfo(folder)
-                .GetFiles("MSDesk-Sicherung-*.zip")
+                .GetFiles(praefix + "*.zip")
+                // GetFiles vergleicht Muster nach Windows-Art (auch gegen den
+                // 8.3-Kurznamen). Deshalb zusaetzlich ausdruecklich pruefen,
+                // dass der Name wirklich so anfaengt.
+                .Where(f => f.Name.StartsWith(praefix, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .Skip(keep)
                 .ToList();
@@ -192,7 +280,26 @@ public sealed class BackupService
             {
                 restored = JsonSerializer.Deserialize<AppConfig>(stream) ?? new AppConfig();
             }
-            var baseFolder = string.IsNullOrWhiteSpace(restored.BaseFolder) ? @"D:\Fences" : restored.BaseFolder;
+            // Der gesicherte Ordner muss es auf DIESEM Rechner nicht geben — eine
+            // Sicherung von „D:\Fences" landet auch auf einem Notebook ohne
+            // Laufwerk D:. Deshalb wird ein nutzbarer Ort bestimmt und die
+            // gesicherte Konfiguration darauf umgeschrieben, bevor sie zaehlt.
+            var gesichert = restored.BaseFolder;
+            var baseFolder = BaseFolderResolver.EnsureUsable(gesichert);
+
+            // Ausschlaggebend ist, ob der ORDNER wechselt — nicht, wie viele
+            // Pfade dabei umgeschrieben wurden. Bei einer Sicherung ohne Tabs
+            // waeren das null, und die Korrektur des Ordners ginge verloren.
+            var verlegt = !string.Equals(gesichert, baseFolder, StringComparison.OrdinalIgnoreCase);
+            if (verlegt)
+            {
+                var umgezogen = string.IsNullOrWhiteSpace(gesichert)
+                    ? 0
+                    : BaseFolderResolver.Remap(restored, gesichert, baseFolder);
+                restored.BaseFolder = baseFolder;
+                StartupLog.Write(
+                    $"Wiederherstellung: {gesichert} nicht nutzbar → {baseFolder} ({umgezogen} Pfade angepasst)");
+            }
 
             // Ab hier nichts mehr speichern (sonst ueberschreibt die alte In-Memory-Config die Wiederherstellung).
             _config.SuppressSaves();
@@ -201,7 +308,21 @@ public sealed class BackupService
             // Alte Konfiguration aufheben, neue schreiben.
             if (File.Exists(_config.ConfigPath))
                 File.Copy(_config.ConfigPath, _config.ConfigPath + ".vor-wiederherstellung.json", overwrite: true);
-            configEntry.ExtractToFile(_config.ConfigPath, overwrite: true);
+
+            if (verlegt)
+            {
+                // Angepasste Fassung schreiben statt der gesicherten — sonst
+                // stuenden die alten Laufwerkspfade sofort wieder in der Datei.
+                File.WriteAllText(_config.ConfigPath,
+                    JsonSerializer.Serialize(restored, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            else
+            {
+                // Unveraendert uebernehmen: die Datei wandert Byte fuer Byte
+                // zurueck, damit auch Angaben erhalten bleiben, die diese
+                // Programmfassung noch gar nicht kennt.
+                configEntry.ExtractToFile(_config.ConfigPath, overwrite: true);
+            }
 
             // Bereichs-Ordner zurueckspielen.
             Directory.CreateDirectory(baseFolder);
@@ -239,6 +360,16 @@ public sealed class BackupService
             {
                 App.LogCrash(ex, "RestoreBackup.Vorschau"); // nicht wesentlich
             }
+
+            // Sperre erneut setzen, bevor es zum Neustart geht. Sie loest sich
+            // nach 30 Sekunden von selbst — ein Sicherheitsnetz, falls die
+            // Wiederherstellung gar nicht durchlaeuft. Bei einer grossen
+            // Sicherung oder einem Ziel in der Cloud dauert das Entpacken aber
+            // laenger als das; die Sperre waere dann bereits offen, und das
+            // Beenden wuerde den ALTEN Stand aus dem Speicher ueber die eben
+            // zurueckgespielte Datei schreiben. Das Neusetzen kostet nichts und
+            // gilt bis zum Beenden wenige Augenblicke spaeter.
+            _config.SuppressSaves();
 
             ((App)Application.Current).RestartForRestore();
         }

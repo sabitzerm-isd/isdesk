@@ -322,6 +322,47 @@ public partial class FenceWindow : Window
         }
     }
 
+    // --- Vorschau beim Verweilen ---
+    //
+    // Bewusst ueber ToolTipService und NICHT ueber ein eigenes Fenster oder ein
+    // Popup: Ein- und Ausblenden liegen damit vollstaendig in EINER Hand. Genau
+    // daran sind die Ausrichtungslinien gescheitert — die wurden ueber Win32
+    // eingeblendet und ueber WPF versteckt und blieben deshalb stehen. Hier gibt
+    // es keinen zweiten Weg: der Code ruft nie selbst IsOpen und haelt kein
+    // eigenes Fenster. Kurzinfos sind ausserdem nicht anklickbar, das Fenster
+    // bleibt also „unter der Maus" und Schloss, „+" und Suchfeld flackern nicht.
+
+    /// Vorschau eines Reiters. Nicht fuer den AKTIVEN Reiter — dessen Inhalt
+    /// liegt bereits offen vor einem.
+    private void TabPreview_ToolTipOpening(object sender, ToolTipEventArgs e)
+    {
+        if (_isDraggingWindow) { e.Handled = true; return; }
+
+        if ((sender as FrameworkElement)?.DataContext is not TabViewModel tab)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (tab.IsActive) { e.Handled = true; return; }
+
+        tab.RefreshPreview();
+    }
+
+    /// Vorschau des Bereichs an der Ueberschrift.
+    private void FencePreview_ToolTipOpening(object sender, ToolTipEventArgs e)
+    {
+        // Waehrend des Verschiebens und waehrend des Umbenennens waere sie nur
+        // im Weg.
+        if (_isDraggingWindow || TitleEditBox.Visibility == Visibility.Visible)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        _vm.RefreshPreview();
+    }
+
     /// Leere Flaeche der Tab-Leiste: zusaetzliche Greif-Flaeche zum Verschieben.
     private void TabBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -709,6 +750,20 @@ public partial class FenceWindow : Window
     {
         try
         {
+            // Ordner ausdruecklich ueber den Explorer oeffnen. Ueber den
+            // allgemeinen Weg landet ein Ordner sonst in der Anwendung, die
+            // sich zuletzt fuer Ordner eingetragen hat — bei manchen Packern
+            // und Dateiverwaltungen ein unangenehmes Ergebnis. Die
+            // Kennungs-Ordner (Papierkorb.{645FF040-…}) gehen so ebenfalls auf.
+            if (Directory.Exists(path))
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"")
+                {
+                    UseShellExecute = true
+                });
+                return;
+            }
+
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Exception ex)

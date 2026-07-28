@@ -27,6 +27,10 @@ public partial class SetupDialog : Window
         if (string.IsNullOrWhiteSpace(FirstNameBox.Text) && string.IsNullOrWhiteSpace(LastNameBox.Text))
             PrefillFromWindowsAccount();
 
+        // Der Ordner steht zu diesem Zeitpunkt bereits fest (beim Start
+        // hergeleitet) — hier laesst er sich nur noch abweichend waehlen.
+        BaseBox.Text = config.Config.BaseFolder;
+
         BackupBox.Text = string.IsNullOrWhiteSpace(config.Config.AutoBackupFolder)
             ? SuggestBackupFolder()
             : config.Config.AutoBackupFolder;
@@ -35,6 +39,13 @@ public partial class SetupDialog : Window
         BackupBox.TextChanged += (_, _) => UpdateCloudHint();
 
         VersionText.Text = $"MSDesk v{UpdateService.CurrentVersion}";
+
+        // Nie hoeher als der Arbeitsbereich. Auf einem Notebook mit 150 %
+        // Skalierung bleiben von 1080 Bildpunkten nur rund 590 nutzbare
+        // Einheiten uebrig — das Fenster wuerde oben und unten gleichmaessig
+        // abgeschnitten und die Knopfzeile waere nicht mehr erreichbar.
+        MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height - 40);
+
         Loaded += (_, _) => FirstNameBox.Focus();
     }
 
@@ -109,6 +120,19 @@ public partial class SetupDialog : Window
         }
     }
 
+    private void ChooseBaseFolder_Click(object sender, RoutedEventArgs e)
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Ordner für die Inhalte der Bereiche wählen",
+            UseDescriptionForTitle = true,
+            SelectedPath = Directory.Exists(BaseBox.Text) ? BaseBox.Text : ""
+        };
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            BaseBox.Text = dialog.SelectedPath;
+    }
+
     private void ChooseFolder_Click(object sender, RoutedEventArgs e)
     {
         using var dialog = new System.Windows.Forms.FolderBrowserDialog
@@ -135,6 +159,17 @@ public partial class SetupDialog : Window
     {
         _config.Config.UserFirstName = FirstNameBox.Text.Trim();
         _config.Config.UserLastName = LastNameBox.Text.Trim();
+
+        // Ordner der Bereiche. Der Assistent laeuft vor dem Anlegen des ersten
+        // Bereichs — es ist also noch nichts zu verschieben und der Wechsel
+        // kostet nichts. Schlaegt er trotzdem fehl, bleibt der bisherige Ordner
+        // stehen und der Assistent bleibt offen.
+        var umzug = BaseFolderResolver.MoveTo(_config.Config, BaseBox.Text);
+        if (!umzug.Erfolg)
+        {
+            ConfirmDialog.Info(umzug.Fehler!, this);
+            return;
+        }
 
         var folder = (BackupBox.Text ?? "").Trim();
         if (folder.Length > 0)

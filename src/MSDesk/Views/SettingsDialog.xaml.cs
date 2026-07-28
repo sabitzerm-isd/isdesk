@@ -63,8 +63,11 @@ public partial class SettingsDialog : Window
         }
         UpdateBackupCloudHint();
 
+        DailyBackupCheck.IsChecked = manager?.Config.Config.AutoBackupDaily ?? true;
+
         VersionText.Text = $"MSDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
+        UpdateDailyBackupStatus();
 
         Loaded += async (_, _) => await CheckUpdateAsync();
     }
@@ -308,7 +311,7 @@ public partial class SettingsDialog : Window
         {
             RecycleBinHint.Foreground = System.Windows.Media.Brushes.LightGreen;
             RecycleBinHint.Text = ausblenden
-                ? "Ausgeblendet. Falls er noch zu sehen ist: einmal auf den Desktop klicken und F5 drücken."
+                ? "Ausgeblendet. Es bleibt der Papierkorb im Bereich — er zeigt selbst an, ob etwas darin liegt."
                 : "Wieder eingeblendet.";
         }
         else
@@ -688,6 +691,7 @@ public partial class SettingsDialog : Window
         if (_initialized && _manager != null)
             _manager.AutoBackupFolder = BackupPathBox.Text;
         UpdateBackupCloudHint();
+        UpdateDailyBackupStatus(); // Ohne Ordner laeuft die Automatik nicht
     }
 
     /// Weist darauf hin, ob die Sicherung den Rechner ueberlebt.
@@ -720,6 +724,58 @@ public partial class SettingsDialog : Window
         var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Ordner für automatische Sicherungen" };
         if (dialog.ShowDialog() == true)
             BackupPathBox.Text = dialog.FolderName;
+    }
+
+    private void DailyBackup_Checked(object sender, RoutedEventArgs e) => SetDailyBackup(true);
+    private void DailyBackup_Unchecked(object sender, RoutedEventArgs e) => SetDailyBackup(false);
+
+    private void SetDailyBackup(bool an)
+    {
+        if (!_initialized || _manager == null) return;
+        _manager.Config.Config.AutoBackupDaily = an;
+        _manager.Config.SaveDebounced();
+        UpdateDailyBackupStatus();
+    }
+
+    /// <summary>
+    /// Zeigt, ob und wann zuletzt von selbst gesichert wurde. Ohne diese Zeile
+    /// bliebe voellig offen, ob die Automatik ueberhaupt arbeitet — sie meldet
+    /// sich sonst ja bewusst nie.
+    /// </summary>
+    private void UpdateDailyBackupStatus()
+    {
+        if (DailyBackupStatus == null || _manager == null) return;
+        var config = _manager.Config.Config;
+
+        if (!config.AutoBackupDaily)
+        {
+            DailyBackupStatus.Foreground = System.Windows.Media.Brushes.Khaki;
+            DailyBackupStatus.Text = "Es wird nur gesichert, wenn du es von Hand anstößt.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.AutoBackupFolder))
+        {
+            DailyBackupStatus.Foreground = System.Windows.Media.Brushes.Khaki;
+            DailyBackupStatus.Text = "Ohne Ordner passiert nichts — bitte oben einen Pfad eintragen.";
+            return;
+        }
+
+        DailyBackupStatus.Foreground = System.Windows.Media.Brushes.LightGreen;
+
+        if (config.LastAutoBackupUtc is not { } letzte)
+        {
+            DailyBackupStatus.Text = "Eingeschaltet. Die erste Sicherung läuft wenige Minuten nach dem Start.";
+            return;
+        }
+
+        var vergangen = DateTime.UtcNow - letzte;
+        var wann = vergangen < TimeSpan.FromMinutes(2) ? "gerade eben"
+                 : vergangen < TimeSpan.FromHours(1) ? $"vor {(int)vergangen.TotalMinutes} Minuten"
+                 : vergangen < TimeSpan.FromDays(1) ? $"vor {(int)vergangen.TotalHours} Stunden"
+                 : $"am {letzte.ToLocalTime():dd.MM.yyyy 'um' HH:mm} Uhr";
+
+        DailyBackupStatus.Text = $"Zuletzt {wann} von selbst gesichert.";
     }
 
     private void AutoBackup_Click(object sender, RoutedEventArgs e)

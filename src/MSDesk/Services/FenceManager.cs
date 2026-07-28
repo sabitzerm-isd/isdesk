@@ -628,6 +628,9 @@ public sealed class FenceManager
     /// Konfiguration fuer die Bildschirm-Uebersicht in den Optionen.
     public Models.AppConfig ConfigForDisplayOverview => _config.Config;
 
+    /// Konfigurationsdienst — fuer Dialoge, die Einstellungen aendern und speichern.
+    public ConfigService Config => _config;
+
     /// Fuer die Diagnose in den Optionen.
     public string ConfigFilePath => _config.ConfigPath;
     public int SaveCount => _config.SaveCount;

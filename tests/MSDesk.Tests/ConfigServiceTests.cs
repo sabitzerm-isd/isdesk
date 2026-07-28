@@ -83,8 +83,9 @@ public class ConfigServiceTests
         var svc = new ConfigService(path);
         svc.Load();
 
-        // Defaults geladen, kein Crash.
-        Assert.Equal(@"D:\Fences", svc.Config.BaseFolder);
+        // Defaults geladen, kein Crash. Der Ordner der Bereiche ist bewusst leer:
+        // er wird beim Start hergeleitet und nicht mehr fest auf D: gesetzt.
+        Assert.Equal("", svc.Config.BaseFolder);
         Assert.Equal(0.75, svc.Config.DefaultOpacity);
         Assert.True(svc.Config.DefaultBlur);
         Assert.Empty(svc.Config.Fences);

@@ -429,7 +429,7 @@
                                   Foreground="#DDFFFFFF" FontSize="12.5"
                                   Checked="HideRecycleBin_Checked" Unchecked="HideRecycleBin_Unchecked" />
                         <TextBlock x:Name="RecycleBinHint" Style="{StaticResource HintStyle}" Margin="0,6,0,0"
-                                   Text="Sinnvoll, wenn du den Papierkorb bereits in einem Bereich abgelegt hast." />
+                                   Text="Liegt der Papierkorb bereits in einem Bereich, siehst du ihn sonst doppelt. Der im Bereich zeigt genauso an, ob etwas darin liegt." />
 
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="SYMBOLE NACH EINEM PROGRAMM-UPDATE" Style="{StaticResource SectionStyle}" />
@@ -498,7 +498,9 @@
                                                            Foreground="#99FFFFFF" FontSize="9" />
                                             </Canvas>
                                             <TextBlock Style="{StaticResource TipText}"
-                                                       Text="Gesichert werden die Einstellungen und alle Bereichs-Ordner als ZIP. Sehr große Dateien (über 1 MB) bleiben außen vor, damit die Sicherung schlank bleibt; es werden immer nur die neuesten drei behalten." />
+                                                       Text="Gesichert werden die Einstellungen und alle Bereichs-Ordner als ZIP. Sehr große Dateien (über 1 MB) bleiben außen vor, damit die Sicherung schlank bleibt; es werden immer nur die neuesten fünf behalten." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Aufgeräumt wird nur unter deinem eigenen Namen. Teilst du den Ordner mit Kollegen, bleiben deren Sicherungen unangetastet." />
                                             <TextBlock Style="{StaticResource TipText}"
                                                        Text="Lege den Ordner auf ein Cloud-Laufwerk. Dann liegt die Sicherung nicht auf demselben Rechner und ist auch nach einem Neuaufsetzen noch vorhanden." />
                                         </StackPanel>
@@ -521,9 +523,28 @@
                                      TextChanged="BackupPath_TextChanged" />
                             <Button Grid.Column="2" Content="…" MinWidth="34" Margin="6,0,0,0" Click="BrowseBackupPath_Click" />
                         </Grid>
+                        <CheckBox x:Name="DailyBackupCheck" Content="Täglich von selbst sichern"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,4,0,0"
+                                  Checked="DailyBackup_Checked" Unchecked="DailyBackup_Unchecked">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="360">
+                                        <TextBlock Text="Sicherung ohne Zutun" Style="{StaticResource TipTitle}" />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="MSDesk sichert höchstens einmal am Tag in den oben eingetragenen Ordner — still, ohne Fenster und ohne Rückfrage." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Es zählt der Abstand zur letzten Sicherung, nicht eine feste Uhrzeit. War der Rechner ein paar Tage aus, wird nach dem nächsten Start nachgeholt." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Ist der Ordner gerade nicht erreichbar (Cloud offline), passiert nichts und es wird später erneut versucht — es erscheint keine Fehlermeldung." />
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
+                        <TextBlock x:Name="DailyBackupStatus" Style="{StaticResource HintStyle}" Margin="0,4,0,10" />
+
                         <WrapPanel>
                             <Button Content="Jetzt in diesen Ordner sichern" MinWidth="0" Margin="0,0,8,8" Click="AutoBackup_Click"
-                                    ToolTip="Legt sofort eine Sicherung mit Zeitstempel im oben eingetragenen Ordner an, ohne weitere Rückfrage. Es werden nur die neuesten drei behalten." />
+                                    ToolTip="Legt sofort eine Sicherung mit Zeitstempel im oben eingetragenen Ordner an, ohne weitere Rückfrage. Ältere werden bis auf die neuesten fünf entfernt." />
                             <Button Content="Sicherung speichern unter…" MinWidth="0" Margin="0,0,8,8" Click="CreateBackup_Click"
                                     ToolTip="Öffnet den Speichern-Dialog, um Ort und Dateinamen einmalig selbst zu wählen — z. B. für eine Sicherung auf einen USB-Stick." />
                             <Button Content="Wiederherstellen…" MinWidth="0" Margin="0,0,8,8" Click="RestoreBackup_Click" />

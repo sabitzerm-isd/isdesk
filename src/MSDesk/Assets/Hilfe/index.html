@@ -479,6 +479,12 @@ footer{
       (ein Doppelklick auf die Titelzeile benennt ihn ebenfalls um).</span>
     </li>
   </ol>
+  <p class="sub">
+    <strong>Wo liegen die Ordner?</strong> Beim ersten Start fragt MSDesk danach und schlägt
+    einen Ort vor — bevorzugt ein Datenlaufwerk, sonst dein Benutzerordner. Der Vorschlag passt
+    in aller Regel. Nachsehen kannst du jederzeit in den Optionen; jeder Bereich bekommt dort
+    einen Unterordner, jeder Tab darin wieder einen.
+  </p>
 </section>
 
 <!-- ============================================================ -->
@@ -581,6 +587,12 @@ footer{
     Ein Icon lässt sich auch direkt auf einen anderen <em>Reiter</em> ziehen — dann landet es im
     Ordner dieses Tabs.
   </p>
+  <p class="sub">
+    <strong>Vorschau beim Verweilen:</strong> Bleibst du kurz auf einem Reiter stehen, der gerade
+    nicht aktiv ist, zeigt MSDesk, was darin liegt — ohne umzuschalten. Dasselbe auf der
+    <em>Überschrift</em> eines Bereichs: dort erscheint die Übersicht aller Reiter mit ihrer
+    Anzahl, bei nur einem Reiter gleich dessen Inhalt.
+  </p>
 
   <figure>
     <div class="stage tight">
@@ -621,6 +633,10 @@ footer{
       deine installierten Programme dort eintragen.</li>
     <li><strong>Wieder hinaus:</strong> Icons lassen sich aus dem Bereich heraus auf den Desktop
       oder in ein Explorer-Fenster ziehen.</li>
+    <li><strong>Ordner:</strong> Ein Bereich nimmt nicht nur Verknüpfungen und Dateien auf,
+      sondern auch <strong>echte Ordner</strong>. Sie stehen immer zuoberst, sind in der Kurzinfo
+      als „Ordner“ gekennzeichnet und gehen per Doppelklick im Explorer auf. Zieht die Ablage
+      einen Ordner vom Desktop herein, wird er <em>verschoben</em>, nicht kopiert.</li>
     <li><strong>Icon-Größe:</strong> <span class="path">Optionen… → Dieser Bereich → Icon-Größe</span>
       (klein 24, mittel 32, groß 48) — die Einstellung gilt für alle Bereiche.</li>
   </ul>
@@ -864,11 +880,18 @@ footer{
   <h3>Sicherung</h3>
   <p>
     Unter <span class="path">Optionen… → Allgemein → Sicherung</span> trägst du einmal einen
-    <strong>Sicherungspfad</strong> ein. Danach genügt ein Klick auf
-    <span class="path">Automatische Sicherung</span>: MSDesk legt dort eine ZIP-Datei mit
-    Zeitstempel ab und <strong>behält die neuesten 3</strong> — ältere räumt es selbst weg.
+    <strong>Sicherungspfad</strong> ein. Danach läuft die Sicherung von selbst: mit
+    <span class="path">Täglich von selbst sichern</span> legt MSDesk höchstens einmal am Tag
+    eine ZIP-Datei mit Zeitstempel dort ab und <strong>behält die neuesten 5</strong> —
+    ältere räumt es weg.
   </p>
   <ul class="plain">
+    <li>Es zählt der <strong>Abstand zur letzten Sicherung</strong>, keine feste Uhrzeit. War
+      der Rechner ein paar Tage aus, wird nach dem nächsten Start nachgeholt.</li>
+    <li>Die Sicherung meldet sich nie von selbst. Ist der Ordner gerade nicht erreichbar
+      (Cloud offline), passiert einfach nichts und es wird später erneut versucht. Wann zuletzt
+      gesichert wurde, steht in den Optionen direkt unter dem Schalter.</li>
+    <li><span class="path">Jetzt in diesen Ordner sichern</span> stößt eine Sicherung sofort an.</li>
     <li><span class="path">Sicherung erstellen…</span> fragt stattdessen nach Ort und Namen.</li>
     <li><span class="path">Wiederherstellen…</span> spielt eine Sicherung zurück; MSDesk startet
       danach neu. Die bisherige Konfiguration wird vorher zur Seite gelegt.</li>
@@ -932,6 +955,11 @@ footer{
       mit <kbd>Strg</kbd> wird <strong>kopiert</strong>.</span></li>
     <li><span class="dot"></span><span>Ein <strong>Link aus dem Browser</strong> lässt sich direkt
       in einen Bereich ziehen; auch der Papierkorb und andere Systemobjekte finden dort Platz.</span></li>
+    <li><span class="dot"></span><span><strong>Papierkorb doppelt?</strong> Liegt er in einem Bereich,
+      steht er trotzdem noch auf dem Desktop — Windows lässt ihn dort weder verschieben noch löschen.
+      Blende ihn aus unter <span class="path">Optionen… → Allgemein → Papierkorb auf dem Desktop
+      ausblenden</span>. Der im Bereich zeigt genauso an, ob etwas darin liegt, und wird laufend
+      aktualisiert.</span></li>
     <li><span class="dot"></span><span>Das <strong>Schloss fixiert alle Bereiche</strong>, nicht
       nur den einen — gut gegen versehentliches Verschieben.</span></li>
     <li><span class="dot"></span><span>Nach einem Monitorwechsel: Tray-Menü →

@@ -201,6 +201,12 @@ public sealed class DesktopSweeper : IDisposable
                 FileSystem.DeleteFile(dest, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             else if (Directory.Exists(dest))
             {
+                // Ein Ordner gleichen Namens bekommt „(2)" — auch dann, wenn er
+                // gerade leer ist. Ein leerer Ordner wurde hier zwischenzeitlich
+                // in den Papierkorb gelegt; das traf aber nicht nur Ueberreste
+                // von Programm-Updates, sondern auch jeden eben erst angelegten,
+                // noch nicht befuellten Ordner des Anwenders — der verschwand
+                // damit wortlos.
                 var n = 2;
                 var stem = entry.Name;
                 while (Directory.Exists(dest) || File.Exists(dest))
@@ -208,7 +214,18 @@ public sealed class DesktopSweeper : IDisposable
             }
         }
 
-        if (isDir) Directory.Move(entry.FullName, dest);
+        // MoveDirectory statt Directory.Move: letzteres scheitert ueber
+        // Laufwerksgrenzen hinweg. Genau der Regelfall — der Desktop liegt auf
+        // C:, die Bereiche oft auf einem Datenlaufwerk. Ordner blieben dadurch
+        // beim Einsammeln stillschweigend auf dem Desktop liegen.
+        //
+        // Bewusst die Ueberladung OHNE UIOption: die mit UIOption laesst im
+        // Fehlerfall die Shell ein eigenes Fenster aufmachen. Das hier laeuft
+        // auf einem Zeitgeber-Faden ohne Zutun des Anwenders — ein Fenster
+        // mitten in der Arbeit, ohne erkennbaren Anlass, waere das Letzte, was
+        // man will. So fliegt wie bisher eine Ausnahme, die der Aufrufer je
+        // Eintrag still auffaengt.
+        if (isDir) FileSystem.MoveDirectory(entry.FullName, dest);
         else File.Move(entry.FullName, dest);
     }
 
