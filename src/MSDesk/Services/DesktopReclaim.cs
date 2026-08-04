@@ -205,29 +205,29 @@ public static class DesktopReclaim
                 {
                     var ziel = PlacementRegistry.ZielSchluessel(datei.FullName);
 
-                    // Ohne Ziel nach Namen gruppieren; mit Ziel nach dem Ziel.
-                    var schluessel = ziel ?? "name:" + datei.Name;
-                    if (!gruppen.TryGetValue(schluessel, out var liste))
-                        gruppen[schluessel] = liste = new List<FileInfo>();
-                    liste.Add(datei);
+                    if (ziel != null)
+                    {
+                        // Gleiches Ziel INKLUSIVE Argumente — nur das ist
+                        // wirklich dieselbe Verknuepfung.
+                        if (!gruppen.TryGetValue(ziel, out var liste))
+                            gruppen[ziel] = liste = new List<FileInfo>();
+                        liste.Add(datei);
+                        continue;
+                    }
+
+                    // Kein ermittelbares Ziel. Nach dem NAMEN zu gruppieren ist
+                    // hier nur zulaessig, wenn die Verknuepfung nachweislich ins
+                    // Leere zeigt. „Nicht aufloesbar" heisst naemlich nicht
+                    // zwingend „kaputt": ein Netzlaufwerk kann gerade getrennt,
+                    // eine Wechselplatte abgezogen, COM kurz belegt sein. Wer
+                    // das verwechselt, entfernt voellig intakte Verknuepfungen.
+                    if (!ZeigtNachweislichInsLeere(datei.FullName)) continue;
+
+                    var schluessel = "kaputt:" + datei.Name;
+                    if (!gruppen.TryGetValue(schluessel, out var kaputte))
+                        gruppen[schluessel] = kaputte = new List<FileInfo>();
+                    kaputte.Add(datei);
                 }
-            }
-
-            // Namensgleiche mit den zielgleichen zusammenfuehren: liegt derselbe
-            // Name einmal mit und einmal ohne auflösbares Ziel vor, gehoert
-            // beides in eine Gruppe.
-            foreach (var schluessel in gruppen.Keys.Where(k => k.StartsWith("name:", StringComparison.Ordinal)).ToList())
-            {
-                var name = schluessel[5..];
-                var passend = gruppen
-                    .Where(g => !g.Key.StartsWith("name:", StringComparison.Ordinal)
-                                && g.Value.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
-                    .Select(g => g.Key)
-                    .FirstOrDefault();
-
-                if (passend == null) continue;
-                gruppen[passend].AddRange(gruppen[schluessel]);
-                gruppen.Remove(schluessel);
             }
 
             foreach (var (_, liste) in gruppen)
@@ -278,6 +278,35 @@ public static class DesktopReclaim
             .Where(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Zeigt die Verknuepfung nachweislich ins Leere?
+    ///
+    /// Nur dann, wenn das Ziel ausgelesen werden KONNTE und die Datei bzw. der
+    /// Ordner dort nicht existiert. Schlaegt schon das Auslesen fehl, lautet die
+    /// Antwort bewusst „nein" — daraus laesst sich nichts schliessen, und im
+    /// Zweifel wird nichts angefasst.
+    /// </summary>
+    private static bool ZeigtNachweislichInsLeere(string lnkPfad)
+    {
+        try
+        {
+            var angaben = ShortcutFactory.ResolveLnk(lnkPfad);
+            if (angaben == null || string.IsNullOrWhiteSpace(angaben.Ziel)) return false;
+
+            // Netz- und Wechselziele ausdruecklich ausklammern: sie sind oft
+            // nur voruebergehend nicht da.
+            if (angaben.Ziel.StartsWith(@"\\", StringComparison.Ordinal)) return false;
+            var wurzel = Path.GetPathRoot(angaben.Ziel);
+            if (!string.IsNullOrEmpty(wurzel) && !Directory.Exists(wurzel)) return false;
+
+            return !File.Exists(angaben.Ziel) && !Directory.Exists(angaben.Ziel);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     /// Alle bereits einsortierten Verknuepfungen, nach ihrem Ziel.
     private static Dictionary<string, FileInfo> BestandNachZiel(ConfigService config)
     {
@@ -300,7 +329,22 @@ public static class DesktopReclaim
         var ordner = alt.DirectoryName;
         if (ordner == null) return;
 
-        try { alt.Delete(); } catch (Exception) { /* dann eben ueberschreiben */ }
+        // IN DEN PAPIERKORB, nicht endgueltig loeschen.
+        //
+        // Hier stand frueher alt.Delete() — ein Loeschen ohne Umweg. Was MSDesk
+        // an dieser Stelle irrtuemlich fuer dieselbe Verknuepfung hielt, war
+        // danach unwiederbringlich weg. Genau so ist ein „Planungsmanager"
+        // verschwunden. Ueber den Papierkorb bleibt jeder Irrtum umkehrbar.
+        try
+        {
+            FileSystem.DeleteFile(alt.FullName, UIOption.OnlyErrorDialogs,
+                                  RecycleOption.SendToRecycleBin);
+            StartupLog.Write($"Ersetzt (alte Fassung in den Papierkorb): {alt.FullName}");
+        }
+        catch (Exception)
+        {
+            // Gesperrt → weiter unten wird ueberschrieben.
+        }
 
         var ziel = Path.Combine(ordner, neu.Name);
         FileSystem.MoveFile(neu.FullName, ziel, UIOption.OnlyErrorDialogs, UICancelOption.DoNothing);

@@ -7,6 +7,21 @@ public static class ShortcutFactory
 {
     /// Ziel einer .lnk-Verknuepfung (null, wenn keine Verknuepfung oder nicht lesbar).
     public static string? ResolveLnkTarget(string lnkPath)
+        => ResolveLnk(lnkPath)?.Ziel;
+
+    /// Ziel und Argumente einer Verknuepfung.
+    public sealed record LnkAngaben(string Ziel, string Argumente);
+
+    /// <summary>
+    /// Liest Ziel UND Argumente einer Verknuepfung.
+    ///
+    /// Die Argumente sind nicht schmueckendes Beiwerk, sondern oft das
+    /// Entscheidende: „Planungsmanager" und „Angebotsliste" koennen beide
+    /// excel.exe starten und unterscheiden sich NUR in der Datei, die sie
+    /// oeffnen. Wer allein das Zielprogramm vergleicht, haelt sie faelschlich
+    /// fuer dieselbe Verknuepfung.
+    /// </summary>
+    public static LnkAngaben? ResolveLnk(string lnkPath)
     {
         if (!lnkPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)) return null;
 
@@ -21,8 +36,10 @@ public static class ShortcutFactory
 
             dynamic shortcut = shell.CreateShortcut(lnkPath);
             string target = shortcut.TargetPath;
+            string args = shortcut.Arguments ?? "";
             Marshal.FinalReleaseComObject(shortcut);
-            return string.IsNullOrWhiteSpace(target) ? null : target;
+
+            return string.IsNullOrWhiteSpace(target) ? null : new LnkAngaben(target, args.Trim());
         }
         catch (Exception)
         {

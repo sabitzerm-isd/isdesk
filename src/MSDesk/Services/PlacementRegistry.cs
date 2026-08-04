@@ -68,11 +68,22 @@ public static class PlacementRegistry
         string? schluessel = null;
         try
         {
-            var ziel = ShortcutFactory.ResolveLnkTarget(filePath);
-            if (!string.IsNullOrWhiteSpace(ziel))
+            var angaben = ShortcutFactory.ResolveLnk(filePath);
+            if (angaben != null && !string.IsNullOrWhiteSpace(angaben.Ziel))
             {
-                var datei = Path.GetFileName(ziel).ToLowerInvariant();
-                if (datei.Length > 0) schluessel = datei;
+                var datei = Path.GetFileName(angaben.Ziel).ToLowerInvariant();
+                if (datei.Length > 0)
+                {
+                    // Die ARGUMENTE gehoeren zwingend in den Schluessel.
+                    //
+                    // Ohne sie galt jede Verknuepfung auf dasselbe Programm als
+                    // dieselbe Sache: zwei Arbeitsmappen ueber excel.exe, zwei
+                    // Server ueber mstsc.exe, zwei Anwendungen ueber chrome.exe.
+                    // MSDesk hat sie fuer Doppelte gehalten und eine davon
+                    // entfernt — ein echter Verlust, kein Aufraeumen.
+                    var args = angaben.Argumente.ToLowerInvariant();
+                    schluessel = args.Length > 0 ? datei + "|" + args : datei;
+                }
             }
         }
         catch (Exception)

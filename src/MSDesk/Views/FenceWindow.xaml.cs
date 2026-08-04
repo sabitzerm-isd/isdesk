@@ -870,17 +870,23 @@ public partial class FenceWindow : Window
         if (!isDir && File.Exists(existing) && FilesEqual(source, existing))
             return;
 
-        var dest = MakeUniqueDestination(targetDir, name);
+        var dest = MakeUniqueDestination(targetDir, name, isDir);
         if (isDir)
         {
-            if (copy || !SameVolume(source, dest))
+            if (copy)
             {
                 CopyDirectory(source, dest);
-                if (!copy) Directory.Delete(source, true);
             }
             else
             {
-                Directory.Move(source, dest);
+                // MoveDirectory statt „kopieren und dann die Quelle rekursiv
+                // loeschen". Der alte Weg ging ueber Directory.Delete(source,
+                // true) — ein endgueltiges Loeschen eines ganzen Ordners des
+                // Anwenders, das auf JEDE Unstimmigkeit beim Kopieren
+                // ungebremst folgte. Windows erledigt den Umzug selbst, auch
+                // ueber Laufwerksgrenzen, und laesst die Quelle bei einem
+                // Fehler stehen.
+                FileSystem.MoveDirectory(source, dest);
             }
         }
         else
@@ -921,13 +927,16 @@ public partial class FenceWindow : Window
             CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
     }
 
-    private static string MakeUniqueDestination(string targetDir, string name)
+    private static string MakeUniqueDestination(string targetDir, string name, bool istOrdner = false)
     {
         var dest = Path.Combine(targetDir, name);
         if (!File.Exists(dest) && !Directory.Exists(dest)) return dest;
 
-        var stem = Path.GetFileNameWithoutExtension(name);
-        var ext = Path.GetExtension(name);
+        // Bei ORDNERN nicht in Name und Endung zerlegen: aus „Projekte.2026"
+        // wuerde sonst „Projekte (2).2026". Ein Punkt im Ordnernamen ist keine
+        // Dateiendung.
+        var stem = istOrdner ? name : Path.GetFileNameWithoutExtension(name);
+        var ext = istOrdner ? "" : Path.GetExtension(name);
         var n = 2;
         do { dest = Path.Combine(targetDir, $"{stem} ({n++}){ext}"); }
         while (File.Exists(dest) || Directory.Exists(dest));

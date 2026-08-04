@@ -136,20 +136,74 @@ public class DesktopReclaimTests : IDisposable
     }
 
     [Fact]
-    public void Duplikate_KaputteVerknuepfungGleichenNamens_WirdErkannt()
+    public void Duplikate_UnlesbareVerknuepfungen_WerdenNICHTAngefasst()
     {
-        // Der gemeldete Fall: zwei Mal „Admin Tool Anpassungen.lnk", eine davon
-        // zeigt ins Leere. Ueber das Ziel allein faellt sie durch — deshalb
-        // wird zusaetzlich nach dem Namen gruppiert.
+        // Frueher wurden zwei gleichnamige .lnk allein wegen des Namens als
+        // Doppelte behandelt, sobald ihr Ziel nicht ermittelbar war. „Nicht
+        // ermittelbar" heisst aber nicht „kaputt": ein Netzlaufwerk kann
+        // getrennt, eine Wechselplatte abgezogen, COM kurz belegt sein. Auf
+        // diesem Weg sind intakte Verknuepfungen verschwunden.
         var zweiterTab = Path.Combine(_root, "Administration");
         Directory.CreateDirectory(zweiterTab);
         _config.Config.Fences[0].Tabs.Add(new TabConfig { Title = "Administration", FolderPath = zweiterTab });
 
-        Datei(_bereich, "Admin Tool.lnk", "kaputt A");
-        Datei(zweiterTab, "Admin Tool.lnk", "kaputt B");
+        Datei(_bereich, "Admin Tool.lnk", "nicht lesbar A");
+        Datei(zweiterTab, "Admin Tool.lnk", "nicht lesbar B");
+
+        var gefunden = DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true);
+
+        Assert.Equal(0, gefunden);
+        Assert.Equal(2, Directory.GetFiles(_root, "Admin Tool.lnk", SearchOption.AllDirectories).Length);
+    }
+
+    [Fact]
+    public void Duplikate_NachweislichInsLeere_WerdenErkannt()
+    {
+        // Der Fall, den das Aufraeumen treffen SOLL: zwei Mal derselbe Name,
+        // beide zeigen auf eine Datei, die es auf einem VORHANDENEN Laufwerk
+        // nachweislich nicht gibt.
+        var zweiterTab = Path.Combine(_root, "Administration");
+        Directory.CreateDirectory(zweiterTab);
+        _config.Config.Fences[0].Tabs.Add(new TabConfig { Title = "Administration", FolderPath = zweiterTab });
+
+        var totesZiel = Path.Combine(_root, "gibtesnicht", "AdminTool.exe");
+        ShortcutFactory.CreateLnk(Path.Combine(_bereich, "Admin Tool.lnk"), totesZiel);
+        ShortcutFactory.CreateLnk(Path.Combine(zweiterTab, "Admin Tool.lnk"), totesZiel);
+        PlacementRegistry.ClearTargetCache();
 
         var gefunden = DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true);
 
         Assert.Equal(1, gefunden); // eine von zweien fliegt
+    }
+
+    [Fact]
+    public void Duplikate_GleichesProgrammVerschiedeneArgumente_BleibenBeide()
+    {
+        // Der gemeldete Verlust: „Planungsmanager" und eine andere Verknuepfung
+        // starten dasselbe Programm mit verschiedenen Dateien. Das sind zwei
+        // Dinge, keine Doppelten.
+        var zweiterTab = Path.Combine(_root, "Planung");
+        Directory.CreateDirectory(zweiterTab);
+        _config.Config.Fences[0].Tabs.Add(new TabConfig { Title = "Planung", FolderPath = zweiterTab });
+
+        MitArgumenten(Path.Combine(_bereich, "Angebote.lnk"),
+                      @"C:\Windows\System32\notepad.exe", @"C:\Plan\Angebote.txt");
+        MitArgumenten(Path.Combine(zweiterTab, "Planungsmanager.lnk"),
+                      @"C:\Windows\System32\notepad.exe", @"C:\Plan\Planung.txt");
+        PlacementRegistry.ClearTargetCache();
+
+        Assert.Equal(0, DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true));
+    }
+
+    private static void MitArgumenten(string lnkPfad, string ziel, string argumente)
+    {
+        ShortcutFactory.CreateLnk(lnkPfad, ziel);
+
+        var typ = Type.GetTypeFromProgID("WScript.Shell");
+        Assert.NotNull(typ);
+        dynamic shell = Activator.CreateInstance(typ!)!;
+        dynamic sc = shell.CreateShortcut(lnkPfad);
+        sc.Arguments = argumente;
+        sc.Save();
     }
 }
