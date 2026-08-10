@@ -204,6 +204,30 @@ public class BaseFolderResolverTests : IDisposable
     }
 
     [Fact]
+    public void MoveTo_ZielMitLeerzeichenUndTiefenPfaden_Klappt()
+    {
+        // Der echte Fall: „D:\01 Toolbar\99 Plugins\14 MSDesk" — Leerzeichen,
+        // fuehrende Ziffern, mehrere Ebenen.
+        var alt = Path.Combine(_root, "Fences");
+        var neu = Path.Combine(_root, "01 Toolbar", "99 Plugins", "14 MSDesk");
+        Directory.CreateDirectory(Path.Combine(alt, "Eigene Programme"));
+        File.WriteAllText(Path.Combine(alt, "Eigene Programme", "Planungsmanager.lnk"), "x");
+
+        var config = new AppConfig { BaseFolder = alt };
+        config.Fences.Add(new FenceConfig
+        {
+            Tabs = { new TabConfig { FolderPath = Path.Combine(alt, "Eigene Programme") } }
+        });
+
+        var ergebnis = BaseFolderResolver.MoveTo(config, neu);
+
+        Assert.True(ergebnis.Erfolg, ergebnis.Fehler);
+        Assert.Equal(neu, config.BaseFolder);
+        Assert.Equal(Path.Combine(neu, "Eigene Programme"), config.Fences[0].Tabs[0].FolderPath);
+        Assert.True(File.Exists(Path.Combine(neu, "Eigene Programme", "Planungsmanager.lnk")));
+    }
+
+    [Fact]
     public void MoveTo_ZielInnerhalbDerQuelle_LehntAb()
     {
         var alt = Path.Combine(_root, "Alt");

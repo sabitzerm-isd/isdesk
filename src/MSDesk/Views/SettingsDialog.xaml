@@ -177,6 +177,32 @@
                         </Grid>
 
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ORDNER DER BEREICHE" Style="{StaticResource SectionStyle}" />
+                            <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
+                                <TextBlock.ToolTip>
+                                    <ToolTip>
+                                        <StackPanel MaxWidth="380">
+                                            <TextBlock Text="Warum nicht im Explorer verschieben?" Style="{StaticResource TipTitle}" />
+                                            <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                       Text="In der Konfiguration steht zu jedem Reiter der vollständige Pfad seines Ordners. Verschiebst du den Ordner von Hand, zeigen danach alle Reiter ins Leere." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="Über diesen Weg wandert der Inhalt mit, und sämtliche Pfade werden mitgeschrieben. Liegt am Ziel schon etwas mit gleichem Namen, wird abgebrochen statt überschrieben. Geht beim Verschieben etwas schief, wird das bereits Verschobene zurückgeholt." />
+                                            <TextBlock Style="{StaticResource TipText}"
+                                                       Text="MSDesk startet danach neu, damit die Bereiche ihre Ordner am neuen Ort öffnen." />
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock x:Name="BaseFolderText" Style="{StaticResource HintStyle}" Margin="0,0,0,6" />
+                        <WrapPanel Margin="0,0,0,4">
+                            <Button Content="Ordner der Bereiche ändern…" MinWidth="0" Margin="0,0,8,8"
+                                    Click="ChangeBaseFolder_Click" />
+                            <Button Content="Im Explorer öffnen" MinWidth="0" Margin="0,0,8,8"
+                                    Click="OpenBaseFolder_Click" />
+                        </WrapPanel>
+
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="LESEZEICHEN" Style="{StaticResource SectionStyle}" />
                             <TextBlock Style="{StaticResource InfoGlyph}" Margin="7,16,0,8">
                                 <TextBlock.ToolTip>

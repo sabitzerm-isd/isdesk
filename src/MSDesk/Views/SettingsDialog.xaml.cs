@@ -68,6 +68,7 @@ public partial class SettingsDialog : Window
         VersionText.Text = $"MSDesk v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         _initialized = true;
         UpdateDailyBackupStatus();
+        UpdateBaseFolderText();
 
         Loaded += async (_, _) => await CheckUpdateAsync();
     }
@@ -731,6 +732,95 @@ public partial class SettingsDialog : Window
         var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Ordner für automatische Sicherungen" };
         if (dialog.ShowDialog() == true)
             BackupPathBox.Text = dialog.FolderName;
+    }
+
+    // --- Ordner der Bereiche ---
+
+    private void UpdateBaseFolderText()
+    {
+        if (BaseFolderText == null || _manager == null) return;
+
+        var ordner = _manager.Config.Config.BaseFolder;
+        if (string.IsNullOrWhiteSpace(ordner))
+        {
+            BaseFolderText.Foreground = System.Windows.Media.Brushes.Khaki;
+            BaseFolderText.Text = "Noch nicht festgelegt.";
+            return;
+        }
+
+        var da = System.IO.Directory.Exists(ordner);
+        BaseFolderText.Foreground = da
+            ? System.Windows.Media.Brushes.LightGreen
+            : System.Windows.Media.Brushes.Khaki;
+        BaseFolderText.Text = da ? ordner : ordner + "  (derzeit nicht erreichbar)";
+    }
+
+    private void OpenBaseFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var ordner = _manager?.Config.Config.BaseFolder;
+        if (string.IsNullOrWhiteSpace(ordner) || !System.IO.Directory.Exists(ordner)) return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{ordner}\"")
+                { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "SettingsDialog.OpenBaseFolder");
+        }
+    }
+
+    /// <summary>
+    /// Verlegt den Ordner der Bereiche samt Inhalt.
+    ///
+    /// Der Ablauf entspricht dem der Wiederherstellung: Erst werden alle
+    /// Bereiche geschlossen — solange sie offen sind, ueberwacht jeder Reiter
+    /// seinen Ordner, und ein ueberwachter Ordner laesst sich unter Windows
+    /// nicht verschieben. Danach der Umzug, dann ein Neustart, damit die
+    /// Bereiche ihre Ordner am neuen Ort oeffnen.
+    /// </summary>
+    private void ChangeBaseFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_manager == null) return;
+        var bisher = _manager.Config.Config.BaseFolder;
+
+        var auswahl = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Neuer Ordner für die Inhalte der Bereiche"
+        };
+        if (auswahl.ShowDialog() != true) return;
+
+        var ziel = auswahl.FolderName;
+        if (string.Equals(bisher?.TrimEnd('\\'), ziel.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var (ok, _) = ConfirmDialog.Show(
+            $"Der Inhalt aller Bereiche wird verschoben:\n\n{bisher}\n→\n{ziel}\n\n" +
+            "Alle gespeicherten Pfade werden mitgeschrieben. Liegt am Ziel bereits etwas " +
+            "mit gleichem Namen, wird abgebrochen, ohne etwas zu verändern.\n\n" +
+            "MSDesk startet anschließend neu.",
+            this, okText: "Verschieben");
+        if (!ok) return;
+
+        // Ueberwachung der Ordner loesen, sonst scheitert das Verschieben.
+        _manager.CloseAllWithoutSave();
+
+        var umzug = BaseFolderResolver.MoveTo(_manager.Config.Config, ziel);
+
+        if (!umzug.Erfolg)
+        {
+            // Nichts gespeichert — die Konfiguration zeigt weiter auf den alten
+            // Ordner. Der Neustart holt die Bereiche unveraendert zurueck.
+            ConfirmDialog.Info(umzug.Fehler + "\n\nMSDesk wird neu gestartet.", this);
+            ((App)Application.Current).RestartForRestore();
+            return;
+        }
+
+        _manager.Config.Save();
+        UpdateBaseFolderText();
+        ((App)Application.Current).RestartForRestore();
     }
 
     private void DailyBackup_Checked(object sender, RoutedEventArgs e) => SetDailyBackup(true);
