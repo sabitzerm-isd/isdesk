@@ -596,6 +596,11 @@
                     <MenuItem.Icon><TextBlock Text="&#xE72E;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
+                <MenuItem Header="Symbole neu zuordnen…" Click="ReclaimIcons_Click"
+                          ToolTip="Holt Verknüpfungen, die nach einem Programm-Update wieder auf dem Desktop gelandet sind, zurück an ihren gewohnten Platz. Angefasst wird nur, was MSDesk schon kennt.">
+                    <MenuItem.Icon><TextBlock Text="&#xE8AB;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="Ordner im Explorer öffnen" Click="OpenFolder_Click">
                     <MenuItem.Icon><TextBlock Text="&#xEC50;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>

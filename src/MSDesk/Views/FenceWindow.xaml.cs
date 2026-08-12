@@ -643,6 +643,21 @@ public partial class FenceWindow : Window
             Manager?.RemoveFence(_vm, deleteFolders);
     }
 
+    /// <summary>
+    /// „Symbole neu zuordnen" aus dem Rechtsklick-Menue eines Bereichs.
+    ///
+    /// Derselbe Ablauf wie in den Optionen — er steht in ReclaimPrompt und
+    /// nicht zweimal im Programm. Hier wird das Ergebnis als kurze Meldung
+    /// gezeigt, weil es keine Zeile gibt, in die es sonst passen wuerde.
+    /// </summary>
+    private void ReclaimIcons_Click(object sender, RoutedEventArgs e)
+    {
+        if (Manager is not { } manager) return;
+
+        var ausgang = ReclaimPrompt.Ausfuehren(manager, this);
+        if (!ausgang.BereitsGemeldet) ConfirmDialog.Info(ausgang.Meldung, this);
+    }
+
     private void OpenSettings_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SettingsDialog(_vm, Manager, this);
