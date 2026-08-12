@@ -4,6 +4,7 @@ using System.Windows.Interop;
 
 namespace MSDesk.Interop;
 
+/// <summary>
 /// Verankert Bereichs-Fenster auf dem Desktop: Normal liegen sie IMMER ganz unten
 /// (WM_WINDOWPOSCHANGING erzwingt HWND_BOTTOM). Bei "Desktop anzeigen"/Win+D hebt
 /// Windows das Desktop-Band UEBER alle Fenster — die Bereiche wuerden dahinter
@@ -11,12 +12,26 @@ namespace MSDesk.Interop;
 /// Desktop-Zustand und schaltet die Bereiche solange auf TOPMOST; verlaesst der
 /// Nutzer den Desktop wieder, tauchen sie nach ganz unten ab.
 /// (SetParent auf Progman scheitert bei Layered-WPF-Fenstern — gemessen.)
+///
+/// ACHTUNG bei Aenderungen an der Z-Reihenfolge: Es gibt ZWEI Ausloeser mit
+/// unterschiedlichem Bedarf — der Desktop-Fall braucht TOPMOST, der Tray-Fall
+/// darf ihn nicht haben. Sie wurden in v0.16.0 einmal ueber einen Kamm geschoren
+/// (pauschal HWND_TOP, damit Bereiche keine Teams-Anrufe verdecken); seitdem
+/// verschwanden die Bereiche bei "Desktop anzeigen". Aufgefallen ist das erst
+/// viel spaeter, weil dieser Kommentar weiterhin "TOPMOST" behauptete, waehrend
+/// der Code laengst etwas anderes tat. Siehe SetDesktopMode.
+///
+/// Das Wiederherstellen nach einem Minimieren steht NICHT hier, sondern EINMAL
+/// in FenceWindow (StateChanged). Zwei Wege fuer dieselbe Sache waren in diesem
+/// Projekt schon einmal die Ursache haengengebliebener Ausrichtungslinien.
+/// </summary>
 public static class DesktopPinning
 {
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int WM_WINDOWPOSCHANGING = 0x0046;
     private static readonly IntPtr HWND_TOP = IntPtr.Zero;
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
     private static readonly IntPtr HWND_BOTTOM = new(1);
     private static readonly IntPtr HWND_NOTOPMOST = new(-2);
     private const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
@@ -40,6 +55,10 @@ public static class DesktopPinning
 
     private static readonly List<IntPtr> Attached = new();
     private static bool _desktopMode;
+
+    /// Liegt der Desktop selbst vorn (Win+D / Klick auf den Desktop)? Nur dann
+    /// braucht es TOPMOST — siehe SetDesktopMode.
+    private static bool _ueberDemDesktop;
     private static WinEventDelegate? _foregroundProc; // Referenz halten, sonst sammelt der GC den Delegate ein
 
     private static System.Timers.Timer? _manualTimer;
@@ -54,7 +73,13 @@ public static class DesktopPinning
 
         _manualTimer?.Dispose();
         _manualTimer = new System.Timers.Timer(10000) { AutoReset = false };
-        _manualTimer.Elapsed += (_, _) => SetDesktopMode(false);
+        _manualTimer.Elapsed += (_, _) =>
+        {
+            // Das Zeitlimit gilt nur fuer den Tray-Weg. Hat der Anwender
+            // zwischenzeitlich den Desktop angezeigt, muessen die Bereiche
+            // sichtbar bleiben — sonst saenken sie mitten im Anschauen ab.
+            if (!_ueberDemDesktop) SetDesktopMode(false);
+        };
         _manualTimer.Start();
     }
 
@@ -62,7 +87,14 @@ public static class DesktopPinning
     {
         var hwnd = new WindowInteropHelper(window).EnsureHandle();
         SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
-        SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+        // Den GERADE gueltigen Zustand uebernehmen statt blind nach unten zu
+        // schieben: Ein Bereich, der waehrend angezeigtem Desktop entsteht (neu
+        // angelegt oder aus einem Tab abgetrennt), bliebe sonst unsichtbar.
+        var einfuegen = _desktopMode
+            ? (_ueberDemDesktop ? HWND_TOPMOST : HWND_TOP)
+            : HWND_BOTTOM;
+        SetWindowPos(hwnd, einfuegen, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         HwndSource.FromHwnd(hwnd)!.AddHook(ZOrderHook);
 
         Attached.Add(hwnd);
@@ -104,7 +136,9 @@ public static class DesktopPinning
 
         if (cls is "WorkerW" or "Progman" or "SHELLDLL_DefView")
         {
-            SetDesktopMode(true);   // Desktop liegt vorn → Bereiche darueber zeigen
+            // Desktop liegt vorn → Bereiche darueber zeigen. Nur DIESER Fall
+            // rechtfertigt TOPMOST (siehe SetDesktopMode).
+            SetDesktopMode(true, ueberDemDesktop: true);
         }
         else
         {
@@ -114,19 +148,47 @@ public static class DesktopPinning
         }
     }
 
-    private static void SetDesktopMode(bool active)
+    /// <summary>
+    /// Schaltet zwischen „ganz unten" und „sichtbar" um.
+    ///
+    /// <paramref name="ueberDemDesktop"/> unterscheidet die beiden Ausloeser, und
+    /// darin steckt der ganze Punkt:
+    ///
+    /// • „Desktop anzeigen" / Win+D / Klick auf den Desktop: Die Shell hebt das
+    ///   Desktop-Fenster ueber das GESAMTE normale Band und haelt es dort.
+    ///   HWND_TOP kommt dagegen nicht an — die Bereiche blieben verdeckt und
+    ///   sahen aus, als waeren sie mitminimiert worden. Nur hier hilft TOPMOST.
+    ///
+    /// • Tray-Menue / Tray-Doppelklick: Da liegt der Desktop nicht oben, HWND_TOP
+    ///   genuegt. Und es MUSS bei HWND_TOP bleiben — mit TOPMOST lagen die
+    ///   Bereiche ueber Teams-Anrufen und Benachrichtigungen. Genau deshalb wurde
+    ///   in v0.16.0 pauschal auf HWND_TOP umgestellt; das hat den Teams-Fall
+    ///   geloest und Win+D dabei kaputtgemacht.
+    /// </summary>
+    private static void SetDesktopMode(bool active, bool ueberDemDesktop = false)
     {
-        if (_desktopMode == active) return;
+        // Der Tray-Weg darf einen laufenden Desktop-Modus nicht zurueckstufen.
+        if (active && !ueberDemDesktop) ueberDemDesktop = _ueberDemDesktop;
+
+        if (_desktopMode == active && _ueberDemDesktop == ueberDemDesktop) return;
         _desktopMode = active;
+        _ueberDemDesktop = active && ueberDemDesktop;
+
+        // Eine Zeile im Protokoll. Bleiben die Bereiche bei „Desktop anzeigen"
+        // trotzdem verdeckt, unterscheidet genau dieser Eintrag die beiden
+        // moeglichen Ursachen: fehlt er, hat die Shell dieser Windows-Fassung
+        // eine andere Fensterklasse gemeldet (dann gehoert sie in die Liste in
+        // OnForegroundChanged). Steht er da, ist es die Z-Reihenfolge.
+        Services.StartupLog.Write(active
+            ? $"Bereiche sichtbar ({(_ueberDemDesktop ? "ueber dem Desktop" : "vorn")})"
+            : "Bereiche wieder ganz unten");
 
         foreach (var hwnd in Attached.ToList())
         {
             if (active)
             {
-                // BEWUSST HWND_TOP statt HWND_TOPMOST: die Bereiche kommen ueber die
-                // normalen Fenster, bleiben aber UNTER echten Topmost-Fenstern
-                // (Teams-Anrufe, Benachrichtigungen) — die verdecken wir damit nie.
-                SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                SetWindowPos(hwnd, _ueberDemDesktop ? HWND_TOPMOST : HWND_TOP,
+                             0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             }
             else
             {
