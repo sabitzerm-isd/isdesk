@@ -475,6 +475,25 @@
                                 </TextBlock.ToolTip>
                             </TextBlock>
                         </StackPanel>
+                        <CheckBox x:Name="AutoReclaimCheck" Content="Bekannte Symbole von selbst zurückholen"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,0,0,4"
+                                  Checked="AutoReclaim_Checked" Unchecked="AutoReclaim_Unchecked">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="380">
+                                        <TextBlock Text="Ohne Knopfdruck aufräumen — aber nur das Bekannte" Style="{StaticResource TipTitle}" />
+                                        <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                   Text="Legt ein Programm-Update seine Verknüpfung erneut auf den Desktop, wandert sie von selbst an ihren gewohnten Platz zurück — meist innerhalb weniger Sekunden." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Angefasst wird ausschließlich, was MSDesk schon kennt: Einträge, die du selbst einmal in einen Bereich gelegt hast. Alles andere bleibt unberührt auf dem Desktop liegen." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Das ist nicht die Ablage. Die Ablage sammelt auch Unbekanntes ein und legt es in den Bereich „Ablage“ — das hier tut das ausdrücklich nicht." />
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
+                        <TextBlock x:Name="AutoReclaimHint" Style="{StaticResource HintStyle}" Margin="0,0,0,8" />
+
                         <WrapPanel>
                             <Button Content="Symbole zurück in ihre Bereiche" MinWidth="0" Margin="0,0,8,8"
                                     Click="ReclaimIcons_Click"

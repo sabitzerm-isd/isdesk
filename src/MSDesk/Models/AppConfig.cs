@@ -20,6 +20,21 @@ public sealed class AppConfig
     /// bekannte in ihren gelernten Bereich, unbekannte in den Bereich "Ablage".
     public bool DesktopSweep { get; set; }
 
+    /// <summary>
+    /// Bekannte Symbole von selbst zurueckholen.
+    ///
+    /// Die kleine Schwester der Ablage: Es werden AUSSCHLIESSLICH Eintraege
+    /// angefasst, deren Platz MSDesk bereits kennt — also solche, die der
+    /// Anwender selbst einmal in einen Bereich gelegt hat. Alles Unbekannte
+    /// bleibt unberuehrt auf dem Desktop liegen.
+    ///
+    /// Gedacht fuer den haeufigsten Aerger: Ein Programm-Update legt seine
+    /// Verknuepfung neu auf dem Desktop an, obwohl sie laengst einsortiert ist.
+    /// Ohne diese Automatik sammelt sich das an, bis jemand in den Optionen den
+    /// Knopf drueckt — und bis dahin liegt alles doppelt.
+    /// </summary>
+    public bool AutoReclaimKnown { get; set; } = true;
+
     /// Platz-Gedaechtnis: Dateiname (klein) → Tab-Ordner, in dem er zuletzt lag.
     /// So findet z. B. die neue Verknuepfung nach einem Programm-Update ihren Bereich wieder.
     public Dictionary<string, string> Placements { get; set; } = new();

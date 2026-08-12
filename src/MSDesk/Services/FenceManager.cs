@@ -214,15 +214,28 @@ public sealed class FenceManager
     {
         _config.Config.DesktopSweep = enabled;
         _config.SaveDebounced();
-        if (enabled)
-        {
-            EnsureAblageFence();
-            Sweeper?.Start();
-        }
-        else
-        {
-            Sweeper?.Stop();
-        }
+        if (enabled) EnsureAblageFence();
+        UeberwachungAnpassen();
+    }
+
+    public bool AutoReclaimKnown => _config.Config.AutoReclaimKnown;
+
+    public void SetAutoReclaimKnown(bool enabled)
+    {
+        _config.Config.AutoReclaimKnown = enabled;
+        _config.SaveDebounced();
+        UeberwachungAnpassen();
+    }
+
+    /// <summary>
+    /// Die Desktop-Ueberwachung laeuft, sobald EINE der beiden Stufen gewuenscht
+    /// ist. Frueher haing sie allein an der Ablage — schaltete man die ab, war
+    /// auch das Zurueckholen bekannter Symbole still mit weg.
+    /// </summary>
+    private void UeberwachungAnpassen()
+    {
+        if (DesktopSweeper.Gewuenscht(_config.Config)) Sweeper?.Start();
+        else Sweeper?.Stop();
     }
 
     /// Tab-Ordner des Ablage-Bereichs ("" wenn nicht vorhanden) — threadsicher lesbar.

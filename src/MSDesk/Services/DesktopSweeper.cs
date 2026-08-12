@@ -29,9 +29,10 @@ public sealed class DesktopSweeper : IDisposable
             if (!Directory.Exists(desktop)) return;
 
             _debounce = new System.Timers.Timer(4000) { AutoReset = false };
-            // Nur solange die Dauerueberwachung eingeschaltet ist (schuetzt gegen
-            // ein noch laufendes Debounce nach dem Abschalten).
-            _debounce.Elapsed += (_, _) => { if (_config.Config.DesktopSweep) Sweep(); };
+            // Der Zustand wird ERST BEIM AUSLOESEN geprueft, nicht beim
+            // Einrichten: sonst liefe ein bereits gestartetes Debounce nach dem
+            // Abschalten noch einmal durch.
+            _debounce.Elapsed += (_, _) => Durchlauf();
 
             _watcher = new FileSystemWatcher(desktop)
             {
@@ -45,6 +46,37 @@ public sealed class DesktopSweeper : IDisposable
             Restart(); // Erstlauf kurz nach dem Aktivieren
         }
     }
+
+    /// <summary>
+    /// Entscheidet, WIE eingesammelt wird — und ob ueberhaupt.
+    ///
+    /// Zwei Stufen, bewusst getrennt:
+    /// • Ablage an  → alles einsammeln, Unbekanntes landet in „Ablage".
+    /// • Ablage aus, „Bekannte zurueckholen" an → NUR Eintraege anfassen, deren
+    ///   Platz bereits gelernt ist. Genau der Fall „Programm-Update legt seine
+    ///   Verknuepfung erneut auf den Desktop". Alles Uebrige bleibt liegen.
+    /// </summary>
+    private void Durchlauf()
+    {
+        try
+        {
+            if (_config.Config.DesktopSweep) { Sweep(); return; }
+            if (!_config.Config.AutoReclaimKnown) return;
+
+            var ergebnis = DesktopReclaim.Run(_config);
+            if (ergebnis.Gesamt > 0)
+                StartupLog.Write($"Bekannte Symbole zurueckgeholt: {ergebnis.Gesamt} " +
+                                 $"(davon {ergebnis.Ersetzt} ersetzt)");
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "DesktopSweeper.Durchlauf");
+        }
+    }
+
+    /// Laeuft die Ueberwachung ueberhaupt? Eine der beiden Stufen genuegt.
+    public static bool Gewuenscht(Models.AppConfig config)
+        => config.DesktopSweep || config.AutoReclaimKnown;
 
     public void Stop()
     {

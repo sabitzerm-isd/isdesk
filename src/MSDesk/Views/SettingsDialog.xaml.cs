@@ -36,6 +36,7 @@ public partial class SettingsDialog : Window
         }
         IconSizeBox.SelectedItem ??= IconSizeBox.Items[1]; // Mittel (32)
         SweepCheck.IsChecked = manager?.DesktopSweepEnabled ?? false;
+        AutoReclaimCheck.IsChecked = manager?.AutoReclaimKnown ?? true;
         BackupPathBox.Text = manager?.AutoBackupFolder ?? "";
         BookmarkButton.IsEnabled = manager?.Bookmarks?.ChromeAvailable ?? false;
         if (!BookmarkButton.IsEnabled) BookmarkButton.Content = "Chrome nicht gefunden";
@@ -69,6 +70,7 @@ public partial class SettingsDialog : Window
         _initialized = true;
         UpdateDailyBackupStatus();
         UpdateBaseFolderText();
+        UpdateAutoReclaimHint();
 
         Loaded += async (_, _) => await CheckUpdateAsync();
     }
@@ -682,6 +684,37 @@ public partial class SettingsDialog : Window
         var text = $"{moved} Datei(en) auf den Desktop gelegt.";
         if (failed > 0) text += $"\n{failed} konnten nicht verschoben werden (evtl. in Benutzung).";
         ConfirmDialog.Info(text, this);
+    }
+
+    private void AutoReclaim_Checked(object sender, RoutedEventArgs e) => SetAutoReclaim(true);
+    private void AutoReclaim_Unchecked(object sender, RoutedEventArgs e) => SetAutoReclaim(false);
+
+    private void SetAutoReclaim(bool an)
+    {
+        if (_initialized) _manager?.SetAutoReclaimKnown(an);
+        UpdateAutoReclaimHint();
+    }
+
+    /// <summary>
+    /// Zeigt, wie viele Plaetze MSDesk ueberhaupt kennt. Ohne diese Zahl bliebe
+    /// offen, worauf sich „bekannt" bezieht — und ein leeres Gedaechtnis saehe
+    /// aus wie eine kaputte Automatik.
+    /// </summary>
+    private void UpdateAutoReclaimHint()
+    {
+        if (AutoReclaimHint == null || _manager == null) return;
+        var config = _manager.Config.Config;
+
+        if (!config.AutoReclaimKnown)
+        {
+            AutoReclaimHint.Foreground = System.Windows.Media.Brushes.Khaki;
+            AutoReclaimHint.Text = "Es wird nur zurückgeholt, wenn du unten den Knopf drückst.";
+            return;
+        }
+
+        var bekannt = config.Placements.Count + config.TargetPlacements.Count;
+        AutoReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
+        AutoReclaimHint.Text = $"Eingeschaltet — {bekannt} bekannte Plätze. Alles Übrige bleibt auf dem Desktop liegen.";
     }
 
     private void Sweep_Checked(object sender, RoutedEventArgs e)

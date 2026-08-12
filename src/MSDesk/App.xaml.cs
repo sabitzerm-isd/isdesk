@@ -145,9 +145,11 @@ public partial class App : Application
         // Tabs laden erst beim Anzeigen — das Platz-Gedaechtnis lernt die Ordner
         // deshalb einmalig im Hintergrund (ohne Icons/Ueberwachung).
         StartupLog.Step("Platz-Gedaechtnis", PlacementRegistry.LearnAllTabFolders);
-        StartupLog.Step("Ablage", () =>
+        StartupLog.Step("Desktop-Ueberwachung", () =>
         {
-            if (_config.Config.DesktopSweep) _manager.Sweeper.Start();
+            // Auch ohne Ablage: „Bekannte Symbole zurueckholen" braucht dieselbe
+            // Ueberwachung. Welche Stufe greift, entscheidet der Sweeper selbst.
+            if (DesktopSweeper.Gewuenscht(_config.Config)) _manager.Sweeper.Start();
         });
         StartupLog.Step("Infobereich-Symbol", () => _tray = new TrayService(_manager, _autostart));
 
