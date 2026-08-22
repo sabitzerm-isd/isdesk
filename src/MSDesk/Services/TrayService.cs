@@ -30,7 +30,7 @@ public sealed class TrayService : IDisposable
             Icon = LoadTrayIcon()
         };
         // Doppelklick aufs Tray: Bereiche kurz nach vorn (praktisch waehrend Vollbild-Apps/Teams).
-        _icon.DoubleClick += (_, _) => Interop.DesktopPinning.BringToFrontTemporarily();
+        _icon.DoubleClick += (_, _) => Interop.DesktopPinning.VornHalten();
 
         var menu = new WinForms.ContextMenuStrip
         {
@@ -48,7 +48,7 @@ public sealed class TrayService : IDisposable
         _sichtbarItem = Item("Bereiche ausblenden", "", (_, _) => SichtbarkeitUmschalten());
         menu.Items.Add(_sichtbarItem);
         menu.Items.Add(Item("Bereiche in den Vordergrund", "",
-            (_, _) => Interop.DesktopPinning.BringToFrontTemporarily()));
+            (_, _) => Interop.DesktopPinning.VornHalten()));
         menu.Items.Add(Item("Neuer Bereich…", "", (_, _) => NewFence()));
         menu.Items.Add(Item("Alle Bereiche neu ausrichten", "", (_, _) => _manager.RealignAll()));
         menu.Items.Add(Separator());

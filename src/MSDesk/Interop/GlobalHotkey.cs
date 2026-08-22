@@ -73,6 +73,10 @@ public static class GlobalHotkey
     {
         if (msg != WM_HOTKEY || wParam.ToInt32() != Kennung) return IntPtr.Zero;
 
+        // VOR dem Umschalten festhalten, wie der Fensterstapel gerade aussieht.
+        // Genau in diesem Moment ist die Frage interessant, und genau dann
+        // greift der Anwender zum Kuerzel.
+        DesktopPinning.StapelProtokollieren();
         DesktopPinning.ToggleSichtbarkeit();
         handled = true;
         return IntPtr.Zero;

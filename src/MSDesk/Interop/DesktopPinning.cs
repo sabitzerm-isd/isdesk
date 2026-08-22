@@ -8,10 +8,16 @@ namespace MSDesk.Interop;
 /// Verankert Bereichs-Fenster auf dem Desktop: Normal liegen sie IMMER ganz unten
 /// (WM_WINDOWPOSCHANGING erzwingt HWND_BOTTOM). Bei "Desktop anzeigen"/Win+D hebt
 /// Windows das Desktop-Band UEBER alle Fenster — die Bereiche wuerden dahinter
-/// verschwinden. Ein WinEvent-Hook (Foreground-Wechsel, kein Polling) erkennt den
-/// Desktop-Zustand und schaltet die Bereiche solange auf TOPMOST; verlaesst der
-/// Nutzer den Desktop wieder, tauchen sie nach ganz unten ab.
+/// verschwinden. Erkannt wird das auf ZWEI Wegen: ueber einen WinEvent-Hook
+/// (sofort, aber nicht auf jedem Rechner) und ueber einen Blick alle 800 ms in
+/// den Fensterstapel (DesktopLiegtVorn — verlaesslich). Solange der Desktop vorn
+/// liegt, stehen die Bereiche auf TOPMOST; danach tauchen sie nach unten ab.
 /// (SetParent auf Progman scheitert bei Layered-WPF-Fenstern — gemessen.)
+///
+/// Beim Filtern in DesktopLiegtVorn duerfen Werkzeugfenster NICHT uebersprungen
+/// werden: Das Fenster, das Windows beim "Desktop anzeigen" nach oben hebt, ist
+/// selbst eines. Ein frueherer Versuch filterte damit genau das weg, wonach er
+/// suchte — die Erkennung meldete nie etwas.
 ///
 /// ACHTUNG bei Aenderungen an der Z-Reihenfolge: Es gibt ZWEI Ausloeser mit
 /// unterschiedlichem Bedarf — der Desktop-Fall braucht TOPMOST, der Tray-Fall
@@ -109,24 +115,63 @@ public static class DesktopPinning
         _manualTimer?.Stop(); _manualTimer?.Dispose(); _manualTimer = null;
     }
 
-    /// Holt alle Bereiche kurz nach vorn (Tray-Menue / Tray-Doppelklick). Sie sinken
-    /// automatisch zurueck, sobald der Nutzer in eine andere App klickt — spaetestens
-    /// aber nach 10 Sekunden. Ohne dieses Zeitlimit koennten Bereiche dauerhaft ueber
-    /// Fenstern liegen, die Windows ohne Fokuswechsel oeffnet (z. B. Teams-Anrufe).
-    public static void BringToFrontTemporarily()
+    /// <summary>
+    /// Holt die Bereiche unbedingt nach vorn — ohne jede Erkennung.
+    ///
+    /// Der verlaessliche Handgriff hinter Strg+Alt+D, dem Doppelklick und dem
+    /// Eintrag im Infobereich. Er benutzt ausdruecklich TOPMOST, weil sonst der
+    /// Desktop bei „Desktop anzeigen" darueber bleibt. Das ist hier vertretbar:
+    /// Es geschieht nur auf ausdrueckliche Anforderung und endet von selbst,
+    /// sobald der Anwender in ein anderes Fenster klickt — oder nach 15
+    /// Sekunden.
+    /// </summary>
+    public static void VornHalten()
     {
-        SetDesktopMode(true);
+        SetDesktopMode(true, ueberDemDesktop: true);
 
         _manualTimer?.Dispose();
-        _manualTimer = new System.Timers.Timer(10000) { AutoReset = false };
-        _manualTimer.Elapsed += (_, _) =>
-        {
-            // Das Zeitlimit gilt nur fuer den Tray-Weg. Hat der Anwender
-            // zwischenzeitlich den Desktop angezeigt, muessen die Bereiche
-            // sichtbar bleiben — sonst saenken sie mitten im Anschauen ab.
-            if (!_ueberDemDesktop) SetDesktopMode(false);
-        };
+        _manualTimer = new System.Timers.Timer(15000) { AutoReset = false };
+        _manualTimer.Elapsed += (_, _) => Nachschauen(); // laesst den echten Zustand entscheiden
         _manualTimer.Start();
+    }
+
+    /// <summary>
+    /// Schreibt die oberen Fenster des Stapels ins Protokoll.
+    ///
+    /// Damit laesst sich beim naechsten Mal in einer Zeile ablesen, WAS Windows
+    /// beim „Desktop anzeigen" nach oben hebt — statt es zu erraten. Wird nur
+    /// beim Tastenkuerzel ausgeloest, kostet also im Betrieb nichts.
+    /// </summary>
+    public static void StapelProtokollieren()
+    {
+        try
+        {
+            var zeilen = new List<string>();
+            var hwnd = GetTopWindow(IntPtr.Zero);
+            for (var i = 0; hwnd != IntPtr.Zero && zeilen.Count < 8; i++, hwnd = GetWindow(hwnd, GW_HWNDNEXT))
+            {
+                if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) continue;
+                if (!GetWindowRect(hwnd, out var r) || r.Right - r.Left < 32 || r.Bottom - r.Top < 32) continue;
+
+                var sb = new System.Text.StringBuilder(64);
+                GetClassName(hwnd, sb, 64);
+                var ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+                GetWindowThreadProcessId(hwnd, out var pid);
+
+                var wer = pid == (uint)Environment.ProcessId ? " EIGEN" : "";
+                var top = (ex & WS_EX_TOPMOST) != 0 ? " TOPMOST" : "";
+                var tool = (ex & WS_EX_TOOLWINDOW) != 0 ? " TOOL" : "";
+                zeilen.Add($"    {zeilen.Count + 1}. {sb}{top}{tool}{wer}");
+            }
+
+            Services.StartupLog.Write($"Fensterstapel von oben (DesktopLiegtVorn={DesktopLiegtVorn()}):"
+                                      + Environment.NewLine
+                                      + string.Join(Environment.NewLine, zeilen));
+        }
+        catch (Exception ex)
+        {
+            App.LogCrash(ex, "DesktopPinning.StapelProtokollieren");
+        }
     }
 
     public static void Attach(Window window)
@@ -199,8 +244,13 @@ public static class DesktopPinning
         {
             if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) continue;
 
-            var ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-            if ((ex & (WS_EX_TOPMOST | WS_EX_TOOLWINDOW)) != 0) continue;
+            // Nur echte Topmost-Fenster ueberspringen (Benachrichtigungen,
+            // Anrufe). Werkzeugfenster NICHT — das Desktop-Fenster, das Windows
+            // beim „Desktop anzeigen" nach oben hebt, ist selbst eines. Sie hier
+            // auszusortieren hiess, genau das wegzufiltern, wonach gesucht wird.
+            // Die eigenen Bereiche sind zwar ebenfalls Werkzeugfenster, fallen
+            // aber schon ueber die Prozesspruefung weiter unten heraus.
+            if ((GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0) continue;
 
             if (!GetWindowRect(hwnd, out var r) || r.Right - r.Left < 32 || r.Bottom - r.Top < 32) continue;
 
@@ -261,6 +311,23 @@ public static class DesktopPinning
     /// </summary>
     public static void ToggleSichtbarkeit()
     {
+        // Sonderfall vor dem Umschalten: Die Bereiche sind SICHTBAR, der Desktop
+        // liegt vorn, und wir sind trotzdem nicht hochgestuft — dann sind sie
+        // gerade verdeckt, nicht ausgeblendet. Wer jetzt zum Doppelklick oder
+        // zum Kuerzel greift, will sie SEHEN und nicht verstecken. Sie
+        // stattdessen auszublenden haette gar nichts sichtbar veraendert und
+        // haette einen zweiten Handgriff verlangt.
+        //
+        // Greift nur, wenn die Erkennung versagt hat — arbeitet sie richtig,
+        // ist in dieser Lage laengst hochgestuft und der Umschalter verhaelt
+        // sich wie erwartet.
+        if (!_ausgeblendet && !_ueberDemDesktop && DesktopLiegtVorn())
+        {
+            VornHalten();
+            Services.StartupLog.Write("Bereiche waren verdeckt → nach vorn geholt (von Hand)");
+            return;
+        }
+
         _ausgeblendet = !_ausgeblendet;
 
         List<IntPtr> fenster;
@@ -276,9 +343,15 @@ public static class DesktopPinning
                              0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
 
+        // Beim Einblenden zusaetzlich nach vorn holen. Ohne das waere der
+        // Handgriff wirkungslos, wenn die Bereiche gar nicht ausgeblendet,
+        // sondern vom Desktop VERDECKT waren — genau der gemeldete Fall: der
+        // Doppelklick schaltete um, aber der Desktop lag weiter darueber.
+        if (!_ausgeblendet) VornHalten();
+
         Services.StartupLog.Write(_ausgeblendet
-            ? "Bereiche ausgeblendet (Doppelklick auf den Desktop)"
-            : "Bereiche wieder eingeblendet");
+            ? "Bereiche ausgeblendet (von Hand)"
+            : "Bereiche eingeblendet und nach vorn geholt");
     }
 
     private static void EnsureForegroundWatcher()
