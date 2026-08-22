@@ -106,6 +106,15 @@ public sealed class AppConfig
     /// Einstellung des einzelnen Bereichs.
     public bool BlurEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Doppelklick auf eine freie Stelle des Desktops blendet die Bereiche aus
+    /// und wieder ein — wie beim Vorbild.
+    ///
+    /// Zugleich der Notausgang: Sollte die Erkennung des Desktop-Zustands auf
+    /// einer Windows-Fassung versagen, kommt man so trotzdem an seine Bereiche.
+    /// </summary>
+    public bool DesktopDoubleClickToggle { get; set; } = true;
+
     /// Fehlende Website-Symbole beim Anzeigen automatisch aus dem Netz holen.
     public bool AutoFavicons { get; set; } = true;
 

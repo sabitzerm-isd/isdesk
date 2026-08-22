@@ -53,6 +53,7 @@ public partial class SettingsDialog : Window
         HideRecycleBinCheck.IsChecked = DesktopIcons.IsRecycleBinHidden();
         BlurCheck.IsChecked = manager?.BlurEnabled ?? true;
         FaviconCheck.IsChecked = manager?.AutoFavicons ?? true;
+        DoubleClickCheck.IsChecked = manager?.DesktopDoubleClickToggle ?? true;
         EdgeSnapCheck.IsChecked = manager?.EdgeSnapEnabled ?? true;
         WidthBox.Text = ((int)Math.Round(vm.Width)).ToString();
         HeightBox.Text = ((int)Math.Round(vm.Height)).ToString();
@@ -671,6 +672,16 @@ public partial class SettingsDialog : Window
         var bekannt = config.Placements.Count + config.TargetPlacements.Count;
         AutoReclaimHint.Foreground = System.Windows.Media.Brushes.LightGreen;
         AutoReclaimHint.Text = $"Eingeschaltet — {bekannt} bekannte Plätze. Alles Übrige bleibt auf dem Desktop liegen.";
+    }
+
+    private void DoubleClick_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized) _manager?.SetDesktopDoubleClickToggle(true);
+    }
+
+    private void DoubleClick_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_initialized) _manager?.SetDesktopDoubleClickToggle(false);
     }
 
     private void Sweep_Checked(object sender, RoutedEventArgs e)

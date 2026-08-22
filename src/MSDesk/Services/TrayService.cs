@@ -15,6 +15,9 @@ public sealed class TrayService : IDisposable
     private readonly WinForms.NotifyIcon _icon;
     private readonly WinForms.ToolStripMenuItem _autostartItem;
 
+    /// Beschriftung wechselt mit dem Zustand — ein Eintrag statt zweier.
+    private readonly WinForms.ToolStripMenuItem _sichtbarItem;
+
     public TrayService(FenceManager manager, AutostartService autostart)
     {
         _manager = manager;
@@ -42,6 +45,8 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(Kopfzeile($"MSDesk v{UpdateService.CurrentVersion}"));
         menu.Items.Add(Separator());
 
+        _sichtbarItem = Item("Bereiche ausblenden", "", (_, _) => SichtbarkeitUmschalten());
+        menu.Items.Add(_sichtbarItem);
         menu.Items.Add(Item("Bereiche in den Vordergrund", "",
             (_, _) => Interop.DesktopPinning.BringToFrontTemporarily()));
         menu.Items.Add(Item("Neuer Bereich…", "", (_, _) => NewFence()));
@@ -78,6 +83,13 @@ public sealed class TrayService : IDisposable
 
         menu.Items.Add(Separator());
         menu.Items.Add(Item("MSDesk beenden", "", (_, _) => Application.Current.Shutdown(), MenuColors.SymbolWarnung));
+
+        // Beschriftung beim OEFFNEN bestimmen, nicht beim Klicken: Der Zustand
+        // kann sich auch ueber den Doppelklick oder Strg+Alt+D geaendert haben —
+        // der Eintrag haette dann das Gegenteil dessen angeboten, was er tut.
+        menu.Opening += (_, _) => _sichtbarItem.Text = Interop.DesktopPinning.IstAusgeblendet
+            ? "Bereiche einblenden"
+            : "Bereiche ausblenden";
 
         _icon.ContextMenuStrip = menu;
     }
@@ -229,6 +241,19 @@ public sealed class TrayService : IDisposable
     }
 
     // --- Aktionen ---
+
+    /// <summary>
+    /// Bereiche aus- und einblenden — derselbe Umschalter wie der Doppelklick
+    /// auf den Desktop.
+    ///
+    /// Bewusst AUCH hier: Der Doppelklick haengt an einem systemweiten
+    /// Maus-Hook, den Windows unter Last aushaengen kann. Ueber das Symbol im
+    /// Infobereich kommt man immer an seine Bereiche.
+    /// </summary>
+    private void SichtbarkeitUmschalten()
+    {
+        Interop.DesktopPinning.ToggleSichtbarkeit();
+    }
 
     private void OpenSettings()
     {

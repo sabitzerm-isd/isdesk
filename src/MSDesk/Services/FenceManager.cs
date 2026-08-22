@@ -220,6 +220,16 @@ public sealed class FenceManager
 
     public bool AutoReclaimKnown => _config.Config.AutoReclaimKnown;
 
+    public bool DesktopDoubleClickToggle => _config.Config.DesktopDoubleClickToggle;
+
+    public void SetDesktopDoubleClickToggle(bool enabled)
+    {
+        _config.Config.DesktopDoubleClickToggle = enabled;
+        _config.SaveDebounced();
+        if (enabled) Interop.DesktopToggleWatcher.Start();
+        else Interop.DesktopToggleWatcher.Stop();
+    }
+
     public void SetAutoReclaimKnown(bool enabled)
     {
         _config.Config.AutoReclaimKnown = enabled;

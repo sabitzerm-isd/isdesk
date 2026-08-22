@@ -376,6 +376,25 @@
                         <CheckBox x:Name="BlurCheck" Content="Milchglas-Effekt hinter den Bereichen"
                                   Foreground="#DDFFFFFF" FontSize="12.5"
                                   Checked="Blur_Checked" Unchecked="Blur_Unchecked" />
+                        <CheckBox x:Name="DoubleClickCheck" Content="Doppelklick auf den Desktop blendet die Bereiche aus/ein"
+                                  Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,10,0,0"
+                                  Checked="DoubleClick_Checked" Unchecked="DoubleClick_Unchecked">
+                            <CheckBox.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="380">
+                                        <TextBlock Text="Schnell freie Sicht — und ein Notausgang" Style="{StaticResource TipTitle}" />
+                                        <TextBlock Style="{StaticResource TipText}" Margin="0"
+                                                   Text="Doppelklick auf eine freie Stelle des Desktops blendet alle Bereiche aus, ein weiterer holt sie zurück." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Auf ein Desktop-Symbol wirkt der Doppelklick nicht — dort startet wie gewohnt nur das Programm." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Als Notausgang gibt es zusätzlich Strg+Alt+D und den Eintrag „Bereiche ausblenden“ im Menü des Infobereich-Symbols. Beide wirken auch dann, wenn du an keine freie Desktop-Fläche kommst — und bleiben aktiv, auch wenn du diesen Schalter ausmachst." />
+                                        <TextBlock Style="{StaticResource TipText}"
+                                                   Text="Ausgeblendet wird nur vorübergehend — nach einem Neustart sind die Bereiche immer da." />
+                                    </StackPanel>
+                                </ToolTip>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
                         <CheckBox x:Name="FaviconCheck" Content="Website-Symbole automatisch nachladen"
                                   Foreground="#DDFFFFFF" FontSize="12.5" Margin="0,10,0,0"
                                   Checked="Favicon_Checked" Unchecked="Favicon_Unchecked" />
