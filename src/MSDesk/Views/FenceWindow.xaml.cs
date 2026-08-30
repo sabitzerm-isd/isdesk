@@ -991,11 +991,56 @@ public partial class FenceWindow : Window
         var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
         var screen = PointToScreen(e.GetPosition(this));
 
+        // Der Papierkorb bekommt ein eigenes, kurzes Menue statt des
+        // Explorer-Menues — siehe PapierkorbMenue.
+        if (item.Path.Contains(RecycleBinMonitor.ClsidMarker, StringComparison.OrdinalIgnoreCase))
+        {
+            PapierkorbMenue(item, hwnd);
+            return;
+        }
+
         // Ganz oben haengt MSDesk einen eigenen Punkt ein; alles Uebrige ist
         // unveraendert das echte Explorer-Menue.
         var notizGewaehlt = ShellContextMenu.Show(item.Path, hwnd, (int)screen.X, (int)screen.Y,
             item.HasNote ? "Notiz bearbeiten…" : "Notiz hinzufügen…");
         if (notizGewaehlt) AskForNote(item);
+    }
+
+    /// <summary>
+    /// Kurzes Menue fuer den Papierkorb: oeffnen, leeren, Eigenschaften.
+    ///
+    /// Im Explorer-Menue haengt jede installierte Erweiterung ihre Punkte ein —
+    /// Packer, Umbenenner, Dateisperren. Beim Papierkorb ergibt davon nichts
+    /// einen Sinn. Vor allem steht dort „Loeschen", und genau das hat den
+    /// Papierkorb schon einmal aus einem Bereich entfernt.
+    ///
+    /// Zurueckholen laesst er sich weiterhin: Wer ihn doch entfernen will,
+    /// nimmt „Ordner im Explorer oeffnen" aus dem Menue des Bereichs.
+    /// </summary>
+    private void PapierkorbMenue(ViewModels.IconItemViewModel item, IntPtr hwnd)
+    {
+        var menu = new ContextMenu { PlacementTarget = this };
+
+        MenuItem Punkt(string text, string glyph, Action tun)
+        {
+            var eintrag = new MenuItem { Header = text };
+            eintrag.Icon = new TextBlock
+            {
+                Text = glyph,
+                Style = TryFindResource("MenuGlyph") as Style
+            };
+            eintrag.Click += (_, _) => tun();
+            return eintrag;
+        }
+
+        menu.Items.Add(Punkt("Öffnen", "", () => Launch(item.Path)));
+        menu.Items.Add(Punkt("Papierkorb leeren", "",
+                             () => Interop.RecycleBinActions.Leeren(hwnd)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Punkt("Eigenschaften", "",
+                             () => Interop.RecycleBinActions.Eigenschaften(item.Path, hwnd)));
+
+        menu.IsOpen = true;
     }
 
     /// <summary>
