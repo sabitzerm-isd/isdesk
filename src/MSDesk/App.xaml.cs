@@ -145,6 +145,11 @@ public partial class App : Application
         // Tabs laden erst beim Anzeigen — das Platz-Gedaechtnis lernt die Ordner
         // deshalb einmalig im Hintergrund (ohne Icons/Ueberwachung).
         StartupLog.Step("Platz-Gedaechtnis", PlacementRegistry.LearnAllTabFolders);
+
+        // Versehentlich geloeschte Systemobjekte (Papierkorb & Co.) wieder
+        // anlegen. Bewusst NACH dem Oeffnen der Bereiche: die Reiter merken die
+        // Aenderung ueber ihre Ordnerueberwachung und zeigen sie sofort.
+        StartupLog.Step("Systemobjekte pruefen", () => ShellObjectHealing.Heilen(_config));
         StartupLog.Step("Desktop-Ueberwachung", () =>
         {
             // Auch ohne Ablage: „Bekannte Symbole zurueckholen" braucht dieselbe
