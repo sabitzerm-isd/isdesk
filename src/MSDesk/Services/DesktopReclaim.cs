@@ -28,7 +28,7 @@ public static class DesktopReclaim
     /// und laesst sich ohne Administratorrechte nicht anfassen.
     /// </summary>
     public sealed record Ergebnis(int Zurueckgeholt, int Ersetzt, int Fehlgeschlagen,
-                                  IReadOnlyList<string> Gesperrt)
+                                  IReadOnlyList<string> Gesperrt, int Doppelte = 0)
     {
         public int Gesamt => Zurueckgeholt + Ersetzt;
         public static Ergebnis Leer => new(0, 0, 0, Array.Empty<string>());
@@ -80,15 +80,6 @@ public static class DesktopReclaim
                     if (bereitsDa == null && ziel == null) continue;   // unbekannt → liegen lassen
                     if (bereitsDa == null && !Directory.Exists(ziel!)) continue;
 
-                    // Liegt der Eintrag auf dem Desktop FUER ALLE BENUTZER, darf
-                    // ihn nur ein Administrator anfassen. Das ehrlich melden,
-                    // statt es stillschweigend zu versuchen und zu scheitern.
-                    if (!Beschreibbar(eintrag))
-                    {
-                        gesperrt.Add(eintrag.Name);
-                        continue;
-                    }
-
                     if (bereitsDa != null)
                     {
                         // Die frische Verknuepfung vom Desktop ist die aktuellere —
@@ -102,9 +93,24 @@ public static class DesktopReclaim
                     if (!nurVorschau) Verschiebe(eintrag, ziel!);
                     zurueck++;
                 }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    // Rechte werden nicht mehr VORAB geprueft, sondern am
+                    // Versuch gemessen. Die alte Probe schrieb eine Testdatei
+                    // in den Ordner — dafuer braucht es Schreibrechte. Zum
+                    // WEGverschieben genuegen aber Lesen und Loeschen, und
+                    // genau die hat ein Benutzerkonto auf dem Desktop "fuer
+                    // alle Benutzer" oft (Loeschrecht auf den Dateien, kein
+                    // Schreibrecht im Ordner). Die Probe meldete deshalb
+                    // "gesperrt", wo das Verschieben laengst moeglich war.
+                    if (eintrag.FullName.StartsWith(oeffentlich, StringComparison.OrdinalIgnoreCase))
+                        gesperrt.Add(eintrag.Name);
+                    else
+                        fehler++;
+                }
                 catch (Exception)
                 {
-                    fehler++;   // gesperrt o. ae. — der naechste Lauf versucht es erneut
+                    fehler++;   // der naechste Lauf versucht es erneut
                 }
             }
         }
@@ -113,33 +119,19 @@ public static class DesktopReclaim
             App.LogCrash(ex, "DesktopReclaim.Run");
         }
 
-        var ergebnis = new Ergebnis(zurueck, ersetzt, fehler, gesperrt);
-        if (!nurVorschau && (ergebnis.Gesamt > 0 || gesperrt.Count > 0))
+        // Doppelte im SELBEN Ordner gleich mitraeumen — nach jedem Einordnen
+        // lag sonst wieder "Camtasia" neben "Camtasia (2)", bis eigens der
+        // Doppelte-Knopf gedrueckt wurde. Bewusst NUR innerhalb eines Ordners:
+        // dieselbe Verknuepfung in ZWEI Bereichen kann gewollt sein (Launcher
+        // UND Programme) — die raeumt weiterhin nur der Knopf ab.
+        var doppelte = nurVorschau ? 0 : RemoveDuplicates(config, nurVorschau: false, nurGleicherOrdner: true);
+
+        var ergebnis = new Ergebnis(zurueck, ersetzt, fehler, gesperrt, doppelte);
+        if (!nurVorschau && (ergebnis.Gesamt > 0 || gesperrt.Count > 0 || doppelte > 0))
             StartupLog.Write($"Symbole eingeordnet: {zurueck} zurueckgeholt, {ersetzt} ersetzt, " +
-                             $"{fehler} fehlgeschlagen, {gesperrt.Count} ohne Berechtigung.");
+                             $"{doppelte} Doppelte entfernt, {fehler} fehlgeschlagen, " +
+                             $"{gesperrt.Count} ohne Berechtigung.");
         return ergebnis;
-    }
-
-    /// <summary>
-    /// Ist der Eintrag ueberhaupt veraenderbar? Der Desktop fuer alle Benutzer
-    /// (C:\Users\Public\Desktop) ist ohne Administratorrechte schreibgeschuetzt.
-    /// </summary>
-    private static bool Beschreibbar(FileSystemInfo eintrag)
-    {
-        try
-        {
-            var ordner = eintrag is DirectoryInfo d ? d.Parent?.FullName : ((FileInfo)eintrag).DirectoryName;
-            if (ordner == null) return false;
-
-            var probe = Path.Combine(ordner, $".msdesk-probe-{Guid.NewGuid():N}");
-            File.WriteAllText(probe, "");
-            File.Delete(probe);
-            return true;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
     }
 
     /// <summary>
@@ -182,7 +174,8 @@ public static class DesktopReclaim
     /// Programm. Die neuere bleibt, die aeltere wandert in den Papierkorb.
     /// Rueckgabe: Anzahl der entfernten Eintraege.
     /// </summary>
-    public static int RemoveDuplicates(ConfigService config, bool nurVorschau = false)
+    public static int RemoveDuplicates(ConfigService config, bool nurVorschau = false,
+                                       bool nurGleicherOrdner = false)
     {
         var entfernt = 0;
 
@@ -208,9 +201,13 @@ public static class DesktopReclaim
                     if (ziel != null)
                     {
                         // Gleiches Ziel INKLUSIVE Argumente — nur das ist
-                        // wirklich dieselbe Verknuepfung.
-                        if (!gruppen.TryGetValue(ziel, out var liste))
-                            gruppen[ziel] = liste = new List<FileInfo>();
+                        // wirklich dieselbe Verknuepfung. Mit nurGleicherOrdner
+                        // zaehlt der Ordner zum Schluessel: die Automatik nach
+                        // dem Einordnen raeumt nur Doppelte ab, die
+                        // NEBENEINANDER liegen.
+                        var schluesselZiel = nurGleicherOrdner ? ordner + "|" + ziel : ziel;
+                        if (!gruppen.TryGetValue(schluesselZiel, out var liste))
+                            gruppen[schluesselZiel] = liste = new List<FileInfo>();
                         liste.Add(datei);
                         continue;
                     }
@@ -223,7 +220,7 @@ public static class DesktopReclaim
                     // das verwechselt, entfernt voellig intakte Verknuepfungen.
                     if (!ZeigtNachweislichInsLeere(datei.FullName)) continue;
 
-                    var schluessel = "kaputt:" + datei.Name;
+                    var schluessel = (nurGleicherOrdner ? ordner + "|" : "") + "kaputt:" + datei.Name;
                     if (!gruppen.TryGetValue(schluessel, out var kaputte))
                         gruppen[schluessel] = kaputte = new List<FileInfo>();
                     kaputte.Add(datei);
@@ -347,7 +344,10 @@ public static class DesktopReclaim
         }
 
         var ziel = Path.Combine(ordner, neu.Name);
-        FileSystem.MoveFile(neu.FullName, ziel, UIOption.OnlyErrorDialogs, UICancelOption.DoNothing);
+        // Ueberladung OHNE UIOption: der Lauf kommt auch aus dem Zeitgeber, ein
+        // Shell-Fehlerfenster ohne erkennbaren Anlass ist tabu. Ein Fehler
+        // fliegt als Ausnahme und wird je Eintrag gezaehlt.
+        FileSystem.MoveFile(neu.FullName, ziel);
         PlacementRegistry.Learn(ziel, ordner);
     }
 
@@ -356,9 +356,9 @@ public static class DesktopReclaim
         var ziel = Path.Combine(zielOrdner, eintrag.Name);
 
         if (eintrag is DirectoryInfo)
-            FileSystem.MoveDirectory(eintrag.FullName, ziel, UIOption.OnlyErrorDialogs, UICancelOption.DoNothing);
+            FileSystem.MoveDirectory(eintrag.FullName, ziel);
         else
-            FileSystem.MoveFile(eintrag.FullName, ziel, UIOption.OnlyErrorDialogs, UICancelOption.DoNothing);
+            FileSystem.MoveFile(eintrag.FullName, ziel);
 
         PlacementRegistry.Learn(ziel, zielOrdner);
     }

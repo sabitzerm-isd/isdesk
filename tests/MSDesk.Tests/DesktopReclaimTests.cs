@@ -207,3 +207,73 @@ public class DesktopReclaimTests : IDisposable
         sc.Save();
     }
 }
+
+/// <summary>
+/// Doppelte-Aufraeumen nach dem Einordnen: automatisch NUR innerhalb eines
+/// Ordners. Dieselbe Verknuepfung in zwei Bereichen kann gewollt sein — die
+/// raeumt weiterhin nur der Knopf ab.
+/// </summary>
+public class DedupeJeOrdnerTests : IDisposable
+{
+    private readonly string _root;
+    private readonly string _tabA;
+    private readonly string _tabB;
+    private readonly ConfigService _config;
+
+    public DedupeJeOrdnerTests()
+    {
+        _root = Path.Combine(Path.GetTempPath(), "msdesk_dd_" + Guid.NewGuid().ToString("N")[..8]);
+        _tabA = Path.Combine(_root, "Video");
+        _tabB = Path.Combine(_root, "Launcher");
+        Directory.CreateDirectory(_tabA);
+        Directory.CreateDirectory(_tabB);
+
+        _config = new ConfigService(Path.Combine(_root, "config.json"));
+        _config.Config.Fences.Add(new FenceConfig
+        {
+            Tabs =
+            {
+                new TabConfig { Title = "Video", FolderPath = _tabA },
+                new TabConfig { Title = "Launcher", FolderPath = _tabB },
+            }
+        });
+        PlacementRegistry.ClearTargetCache();
+    }
+
+    public void Dispose()
+    {
+        PlacementRegistry.ClearTargetCache();
+        try { Directory.Delete(_root, true); } catch (IOException) { /* egal */ }
+    }
+
+    [Fact]
+    public void GleicherOrdner_WirdGefunden()
+    {
+        // Der gemeldete Fall: "Camtasia" neben "Camtasia (2)", gleiches Ziel.
+        ShortcutFactory.CreateLnk(Path.Combine(_tabA, "Camtasia.lnk"),
+                                  @"C:\Windows\System32\notepad.exe");
+        ShortcutFactory.CreateLnk(Path.Combine(_tabA, "Camtasia (2).lnk"),
+                                  @"C:\Windows\System32\notepad.exe");
+        PlacementRegistry.ClearTargetCache();
+
+        Assert.Equal(1, DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true,
+                                                        nurGleicherOrdner: true));
+    }
+
+    [Fact]
+    public void VerschiedeneOrdner_BleibenBeideStehen()
+    {
+        // Bewusste Zweitablage (Launcher UND Programme) darf die Automatik
+        // nie anfassen — nur der Knopf ohne Ordnergrenze findet sie.
+        ShortcutFactory.CreateLnk(Path.Combine(_tabA, "Editor.lnk"),
+                                  @"C:\Windows\System32\notepad.exe");
+        ShortcutFactory.CreateLnk(Path.Combine(_tabB, "Editor.lnk"),
+                                  @"C:\Windows\System32\notepad.exe");
+        PlacementRegistry.ClearTargetCache();
+
+        Assert.Equal(0, DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true,
+                                                        nurGleicherOrdner: true));
+        Assert.Equal(1, DesktopReclaim.RemoveDuplicates(_config, nurVorschau: true,
+                                                        nurGleicherOrdner: false));
+    }
+}

@@ -53,10 +53,10 @@ public static class ReclaimPrompt
         {
             if (text.Length > 0) text.AppendLine();
             text.AppendLine($"Nicht möglich bei: {string.Join(", ", vorschau.Gesperrt)}");
-            text.AppendLine("\nDiese Verknüpfungen wurden bei der Installation für ALLE Benutzer " +
-                            "angelegt und liegen in C:\\Users\\Public\\Desktop. Dieser Ordner ist " +
-                            "ohne Administratorrechte schreibgeschützt — MSDesk darf sie weder " +
-                            "verschieben noch löschen.");
+            text.AppendLine("\nDiese Verknüpfungen liegen auf dem Desktop für ALLE Benutzer " +
+                            "(C:\\Users\\Public\\Desktop). MSDesk hat das Verschieben versucht — " +
+                            "die Rechte deines Kontos reichen dafür nicht aus. Hier hilft nur " +
+                            "ein Administrator.");
         }
 
         if (vorschau.Gesamt == 0)
@@ -75,6 +75,7 @@ public static class ReclaimPrompt
         var ergebnis = manager.ReclaimDesktopIcons();
 
         var meldung = $"{ergebnis.Gesamt} Symbole eingeordnet";
+        if (ergebnis.Doppelte > 0) meldung += $", {ergebnis.Doppelte} Doppelte in den Papierkorb";
         if (ergebnis.Fehlgeschlagen > 0) meldung += $", {ergebnis.Fehlgeschlagen} nicht (in Benutzung)";
         if (ergebnis.Gesperrt.Count > 0) meldung += $", {ergebnis.Gesperrt.Count} ohne Administratorrechte";
 
