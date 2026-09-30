@@ -45,22 +45,22 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(Kopfzeile($"MSDesk v{UpdateService.CurrentVersion}"));
         menu.Items.Add(Separator());
 
-        _sichtbarItem = Item("Bereiche ausblenden", "", (_, _) => SichtbarkeitUmschalten());
+        _sichtbarItem = Item("Bereiche ausblenden", "", WinSymbol.Ausblenden, (_, _) => SichtbarkeitUmschalten());
         menu.Items.Add(_sichtbarItem);
-        menu.Items.Add(Item("Bereiche in den Vordergrund", "",
+        menu.Items.Add(Item("Bereiche in den Vordergrund", "", WinSymbol.Vordergrund,
             (_, _) => Interop.DesktopPinning.VornHalten()));
-        menu.Items.Add(Item("Neuer Bereich…", "", (_, _) => NewFence()));
-        menu.Items.Add(Item("Alle Bereiche neu ausrichten", "", (_, _) => _manager.RealignAll()));
+        menu.Items.Add(Item("Neuer Bereich…", "", WinSymbol.NeuerBereich, (_, _) => NewFence()));
+        menu.Items.Add(Item("Alle Bereiche neu ausrichten", "", WinSymbol.Ausrichten, (_, _) => _manager.RealignAll()));
         menu.Items.Add(Separator());
 
-        menu.Items.Add(Item("Optionen…", "", (_, _) => OpenSettings()));
-        menu.Items.Add(Item("Anleitung öffnen", "", (_, _) => HelpPage.Open()));
-        menu.Items.Add(Item("Nach Updates suchen…", "", (_, _) => CheckUpdates()));
+        menu.Items.Add(Item("Optionen…", "", WinSymbol.Optionen, (_, _) => OpenSettings()));
+        menu.Items.Add(Item("Anleitung öffnen", "", WinSymbol.Anleitung, (_, _) => HelpPage.Open()));
+        menu.Items.Add(Item("Nach Updates suchen…", "", WinSymbol.Update, (_, _) => CheckUpdates()));
         menu.Items.Add(Separator());
 
-        menu.Items.Add(Item("Sicherung erstellen…", "",
+        menu.Items.Add(Item("Sicherung erstellen…", "", WinSymbol.Sichern,
             (_, _) => _manager.Backup?.CreateBackupInteractive(null)));
-        menu.Items.Add(Item("Sicherung wiederherstellen…", "",
+        menu.Items.Add(Item("Sicherung wiederherstellen…", "", WinSymbol.Wiederherstellen,
             (_, _) => _manager.Backup?.RestoreBackupInteractive(null)));
 
         menu.Items.Add(Separator());
@@ -82,7 +82,7 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(_autostartItem);
 
         menu.Items.Add(Separator());
-        menu.Items.Add(Item("MSDesk beenden", "", (_, _) => Application.Current.Shutdown(), MenuColors.SymbolWarnung));
+        menu.Items.Add(Item("MSDesk beenden", "", WinSymbol.Beenden, (_, _) => Application.Current.Shutdown(), MenuColors.SymbolWarnung));
 
         // Beschriftung beim OEFFNEN bestimmen, nicht beim Klicken: Der Zustand
         // kann sich auch ueber den Doppelklick oder Strg+Alt+D geaendert haben —
@@ -96,13 +96,100 @@ public sealed class TrayService : IDisposable
 
     // --- Menue-Bausteine ---
 
-    private static WinForms.ToolStripMenuItem Item(string text, string glyph, EventHandler onClick,
-                                                  Color? symbolFarbe = null)
+    private static WinForms.ToolStripMenuItem Item(string text, string glyph, int systemSymbol,
+                                                  EventHandler onClick, Color? symbolFarbe = null)
     {
         var item = new WinForms.ToolStripMenuItem(text) { ForeColor = MenuColors.Text };
-        item.Image = GlyphImage(glyph, symbolFarbe ?? MenuColors.Symbol);
+
+        // Bevorzugt das echte, farbige Windows-Symbol; die einfarbige Glyphe
+        // nur als Rueckfall, falls imageres.dll das Symbol nicht (mehr) liefert.
+        item.Image = SystemBild(systemSymbol) ?? GlyphImage(glyph, symbolFarbe ?? MenuColors.Symbol);
         item.Click += onClick;
         return item;
+    }
+
+    /// <summary>
+    /// Ressourcen-Kennungen der Windows-Symbole in imageres.dll.
+    ///
+    /// Bewusst die KENNUNG und nicht die Position in der Datei: die Position
+    /// verschiebt sich, sobald Microsoft ein Symbol ergaenzt; die Kennung
+    /// bleibt ueber Windows-Fassungen hinweg stabil. Ausgesucht anhand einer
+    /// gerenderten Uebersicht aller Symbole, nicht aus dem Gedaechtnis.
+    /// </summary>
+    private static class WinSymbol
+    {
+        public const int Ausblenden = 101;         // Bildschirm mit Mond
+        public const int Vordergrund = 5308;       // blaue Kacheln
+        public const int NeuerBereich = 5340;      // Kacheln mit gruenem Pfeil
+        public const int Ausrichten = 27;          // Anordnung
+        public const int Optionen = 114;           // Zahnrad
+        public const int Anleitung = 99;           // Fragezeichen
+        public const int Update = 1401;            // blaue Pfeile im Kreis
+        public const int Sichern = 1022;           // Bildschirm mit Uhr (Dateiversionsverlauf)
+        public const int Wiederherstellen = 5315;  // Rueckgaengig-Pfeil
+        public const int Beenden = 1402;           // rotes Kreuz
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern uint PrivateExtractIcons(string datei, int index, int cx, int cy,
+                                                   IntPtr[] handles, int[] kennungen, uint anzahl, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr handle);
+
+    /// Symbolgroesse in Bildpunkten passend zur Skalierung (16 bei 100 %, 24 bei 150 %).
+    private static readonly int SymbolGroesse = ErmittleSymbolGroesse();
+
+    private static int ErmittleSymbolGroesse()
+    {
+        try
+        {
+            using var g = Graphics.FromHwnd(IntPtr.Zero);
+            return Math.Max(16, (int)Math.Round(16 * g.DpiX / 96.0));
+        }
+        catch (Exception)
+        {
+            return 16;
+        }
+    }
+
+    /// <summary>
+    /// Holt ein Windows-Symbol aus imageres.dll — genau in der Groesse, in der
+    /// es angezeigt wird. Ein grosses Symbol herunterzurechnen liesse es
+    /// verwaschen wirken; Windows liefert fuer jede Groesse ein eigenes Bild.
+    /// </summary>
+    private static Bitmap? SystemBild(int ressource)
+    {
+        if (ressource == 0) return null;
+
+        var handles = new IntPtr[1];
+        var kennungen = new int[1];
+        try
+        {
+            var datei = System.IO.Path.Combine(Environment.SystemDirectory, "imageres.dll");
+
+            // Negative Zahl = Ressourcen-Kennung statt Position.
+            if (PrivateExtractIcons(datei, -ressource, SymbolGroesse, SymbolGroesse,
+                                    handles, kennungen, 1, 0) == 0 || handles[0] == IntPtr.Zero)
+                return null;
+
+            // Ueber DrawIcon statt Icon.ToBitmap: nur so bleibt der weiche
+            // Alphakanal an den Kanten erhalten.
+            var bild = new Bitmap(SymbolGroesse, SymbolGroesse,
+                                  System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bild))
+            using (var icon = Icon.FromHandle(handles[0]))
+                g.DrawIcon(icon, new Rectangle(0, 0, SymbolGroesse, SymbolGroesse));
+            return bild;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        finally
+        {
+            if (handles[0] != IntPtr.Zero) DestroyIcon(handles[0]);
+        }
     }
 
     /// <summary>
