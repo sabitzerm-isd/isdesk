@@ -11,3 +11,6 @@ obj/
 # Publish-Ausgabe (kommt als Release-Asset, nicht ins Repo)
 publish/
 dist/
+
+# Uebergabe zwischen Claude-Code-Sitzungen (persoenlich, Repo ist oeffentlich)
+UEBERGABE.md
