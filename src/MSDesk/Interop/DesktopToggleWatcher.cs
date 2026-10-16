@@ -56,6 +56,10 @@ public static class DesktopToggleWatcher
     [DllImport("user32.dll")] private static extern bool PostThreadMessage(uint faden, uint msg, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] private static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
     [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr kontext);
+
+    /// DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+    private static readonly IntPtr ProMonitorV2 = new(-4);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
@@ -92,6 +96,27 @@ public static class DesktopToggleWatcher
         _faden = new Thread(() =>
         {
             _fadenId = GetCurrentThreadId();
+
+            // ENTSCHEIDEND: Dieser Faden muss in echten Bildpunkten rechnen.
+            //
+            // Ein Maus-Hook liefert die Position IMMER in echten Bildpunkten.
+            // MSDesk selbst ist aber nur „system-DPI-bewusst" — und die
+            // System-DPI eines Prozesses legt Windows beim START des Prozesses
+            // fest. Startet MSDesk (per Autostart direkt nach der Anmeldung),
+            // waehrend der Laptop mit 150 % Hauptbildschirm ist, und arbeitet
+            // man danach an Monitoren mit 100 %, rechnet MSDesk bis zum
+            // naechsten Neustart mit Faktor 1,5.
+            // WindowFromPoint hat die Hook-Position dann als skalierte Angabe
+            // verstanden und an einer GANZ ANDEREN Stelle nachgesehen — meist
+            // auf freiem Desktop. Ergebnis: Ein Doppelklick auf ein Symbol in
+            // einem Bereich blendete alle Bereiche aus, statt das Programm zu
+            // starten (gemeldet 16.10.2026; belegt: GetSystemDpiForProcess
+            // lieferte 144 bei Monitoren mit 96 dpi).
+            //
+            // Nur DIESER Faden wird umgestellt — er legt keine Fenster an,
+            // der Rest von MSDesk bleibt unberuehrt.
+            if (SetThreadDpiAwarenessContext(ProMonitorV2) == IntPtr.Zero)
+                Services.StartupLog.Write("Doppelklick-Umschalter: DPI-Kontext nicht setzbar.");
             _proc = Verarbeiten;
             _hook = SetWindowsHookEx(WH_MOUSE_LL, _proc, IntPtr.Zero, 0);
 
@@ -170,7 +195,17 @@ public static class DesktopToggleWatcher
 
             // Umschalten NICHT im Hook selbst: hier laeuft die Eingabe des
             // ganzen Systems durch.
-            Application.Current?.Dispatcher.BeginInvoke(DesktopPinning.ToggleSichtbarkeit);
+            // Auch das Protokoll erst im Bedienfaden schreiben: Ein Dateizugriff im
+            // Hook kann haengen (Schutzprogramm, aufwachende Platte) — dann
+            // stockt die Maus des ganzen Rechners, und Windows haengt den Hook
+            // still aus.
+            var x = daten.pt.X;
+            var y = daten.pt.Y;
+            Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                Services.StartupLog.Write($"Doppelklick auf freien Desktop bei ({x},{y}) → umschalten");
+                DesktopPinning.ToggleSichtbarkeit();
+            });
         }
         catch (Exception)
         {
@@ -194,6 +229,7 @@ public static class DesktopToggleWatcher
     /// </summary>
     private static bool AufFreiemDesktop(POINT punkt)
     {
+
         var unterCursor = WindowFromPoint(punkt);
         if (unterCursor == IntPtr.Zero) return false;
 
