@@ -118,8 +118,8 @@ public static class DesktopPinning
     /// <summary>
     /// Holt die Bereiche unbedingt nach vorn — ohne jede Erkennung.
     ///
-    /// Der verlaessliche Handgriff hinter Strg+Alt+D, dem Doppelklick und dem
-    /// Eintrag im Infobereich. Er benutzt ausdruecklich TOPMOST, weil sonst der
+    /// Der verlaessliche Handgriff hinter Strg+Alt+D und dem Eintrag im
+    /// Infobereich. Er benutzt ausdruecklich TOPMOST, weil sonst der
     /// Desktop bei „Desktop anzeigen" darueber bleibt. Das ist hier vertretbar:
     /// Es geschieht nur auf ausdrueckliche Anforderung und endet von selbst,
     /// sobald der Anwender in ein anderes Fenster klickt — oder nach 15
@@ -294,7 +294,7 @@ public static class DesktopPinning
         }
     }
 
-    // --- Manuelles Ein- und Ausblenden (Doppelklick auf den Desktop) ---
+    // --- Manuelles Ein- und Ausblenden (Strg+Alt+D, Infobereich) ---
 
     private static bool _ausgeblendet;
 
@@ -313,8 +313,8 @@ public static class DesktopPinning
     {
         // Sonderfall vor dem Umschalten: Die Bereiche sind SICHTBAR, der Desktop
         // liegt vorn, und wir sind trotzdem nicht hochgestuft — dann sind sie
-        // gerade verdeckt, nicht ausgeblendet. Wer jetzt zum Doppelklick oder
-        // zum Kuerzel greift, will sie SEHEN und nicht verstecken. Sie
+        // gerade verdeckt, nicht ausgeblendet. Wer jetzt zum Kuerzel oder zum
+        // Menue greift, will sie SEHEN und nicht verstecken. Sie
         // stattdessen auszublenden haette gar nichts sichtbar veraendert und
         // haette einen zweiten Handgriff verlangt.
         //
@@ -345,8 +345,8 @@ public static class DesktopPinning
 
         // Beim Einblenden zusaetzlich nach vorn holen. Ohne das waere der
         // Handgriff wirkungslos, wenn die Bereiche gar nicht ausgeblendet,
-        // sondern vom Desktop VERDECKT waren — genau der gemeldete Fall: der
-        // Doppelklick schaltete um, aber der Desktop lag weiter darueber.
+        // sondern vom Desktop VERDECKT waren — gemeldeter Fall: es wurde
+        // umgeschaltet, aber der Desktop lag weiter darueber.
         if (!_ausgeblendet) VornHalten();
 
         Services.StartupLog.Write(_ausgeblendet

@@ -85,7 +85,7 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(Item("MSDesk beenden", "", WinSymbol.Beenden, (_, _) => Application.Current.Shutdown(), MenuColors.SymbolWarnung));
 
         // Beschriftung beim OEFFNEN bestimmen, nicht beim Klicken: Der Zustand
-        // kann sich auch ueber den Doppelklick oder Strg+Alt+D geaendert haben —
+        // kann sich auch ueber Strg+Alt+D geaendert haben —
         // der Eintrag haette dann das Gegenteil dessen angeboten, was er tut.
         menu.Opening += (_, _) => _sichtbarItem.Text = Interop.DesktopPinning.IstAusgeblendet
             ? "Bereiche einblenden"
@@ -330,12 +330,8 @@ public sealed class TrayService : IDisposable
     // --- Aktionen ---
 
     /// <summary>
-    /// Bereiche aus- und einblenden — derselbe Umschalter wie der Doppelklick
-    /// auf den Desktop.
-    ///
-    /// Bewusst AUCH hier: Der Doppelklick haengt an einem systemweiten
-    /// Maus-Hook, den Windows unter Last aushaengen kann. Ueber das Symbol im
-    /// Infobereich kommt man immer an seine Bereiche.
+    /// Bereiche aus- und einblenden — derselbe Umschalter wie Strg+Alt+D.
+    /// Ueber das Symbol im Infobereich kommt man immer an seine Bereiche.
     /// </summary>
     private void SichtbarkeitUmschalten()
     {

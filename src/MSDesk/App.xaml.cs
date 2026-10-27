@@ -158,13 +158,11 @@ public partial class App : Application
         });
         StartupLog.Step("Infobereich-Symbol", () => _tray = new TrayService(_manager, _autostart));
 
-        StartupLog.Step("Doppelklick auf den Desktop", () =>
-        {
-            if (_config.Config.DesktopDoubleClickToggle) Interop.DesktopToggleWatcher.Start();
-        });
-
-        // Immer aktiv, unabhaengig vom Doppelklick: der Weg zurueck muss auch
-        // dann noch da sein, wenn man an keine freie Desktop-Flaeche kommt.
+        // Der einzige Weg zum Aus-/Einblenden neben dem Infobereich-Menue.
+        // Einen Doppelklick auf den Desktop gibt es bewusst nicht mehr (v0.38.5):
+        // Der systemweite Maus-Hook hielt Doppelklicks auf Symbole in einem
+        // Bereich fuer einen Klick auf freien Desktop und blendete alles aus,
+        // statt das Programm zu starten.
         StartupLog.Step("Tastenkuerzel Strg+Alt+D", Interop.GlobalHotkey.Start);
 
         // Taegliche Sicherung. Der Dienst schaut erst einige Minuten nach dem
@@ -296,7 +294,6 @@ public partial class App : Application
         _displayDebounce?.Dispose();
         // Zuerst die Beobachter: sonst greifen sie noch auf Fenster zu,
         // waehrend ShutdownAll sie bereits schliesst.
-        Interop.DesktopToggleWatcher.Stop();
         Interop.GlobalHotkey.Stop();
         Interop.DesktopPinning.Dispose();
         _autoBackup?.Dispose();

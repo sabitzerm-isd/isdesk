@@ -6,10 +6,8 @@ namespace MSDesk.Interop;
 /// <summary>
 /// Strg+Alt+D blendet die Bereiche aus und wieder ein.
 ///
-/// Der eigentliche Notausgang. Der Doppelklick auf den Desktop setzt voraus,
-/// dass man an eine freie Desktop-Flaeche herankommt — im Notfall („die
-/// Bereiche liegen ueber allem" oder „die Bereiche sind weg") ist das gerade
-/// nicht gegeben. Ein Tastenkuerzel wirkt auch ueber einem Vollbildfenster.
+/// Der Notausgang („die Bereiche liegen ueber allem" oder „die Bereiche sind
+/// weg"). Ein Tastenkuerzel wirkt auch ueber einem Vollbildfenster.
 ///
 /// Bewusst ueber RegisterHotKey und ein reines Nachrichtenfenster: kein
 /// systemweiter Hook, kein zusaetzlicher Faden, keine Nachricht in einen
