@@ -258,6 +258,12 @@ public sealed class BackupService
             Title = "MSDesk-Sicherung wiederherstellen",
             Filter = "MSDesk-Sicherung (*.zip)|*.zip"
         };
+        // Gleich im eingetragenen Sicherungsordner beginnen: sonst merkt sich
+        // der Dialog den zuletzt benutzten Ort, und nach einem Datenverlust
+        // sucht man die Sicherungen erst muehsam zusammen.
+        var ordner = _config.Config.AutoBackupFolder;
+        if (!string.IsNullOrWhiteSpace(ordner) && Directory.Exists(ordner))
+            dialog.InitialDirectory = ordner;
         if (dialog.ShowDialog() != true) return;
 
         var (confirmed, _) = ConfirmDialog.Show(
