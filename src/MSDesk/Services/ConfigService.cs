@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using MSDesk.Models;
@@ -38,9 +39,10 @@ public sealed class ConfigService
     private static string LegacyFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MSDesk");
 
-    public ConfigService(string? pathOverride = null)
+    public ConfigService(string? pathOverride = null, string? sicherungsOrdner = null)
     {
         _path = pathOverride ?? Path.Combine(DefaultFolder, "config.json");
+        _sicherungsOrdner = pathOverride == null ? BackupService.StandardOrdner() : sicherungsOrdner;
         _debounceTimer = new System.Timers.Timer(400) { AutoReset = false };
         _debounceTimer.Elapsed += (_, _) => Save();
     }
@@ -136,10 +138,118 @@ public sealed class ConfigService
         }
         catch (Exception)
         {
-            // Kaputte Datei: Sicherungskopie ablegen, mit Defaults weiterarbeiten (kein Crash).
             TryBackupBadFile();
+            StartupLog.Write("Konfiguration NICHT lesbar.");
+
+            // Belegt 30.10. und 03.11.2026: nach einem Windows-Neustart lag
+            // config.json mit 0 Byte da. Frueher ging es hier sofort mit
+            // Standardwerten weiter — und das erste Speichern kopierte diese
+            // ueber die .bak, die einzige gute Kopie. Deshalb zuerst die
+            // Ersatzkopie, dann die neueste Tages-Sicherung.
+            if (LadeErsatz()) return;
+
+            // Nichts Brauchbares gefunden. Die .bak trotzdem beiseitelegen,
+            // bevor das erste Speichern sie ueberschreibt.
+            TryCopy(_path + ".bak", Path.Combine(Path.GetDirectoryName(_path)!, "config.bak.bad.json"));
             Config = new AppConfig();
-            StartupLog.Write("Konfiguration NICHT lesbar — mit Standardwerten gestartet.");
+            StartupLog.Write("Weder Ersatzkopie noch Sicherung lesbar — mit Standardwerten gestartet.");
+        }
+    }
+
+    /// Ordner, in dem beim Start nach der neuesten Tages-Sicherung gesucht wird.
+    /// Ohne eigenen Konfigurationspfad (echter Start) der Standardordner —
+    /// Tests mit eigenem Pfad greifen so nie auf echte Sicherungen zu.
+    private readonly string? _sicherungsOrdner;
+
+    private bool LadeErsatz()
+    {
+        var bak = _path + ".bak";
+        var ersatz = LiesKonfiguration(bak);
+        var quelle = bak;
+
+        if (ersatz == null)
+        {
+            ersatz = AusNeuesterSicherung(_sicherungsOrdner, out var zip);
+            quelle = zip;
+        }
+
+        if (ersatz == null) return false;
+
+        Config = ersatz;
+        StartupLog.Write($"Aus Ersatz geladen: {quelle} ({Config.Fences.Count} Bereiche)");
+
+        // Sofort zurueckschreiben, damit config.json wieder heil ist und nicht
+        // erst der naechste Speichervorgang das nachholt.
+        Save();
+        return true;
+    }
+
+    private static AppConfig? LiesKonfiguration(string datei)
+    {
+        try
+        {
+            if (!File.Exists(datei)) return null;
+            return JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(datei), JsonOptions);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Konfiguration aus der neuesten MSDesk-Sicherung im Ordner. Genommen wird
+    /// nur eine Sicherung mit Bereichen, deren Ordner der Bereiche es auf DIESEM
+    /// Rechner gibt — liegt der Sicherungsordner gemeinsam mit Kollegen in der
+    /// Cloud, wird so nicht deren Einrichtung geladen.
+    /// </summary>
+    internal static AppConfig? AusNeuesterSicherung(string? ordner, out string? datei)
+    {
+        datei = null;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ordner) || !Directory.Exists(ordner)) return null;
+
+            var zips = new DirectoryInfo(ordner).GetFiles("MSDesk-Sicherung*.zip")
+                                                .OrderByDescending(f => f.LastWriteTimeUtc);
+            foreach (var zipDatei in zips)
+            {
+                try
+                {
+                    using var zip = ZipFile.OpenRead(zipDatei.FullName);
+                    var eintrag = zip.GetEntry("config.json");
+                    if (eintrag == null) continue;
+
+                    using var stream = eintrag.Open();
+                    var cfg = JsonSerializer.Deserialize<AppConfig>(stream, JsonOptions);
+                    if (cfg == null || cfg.Fences.Count == 0) continue;
+                    if (string.IsNullOrWhiteSpace(cfg.BaseFolder) || !Directory.Exists(cfg.BaseFolder)) continue;
+
+                    datei = zipDatei.FullName;
+                    return cfg;
+                }
+                catch (Exception)
+                {
+                    // Diese Sicherung ist unbrauchbar — die naechstaeltere versuchen.
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Ordner nicht erreichbar (Cloud-Laufwerk fehlt) — kein Ersatz.
+        }
+        return null;
+    }
+
+    private static void TryCopy(string von, string nach)
+    {
+        try
+        {
+            if (File.Exists(von)) File.Copy(von, nach, overwrite: true);
+        }
+        catch
+        {
+            // best-effort
         }
     }
 
@@ -227,8 +337,16 @@ public sealed class ConfigService
                 // UNMITTELBAR in die Zieldatei schreiben. Frueher lief das ueber
                 // eine Nebendatei mit anschliessendem Umbenennen — das ist bei
                 // Abstuerzen sicherer, kam aber nachweislich nicht immer an.
-                // Gegen Datenverlust schuetzt jetzt die Sicherungskopie unten.
-                File.WriteAllText(_path, json, new UTF8Encoding(false));
+                // Gegen Datenverlust schuetzt die Sicherungskopie unten — Load
+                // greift auf sie zurueck, wenn config.json unlesbar ist.
+                // Mit Flush(true) bis auf die Platte: sonst kann ein Neustart
+                // (Windows-Update) die bereits geleerte Datei mit 0 Byte
+                // hinterlassen, waehrend der Inhalt noch im Zwischenspeicher lag.
+                using (var stream = new FileStream(_path, FileMode.Create, FileAccess.Write, FileShare.Read))
+                {
+                    stream.Write(new UTF8Encoding(false).GetBytes(json));
+                    stream.Flush(flushToDisk: true);
+                }
 
                 // NACHPRUEFEN: den tatsaechlichen Inhalt zurueklesen. Es hat sich
                 // gezeigt, dass ein Speichervorgang ohne jede Fehlermeldung

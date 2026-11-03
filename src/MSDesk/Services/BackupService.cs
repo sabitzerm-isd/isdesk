@@ -251,6 +251,29 @@ public sealed class BackupService
         }
     }
 
+    /// <summary>
+    /// Fest eingerichtete Sicherungsablage des Hauptanwenders. Steht vor jedem
+    /// Vorschlag: ging die Konfiguration verloren, schlug der Assistent sonst
+    /// einen leeren OneDrive-Ordner vor, und dort fand sich keine Sicherung.
+    /// </summary>
+    internal const string BevorzugterOrdner = @"D:\800 Cloud\Google\04 Sicherungen Apps\ISD Desk";
+
+    /// Standard-Sicherungsordner: die feste Ablage, sonst ein Cloud-Ordner, sonst „Dokumente".
+    public static string StandardOrdner()
+    {
+        if (Directory.Exists(BevorzugterOrdner)) return BevorzugterOrdner;
+
+        foreach (var variable in new[] { "OneDriveCommercial", "OneDriveConsumer", "OneDrive" })
+        {
+            var root = Environment.GetEnvironmentVariable(variable);
+            if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
+                return Path.Combine(root, "MSDesk-Sicherungen");
+        }
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MSDesk-Sicherungen");
+    }
+
     public void RestoreBackupInteractive(Window? centerOn)
     {
         var dialog = new OpenFileDialog
@@ -262,7 +285,9 @@ public sealed class BackupService
         // der Dialog den zuletzt benutzten Ort, und nach einem Datenverlust
         // sucht man die Sicherungen erst muehsam zusammen.
         var ordner = _config.Config.AutoBackupFolder;
-        if (!string.IsNullOrWhiteSpace(ordner) && Directory.Exists(ordner))
+        if (string.IsNullOrWhiteSpace(ordner) || !Directory.Exists(ordner))
+            ordner = StandardOrdner();
+        if (Directory.Exists(ordner))
             dialog.InitialDirectory = ordner;
         if (dialog.ShowDialog() != true) return;
 

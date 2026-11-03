@@ -94,4 +94,72 @@ public class ConfigServiceTests
         var bad = Path.Combine(Path.GetDirectoryName(path)!, "config.bad.json");
         Assert.True(File.Exists(bad));
     }
+
+    private static void SchreibeGueltig(string datei, string baseFolder, string titel)
+    {
+        var svc = new ConfigService(datei);
+        svc.Config.BaseFolder = baseFolder;
+        svc.Config.Fences.Add(new FenceConfig { Id = Guid.NewGuid(), Title = titel });
+        svc.Save();
+    }
+
+    private static void LegeSicherungAn(string zipDatei, string baseFolder, string titel)
+    {
+        var tmp = NewTempConfigPath();
+        SchreibeGueltig(tmp, baseFolder, titel);
+        using var zip = System.IO.Compression.ZipFile.Open(zipDatei, System.IO.Compression.ZipArchiveMode.Create);
+        System.IO.Compression.ZipFileExtensions.CreateEntryFromFile(zip, tmp, "config.json");
+    }
+
+    [Fact]
+    public void Load_LeereDatei_NimmtErsatzkopie_UndSchreibtSieZurueck()
+    {
+        // Nachgestellt wie am 30.10. und 03.11.: Ersatzkopie gut, Hauptdatei 0 Byte.
+        var path = NewTempConfigPath();
+        SchreibeGueltig(path, @"D:\TestFences", "Programme");
+        File.WriteAllText(path, "");
+
+        var svc = new ConfigService(path);
+        svc.Load();
+
+        Assert.Equal("Programme", Assert.Single(svc.Config.Fences).Title);
+        Assert.Contains("Programme", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void Load_LeereDatei_OhneErsatzkopie_NimmtNeuesteSicherung()
+    {
+        var path = NewTempConfigPath();
+        File.WriteAllText(path, "");
+        var ordner = Path.Combine(Path.GetDirectoryName(path)!, "Sicherungen");
+        Directory.CreateDirectory(ordner);
+        var bereiche = Path.GetDirectoryName(path)!; // existiert auf diesem Rechner
+
+        LegeSicherungAn(Path.Combine(ordner, "MSDesk-Sicherung-Test-2026-11-01_0800.zip"), bereiche, "Alt");
+        File.SetLastWriteTimeUtc(Path.Combine(ordner, "MSDesk-Sicherung-Test-2026-11-01_0800.zip"),
+                                 DateTime.UtcNow.AddDays(-2));
+        LegeSicherungAn(Path.Combine(ordner, "MSDesk-Sicherung-Test-2026-11-03_0800.zip"), bereiche, "Neu");
+
+        var svc = new ConfigService(path, ordner);
+        svc.Load();
+
+        Assert.Equal("Neu", Assert.Single(svc.Config.Fences).Title);
+    }
+
+    [Fact]
+    public void Load_SicherungMitFremdemOrdner_WirdUebergangen_ErsatzkopieBleibtErhalten()
+    {
+        // Sicherung eines Kollegen: Ordner der Bereiche gibt es hier nicht.
+        var path = NewTempConfigPath();
+        var dir = Path.GetDirectoryName(path)!;
+        File.WriteAllText(path, "");
+        File.WriteAllText(path + ".bak", "{ kaputt");
+        LegeSicherungAn(Path.Combine(dir, "MSDesk-Sicherung-Kollege.zip"), @"Q:\gibt\es\nicht", "Fremd");
+
+        var svc = new ConfigService(path, dir);
+        svc.Load();
+
+        Assert.Empty(svc.Config.Fences);
+        Assert.Equal("{ kaputt", File.ReadAllText(Path.Combine(dir, "config.bak.bad.json")));
+    }
 }

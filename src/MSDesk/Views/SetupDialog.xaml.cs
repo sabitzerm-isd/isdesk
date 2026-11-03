@@ -32,7 +32,7 @@ public partial class SetupDialog : Window
         BaseBox.Text = config.Config.BaseFolder;
 
         BackupBox.Text = string.IsNullOrWhiteSpace(config.Config.AutoBackupFolder)
-            ? SuggestBackupFolder()
+            ? BackupService.StandardOrdner()
             : config.Config.AutoBackupFolder;
 
         UpdateCloudHint();
@@ -88,20 +88,6 @@ public partial class SetupDialog : Window
 
     private static string Capitalize(string value)
         => value.Length == 0 ? value : char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant();
-
-    /// Bevorzugt einen Cloud-Ordner, sonst „Dokumente".
-    private static string SuggestBackupFolder()
-    {
-        foreach (var variable in new[] { "OneDriveCommercial", "OneDriveConsumer", "OneDrive" })
-        {
-            var root = Environment.GetEnvironmentVariable(variable);
-            if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
-                return Path.Combine(root, "MSDesk-Sicherungen");
-        }
-
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MSDesk-Sicherungen");
-    }
 
     /// Rueckmeldung, ob der gewaehlte Ordner nach einem Cloud-Laufwerk aussieht.
     private void UpdateCloudHint()
