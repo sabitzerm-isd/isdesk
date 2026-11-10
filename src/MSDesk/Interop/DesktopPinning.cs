@@ -127,6 +127,7 @@ public static class DesktopPinning
     /// </summary>
     public static void VornHalten()
     {
+        _manuellBis = Environment.TickCount64 + 15000;
         SetDesktopMode(true, ueberDemDesktop: true);
 
         _manualTimer?.Dispose();
@@ -286,12 +287,106 @@ public static class DesktopPinning
             lock (Attached) { if (Attached.Count == 0) return; }
 
             if (DesktopLiegtVorn()) SetDesktopMode(true, ueberDemDesktop: true);
-            else if (_ueberDemDesktop) SetDesktopMode(false);
+            else if (_ueberDemDesktop && Environment.TickCount64 >= _manuellBis) SetDesktopMode(false);
+
+            Abgleichen();
         }
         catch (Exception ex)
         {
             App.LogCrash(ex, "DesktopPinning.Nachschauen");
         }
+    }
+
+    /// Bis zu diesem Zeitpunkt (TickCount64) haelt ein Handgriff des Anwenders
+    /// die Bereiche vorn — die Wache stuft solange nicht zurueck. Ohne das
+    /// hielt „in den Vordergrund" nur bis zum naechsten Blick der Wache (0,8 s).
+    private static long _manuellBis;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder sb, int max);
+
+    /// <summary>
+    /// Prueft JEDEN Bereich einzeln gegen den Soll-Zustand und zieht Abweichler
+    /// nach.
+    ///
+    /// Gemeldet: Bei „Desktop anzeigen" fehlten oft einzelne — immer dieselben —
+    /// Bereiche. Der Zustand wurde bisher nur als Ganzes gemerkt („alle oben"),
+    /// aber nie am einzelnen Fenster nachgeprueft. Blieb ein Fenster aus
+    /// irgendeinem Grund unten (ueberholt von einem gleichzeitigen Zurueckstufen,
+    /// von Windows oder einem anderen Programm umsortiert), fiel das nie auf:
+    /// der gemerkte Zustand stimmte ja, also tat die Wache nichts mehr.
+    ///
+    /// Kostet je Blick einen GetWindowLong pro Bereich — nichts.
+    /// </summary>
+    private static void Abgleichen()
+    {
+        List<IntPtr> fenster;
+        lock (Attached) fenster = Attached.ToList();
+
+        var soll = _desktopMode && _ueberDemDesktop;
+        List<IntPtr>? abweichler = null;
+
+        foreach (var hwnd in fenster)
+        {
+            if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) continue;
+            var ist = (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+            if (ist != soll) (abweichler ??= new List<IntPtr>()).Add(hwnd);
+        }
+        if (abweichler == null) return;
+
+        ImBedienfaden(() =>
+        {
+            // Der Zustand kann sich bis hierher geaendert haben — dann erledigt
+            // es der naechste Blick.
+            if ((_desktopMode && _ueberDemDesktop) != soll) return;
+
+            var namen = new List<string>();
+            foreach (var hwnd in abweichler)
+            {
+                if (!IsWindow(hwnd)) continue;
+                Einstufen(hwnd);
+                var sb = new System.Text.StringBuilder(64);
+                GetWindowText(hwnd, sb, 64);
+                namen.Add(sb.ToString());
+            }
+            Services.StartupLog.Write(
+                $"Nachgezogen ({(soll ? "nach oben" : "nach unten")}): {string.Join(", ", namen)}");
+        });
+    }
+
+    /// Setzt EIN Fenster auf die Stufe, die der gemerkte Zustand verlangt.
+    private static void Einstufen(IntPtr hwnd)
+    {
+        if (_desktopMode)
+        {
+            SetWindowPos(hwnd, _ueberDemDesktop ? HWND_TOPMOST : HWND_TOP,
+                         0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        else
+        {
+            // Sicherheitshalber ein evtl. frueher gesetztes Topmost aufheben.
+            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+
+    /// <summary>
+    /// Fuehrt etwas im Bedienfaden aus (ohne Anwendung, z. B. im Test: sofort).
+    ///
+    /// ALLE Aenderungen an der Z-Reihenfolge laufen hierueber. Frueher kamen sie
+    /// aus zwei Faeden zugleich — aus der Wache (Zeitgeber) und aus dem
+    /// Windows-Ereignis (Bedienfaden). Ueberholten sich dabei ein Hoch- und ein
+    /// Zurueckstufen, blieb ein Teil der Bereiche unten, waehrend der gemerkte
+    /// Zustand „alle oben" lautete. Welche, entschied die Reihenfolge in der
+    /// Liste — deshalb immer dieselben. Eine Sperre taugt hier nicht: der
+    /// Zeitgeber-Faden wartet in SetWindowPos auf den Bedienfaden, der dann
+    /// seinerseits auf die Sperre warten wuerde.
+    /// </summary>
+    private static void ImBedienfaden(Action tun)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess()) { tun(); return; }
+        dispatcher.BeginInvoke(tun);
     }
 
     // --- Manuelles Ein- und Ausblenden (Strg+Alt+D, Infobereich) ---
@@ -391,6 +486,13 @@ public static class DesktopPinning
         {
             GetWindowThreadProcessId(hwnd, out var pid);
             if (pid == (uint)Environment.ProcessId) return; // eigener Dialog/Bereich → Zustand halten
+            // Liegt der Desktop trotzdem vorn (Klick auf „Desktop anzeigen" in
+            // der Taskleiste meldet die TASKLEISTE als Vordergrund), nicht
+            // zurueckstufen — sonst sinken die Bereiche kurz ab und kommen erst
+            // mit dem naechsten Blick der Wache wieder.
+            if (DesktopLiegtVorn()) { SetDesktopMode(true, ueberDemDesktop: true); return; }
+
+            _manuellBis = 0;
             SetDesktopMode(false);  // normale App vorn → Bereiche wieder ganz nach unten
         }
     }
@@ -414,6 +516,14 @@ public static class DesktopPinning
     /// </summary>
     private static void SetDesktopMode(bool active, bool ueberDemDesktop = false)
     {
+        // Nie aus einem fremden Faden — siehe ImBedienfaden.
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(() => SetDesktopMode(active, ueberDemDesktop));
+            return;
+        }
+
         // Der Tray-Weg darf einen laufenden Desktop-Modus nicht zurueckstufen.
         if (active && !ueberDemDesktop) ueberDemDesktop = _ueberDemDesktop;
 
@@ -436,17 +546,7 @@ public static class DesktopPinning
         foreach (var hwnd in fenster)
         {
             if (!IsWindow(hwnd)) continue;
-            if (active)
-            {
-                SetWindowPos(hwnd, _ueberDemDesktop ? HWND_TOPMOST : HWND_TOP,
-                             0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            }
-            else
-            {
-                // Sicherheitshalber ein evtl. frueher gesetztes Topmost aufheben.
-                SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-                SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            }
+            Einstufen(hwnd);
         }
     }
 }
