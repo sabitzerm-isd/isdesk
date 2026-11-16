@@ -35,6 +35,13 @@ public sealed class AppConfig
     /// </summary>
     public bool AutoReclaimKnown { get; set; } = true;
 
+    /// <summary>
+    /// Aktuelle Ansicht: Firma oder Privat. Bereiche, die nur zur jeweils
+    /// anderen Ansicht gehoeren, sind ausgeblendet. Gespeichert, damit nach
+    /// einem Neustart dieselbe Ansicht gilt wie vorher.
+    /// </summary>
+    public string Ansicht { get; set; } = Services.Kontext.Firma;
+
     /// Platz-Gedaechtnis: Dateiname (klein) → Tab-Ordner, in dem er zuletzt lag.
     /// So findet z. B. die neue Verknuepfung nach einem Programm-Update ihren Bereich wieder.
     public Dictionary<string, string> Placements { get; set; } = new();
@@ -153,6 +160,13 @@ public sealed class FenceConfig
 
     /// Zeigt hinter jedem Tab-Titel die Anzahl der Dateien (nur fuer diesen Bereich).
     public bool ShowTabCounts { get; set; }
+
+    /// <summary>
+    /// Wann der Bereich sichtbar ist: <see cref="Services.Kontext.Immer"/>,
+    /// <see cref="Services.Kontext.Firma"/> oder <see cref="Services.Kontext.Privat"/>.
+    /// Als Text gespeichert, damit die Konfiguration lesbar bleibt.
+    /// </summary>
+    public string Sichtbarkeit { get; set; } = Services.Kontext.Immer;
     public List<TabConfig> Tabs { get; set; } = new();
 
     /// Fenster-Geometrie je Bildschirm-Konfiguration (Schluessel = Display-Fingerprint,

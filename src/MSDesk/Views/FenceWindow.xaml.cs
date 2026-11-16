@@ -1043,6 +1043,44 @@ public partial class FenceWindow : Window
         menu.IsOpen = true;
     }
 
+    // --- Ansicht Firma / Privat ---
+
+    /// Linksklick: Ansicht fuer alle Bereiche wechseln.
+    private void Ansicht_Click(object sender, RoutedEventArgs e)
+        => Manager?.AnsichtWechseln();
+
+    /// <summary>
+    /// Rechtsklick: festlegen, wann DIESER Bereich sichtbar ist.
+    ///
+    /// Waehlt man die Ansicht, die gerade NICHT aktiv ist, verschwindet der
+    /// Bereich sofort — das steht deshalb ausdruecklich am Menuepunkt, sonst
+    /// saehe es aus, als waere er verloren.
+    /// </summary>
+    private void Ansicht_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (Manager is not { } manager) return;
+
+        var aktuell = _vm.Sichtbarkeit;
+        var andere = Kontext.Andere(manager.Ansicht);
+        var menu = new ContextMenu { PlacementTarget = sender as UIElement };
+
+        menu.Items.Add(new MenuItem { Header = "Diesen Bereich zeigen …", IsEnabled = false });
+
+        MenuItem Wahl(string wert, string text)
+        {
+            if (wert != Kontext.Immer && wert == andere) text += "  (wird jetzt ausgeblendet)";
+            var punkt = new MenuItem { Header = text, IsCheckable = true, IsChecked = aktuell == wert };
+            punkt.Click += (_, _) => manager.SetSichtbarkeit(this, wert);
+            return punkt;
+        }
+
+        menu.Items.Add(Wahl(Kontext.Immer, "Immer"));
+        menu.Items.Add(Wahl(Kontext.Firma, "Nur bei Firma"));
+        menu.Items.Add(Wahl(Kontext.Privat, "Nur bei Privat"));
+        menu.IsOpen = true;
+    }
+
     /// <summary>
     /// Rechtsklick auf das Schloss: Hoehe genau eingeben — auf Wunsch gleich
     /// fuer alle Bereiche. Gleiche Hoehen lassen die Anordnung deutlich

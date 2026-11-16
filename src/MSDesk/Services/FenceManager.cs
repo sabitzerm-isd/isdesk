@@ -321,8 +321,55 @@ public sealed class FenceManager
         var window = new FenceWindow(vm) { Manager = this };
         _windows.Add(window);
         window.Closed += (_, _) => _windows.Remove(window);
+        vm.Ansicht = _config.Config.Ansicht;
         window.Show();
+        SichtbarkeitAnwenden(window);
         return window;
+    }
+
+    // --- Ansicht Firma / Privat ---
+
+    /// Aktuelle Ansicht (Firma oder Privat).
+    public string Ansicht => Kontext.AnsichtNormalisieren(_config.Config.Ansicht);
+
+    /// Ereignis fuer das Infobereich-Menue (Beschriftung).
+    public event Action? AnsichtGeaendert;
+
+    /// <summary>
+    /// Wechselt die Ansicht. Bereiche, die nur zur anderen Ansicht gehoeren,
+    /// verschwinden; die der neuen kommen. „Immer"-Bereiche bleiben.
+    /// </summary>
+    public void SetAnsicht(string ansicht)
+    {
+        var neu = Kontext.AnsichtNormalisieren(ansicht);
+        if (_config.Config.Ansicht == neu) return;
+
+        _config.Config.Ansicht = neu;
+        _config.SaveDebounced();
+
+        foreach (var window in _windows.ToList())
+        {
+            window.ViewModel.Ansicht = neu;
+            SichtbarkeitAnwenden(window);
+        }
+
+        StartupLog.Write($"Ansicht gewechselt: {neu}");
+        AnsichtGeaendert?.Invoke();
+    }
+
+    public void AnsichtWechseln() => SetAnsicht(Kontext.Andere(Ansicht));
+
+    /// Legt fest, wann ein Bereich sichtbar ist, und wendet es sofort an.
+    public void SetSichtbarkeit(FenceWindow window, string sichtbarkeit)
+    {
+        window.ViewModel.Sichtbarkeit = sichtbarkeit;
+        SichtbarkeitAnwenden(window);
+    }
+
+    private void SichtbarkeitAnwenden(FenceWindow window)
+    {
+        var sichtbar = Kontext.SollSichtbar(window.ViewModel.Sichtbarkeit, Ansicht);
+        Interop.DesktopPinning.Ausschliessen(window, !sichtbar);
     }
 
     /// Legt Ordner <BaseFolder>\<title> + Standard-Tab "Allgemein" an, oeffnet das Fenster, persistiert.

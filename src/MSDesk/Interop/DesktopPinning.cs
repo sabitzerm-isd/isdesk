@@ -77,6 +77,10 @@ public static class DesktopPinning
         int objectId, int childId, uint thread, uint time);
 
     private static readonly List<IntPtr> Attached = new();
+
+    /// Bereiche, die die aktuelle Ansicht (Firma/Privat) ausblendet. Unter
+    /// derselben Sperre wie <see cref="Attached"/>.
+    private static readonly HashSet<IntPtr> Ausgeschlossen = new();
     private static volatile bool _desktopMode;
 
     /// Liegt der Desktop selbst vorn (Win+D / Klick auf den Desktop)? Nur dann
@@ -190,7 +194,10 @@ public static class DesktopPinning
         HwndSource.FromHwnd(hwnd)!.AddHook(ZOrderHook);
 
         lock (Attached) Attached.Add(hwnd);
-        window.Closed += (_, _) => { lock (Attached) Attached.Remove(hwnd); };
+        window.Closed += (_, _) =>
+        {
+            lock (Attached) { Attached.Remove(hwnd); Ausgeschlossen.Remove(hwnd); }
+        };
 
         // Sind die Bereiche gerade von Hand ausgeblendet, darf ein neu
         // entstehender nicht als einziger sichtbar sein. NACH dem Anzeigen —
@@ -389,6 +396,36 @@ public static class DesktopPinning
         dispatcher.BeginInvoke(tun);
     }
 
+    /// <summary>
+    /// Blendet EINEN Bereich wegen der Ansicht (Firma/Privat) aus oder ein.
+    ///
+    /// Bewusst hier und ueber denselben Weg wie das Aus-/Einblenden von Hand
+    /// (ShowWindow): zwei verschiedene Wege, ein Fenster zu verstecken, sind
+    /// in diesem Projekt schon einmal auseinandergelaufen. Das Einblenden von
+    /// Hand laesst ausgeschlossene Bereiche deshalb ausdruecklich aus.
+    /// </summary>
+    public static void Ausschliessen(Window window, bool ausschliessen)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        lock (Attached)
+        {
+            if (ausschliessen) Ausgeschlossen.Add(hwnd);
+            else Ausgeschlossen.Remove(hwnd);
+        }
+
+        if (ausschliessen)
+        {
+            ShowWindow(hwnd, SW_HIDE);
+        }
+        else if (!_ausgeblendet)
+        {
+            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+            Einstufen(hwnd);
+        }
+    }
+
     // --- Manuelles Ein- und Ausblenden (Strg+Alt+D, Infobereich) ---
 
     private static bool _ausgeblendet;
@@ -426,7 +463,7 @@ public static class DesktopPinning
         _ausgeblendet = !_ausgeblendet;
 
         List<IntPtr> fenster;
-        lock (Attached) fenster = Attached.ToList();
+        lock (Attached) fenster = Attached.Where(h => !Ausgeschlossen.Contains(h)).ToList();
 
         foreach (var hwnd in fenster)
         {

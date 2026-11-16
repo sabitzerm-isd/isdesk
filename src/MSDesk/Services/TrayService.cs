@@ -17,6 +17,7 @@ public sealed class TrayService : IDisposable
 
     /// Beschriftung wechselt mit dem Zustand — ein Eintrag statt zweier.
     private readonly WinForms.ToolStripMenuItem _sichtbarItem;
+    private readonly WinForms.ToolStripMenuItem _ansichtItem;
 
     public TrayService(FenceManager manager, AutostartService autostart)
     {
@@ -44,6 +45,13 @@ public sealed class TrayService : IDisposable
         // erkennbar, welche Fassung gerade laeuft.
         menu.Items.Add(Kopfzeile($"MSDesk v{UpdateService.CurrentVersion}"));
         menu.Items.Add(Separator());
+
+        // Ansicht Firma/Privat — auch hier, nicht nur in den Ueberschriften:
+        // Gehoeren alle Bereiche zur anderen Ansicht, ist sonst keine
+        // Ueberschrift mehr da, mit der man zurueckwechseln koennte.
+        _ansichtItem = Item("Ansicht wechseln", "\uE77B", WinSymbol.Ansicht,
+                            (_, _) => _manager.AnsichtWechseln());
+        menu.Items.Add(_ansichtItem);
 
         _sichtbarItem = Item("Bereiche ausblenden", "", WinSymbol.Ausblenden, (_, _) => SichtbarkeitUmschalten());
         menu.Items.Add(_sichtbarItem);
@@ -87,6 +95,8 @@ public sealed class TrayService : IDisposable
         // Beschriftung beim OEFFNEN bestimmen, nicht beim Klicken: Der Zustand
         // kann sich auch ueber Strg+Alt+D geaendert haben —
         // der Eintrag haette dann das Gegenteil dessen angeboten, was er tut.
+        menu.Opening += (_, _) => _ansichtItem.Text =
+            $"Ansicht: {_manager.Ansicht} — zu {Kontext.Andere(_manager.Ansicht)} wechseln";
         menu.Opening += (_, _) => _sichtbarItem.Text = Interop.DesktopPinning.IstAusgeblendet
             ? "Bereiche einblenden"
             : "Bereiche ausblenden";
@@ -128,6 +138,7 @@ public sealed class TrayService : IDisposable
         public const int Sichern = 1022;           // Bildschirm mit Uhr (Dateiversionsverlauf)
         public const int Wiederherstellen = 5315;  // Rueckgaengig-Pfeil
         public const int Beenden = 1402;           // rotes Kreuz
+        public const int Ansicht = 1029;           // Person (Firma/Privat)
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]

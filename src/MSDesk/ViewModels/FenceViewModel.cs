@@ -403,6 +403,43 @@ public sealed class FenceViewModel : INotifyPropertyChanged
         set { if (_config.Blur != value) { _config.Blur = value; OnChanged(); Persist(); } }
     }
 
+    /// Wann dieser Bereich sichtbar ist (Immer / Firma / Privat).
+    public string Sichtbarkeit
+    {
+        get => Services.Kontext.Normalisieren(_config.Sichtbarkeit);
+        set
+        {
+            var neu = Services.Kontext.Normalisieren(value);
+            if (_config.Sichtbarkeit == neu) return;
+            _config.Sichtbarkeit = neu;
+            OnChanged();
+            OnChanged(nameof(IstGebunden));
+            Persist();
+        }
+    }
+
+    /// Gehoert der Bereich nur zu einer Ansicht? (kleiner Punkt im Umschalter)
+    public bool IstGebunden => Sichtbarkeit != Services.Kontext.Immer;
+
+    private string _ansicht = Services.Kontext.Firma;
+
+    /// Aktuelle Ansicht (nicht je Bereich gespeichert, sondern global in
+    /// AppConfig.Ansicht; der FenceManager reicht sie hierher durch).
+    public string Ansicht
+    {
+        get => _ansicht;
+        set
+        {
+            var neu = Services.Kontext.AnsichtNormalisieren(value);
+            if (_ansicht == neu) return;
+            _ansicht = neu;
+            OnChanged();
+            OnChanged(nameof(IstPrivatAnsicht));
+        }
+    }
+
+    public bool IstPrivatAnsicht => _ansicht == Services.Kontext.Privat;
+
     public bool Locked
     {
         get => _config.Locked;

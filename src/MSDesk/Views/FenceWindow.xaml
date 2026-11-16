@@ -653,6 +653,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <!-- Background="Transparent": sonst faengt nur der Text selbst die
                      Maus, und die Vorschau erschiene nur ueber den Buchstaben.
@@ -885,7 +886,57 @@
                     </Button.Style>
                 </Button>
 
-                <ToggleButton Grid.Column="4" Style="{StaticResource LockButtonStyle}"
+                <!-- Umschalter Firma/Privat. Linksklick wechselt die Ansicht fuer
+                     ALLE Bereiche, Rechtsklick legt fest, wann DIESER Bereich
+                     sichtbar ist. Der Punkt zeigt: dieser Bereich gehoert nur zu
+                     der angezeigten Ansicht. -->
+                <Button Grid.Column="4" Click="Ansicht_Click"
+                        PreviewMouseRightButtonUp="Ansicht_RightClick"
+                        Cursor="Hand" Margin="0,0,4,0" VerticalAlignment="Center">
+                    <Button.ToolTip>
+                        <ToolTip>
+                            <StackPanel MaxWidth="320">
+                                <TextBlock Foreground="White" FontWeight="SemiBold" FontSize="12.5">
+                                    <Run Text="Ansicht: " /><Run Text="{Binding Ansicht, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock Foreground="#CCFFFFFF" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           Text="Linksklick: zwischen Firma und Privat wechseln — gilt für alle Bereiche." />
+                                <TextBlock Foreground="#CCFFFFFF" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
+                                           Text="Rechtsklick: festlegen, wann dieser Bereich sichtbar ist (immer, nur Firma, nur Privat)." />
+                                <TextBlock Foreground="#CCFFFFFF" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="Dieser Bereich: " /><Run Text="{Binding Sichtbarkeit, Mode=OneWay}" />
+                                </TextBlock>
+                            </StackPanel>
+                        </ToolTip>
+                    </Button.ToolTip>
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" CornerRadius="8" Padding="7,1,7,2" Background="#335AA0DC"
+                                    BorderBrush="#665AA0DC" BorderThickness="1">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="Punkt" Width="5" Height="5" Fill="White" Margin="0,0,4,0"
+                                             VerticalAlignment="Center" Visibility="Collapsed" />
+                                    <TextBlock Text="{Binding Ansicht}" FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="#E6FFFFFF" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IstPrivatAnsicht}" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#3342B883" />
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#6642B883" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IstGebunden}" Value="True">
+                                    <Setter TargetName="Punkt" Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.85" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <ToggleButton Grid.Column="5" Style="{StaticResource LockButtonStyle}"
                               IsChecked="{Binding Locked, Mode=TwoWay}"
                               PreviewMouseRightButtonUp="LockButton_RightClick"
                               ToolTip="Linksklick: Bereich fixieren (Verschieben und Größe sperren).&#x0a;Rechtsklick: Höhe genau eingeben — auch für alle Bereiche auf einmal." />
