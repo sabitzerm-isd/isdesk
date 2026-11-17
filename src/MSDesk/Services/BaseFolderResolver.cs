@@ -67,9 +67,11 @@ public static class BaseFolderResolver
     /// ausgewichen und das im Protokoll vermerkt.
     /// Rueckgabe: der tatsaechlich benutzbare Ordner.
     /// </summary>
-    public static string EnsureUsable(string? gewuenscht)
+    /// <param name="rueckfall">Nur fuer Tests: ersetzt Vorschlag UND Ausweichordner,
+    /// damit kein Testlauf echte Ordner wie „D:\Fences" anlegt.</param>
+    public static string EnsureUsable(string? gewuenscht, string? rueckfall = null)
     {
-        var kandidat = string.IsNullOrWhiteSpace(gewuenscht) ? Suggest() : gewuenscht!;
+        var kandidat = string.IsNullOrWhiteSpace(gewuenscht) ? (rueckfall ?? Suggest()) : gewuenscht!;
 
         // Schnellpfad: gibt es den Ordner schon, ist nichts zu tun. Wichtig,
         // weil Anlegbar() eine Probe-Datei schreibt und wieder loescht — bei
@@ -79,7 +81,7 @@ public static class BaseFolderResolver
 
         if (Anlegbar(kandidat)) return kandidat;
 
-        var ausweich = ImBenutzerordner();
+        var ausweich = rueckfall ?? ImBenutzerordner();
         StartupLog.Write($"Ordner der Bereiche nicht nutzbar: {kandidat} → weiche aus auf {ausweich}");
 
         if (Anlegbar(ausweich)) return ausweich;

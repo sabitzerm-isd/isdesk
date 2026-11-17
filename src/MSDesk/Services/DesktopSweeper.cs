@@ -63,7 +63,7 @@ public sealed class DesktopSweeper : IDisposable
             if (_config.Config.DesktopSweep) { Sweep(); return; }
             if (!_config.Config.AutoReclaimKnown) return;
 
-            var ergebnis = DesktopReclaim.Run(_config);
+            var ergebnis = DesktopReclaim.Run(_config, nurVerknuepfungen: true);
             if (ergebnis.Gesamt > 0)
                 StartupLog.Write($"Bekannte Symbole zurueckgeholt: {ergebnis.Gesamt} " +
                                  $"(davon {ergebnis.Ersetzt} ersetzt)");
@@ -110,6 +110,13 @@ public sealed class DesktopSweeper : IDisposable
     /// Regeln weiterhin in jedem Bereich stehen.)
     public void ApplyRulesEverywhere()
     {
+        if (!Einsammeln.Betreten(15000)) return;
+        try { ApplyRulesIntern(); }
+        finally { Einsammeln.Verlassen(); }
+    }
+
+    private void ApplyRulesIntern()
+    {
         try
         {
             var ablage = _config.Config.Fences
@@ -147,6 +154,15 @@ public sealed class DesktopSweeper : IDisposable
     }
 
     private void Sweep()
+    {
+        // Automatik UND Knopf laufen hierueber; ein zweiter gleichzeitiger Lauf
+        // wartet kurz und gibt dann auf (siehe Einsammeln).
+        if (!Einsammeln.Betreten(15000)) return;
+        try { SweepIntern(); }
+        finally { Einsammeln.Verlassen(); }
+    }
+
+    private void SweepIntern()
     {
         try
         {

@@ -36,7 +36,13 @@ public static class FavoriteService
 
             if (File.Exists(target))
             {
-                File.Delete(target);   // Favorit entfernen (Original bleibt)
+                // In den Papierkorb, nie endgueltig: Im Reiter „Favoriten" selbst
+                // ist die Datei oft die EINZIGE Fassung (Ziehen auf den Reiter
+                // verschiebt). Ein File.Delete hat sie dann unwiederbringlich
+                // vernichtet.
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(target,
+                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
                 return false;
             }
 

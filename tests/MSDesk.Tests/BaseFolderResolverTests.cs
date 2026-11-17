@@ -30,7 +30,7 @@ public class BaseFolderResolverTests : IDisposable
     [Fact]
     public void EnsureUsable_LeererWunsch_LiefertBenutzbarenOrdner()
     {
-        var ordner = BaseFolderResolver.EnsureUsable(null);
+        var ordner = BaseFolderResolver.EnsureUsable(null, Path.Combine(_root, "Rueckfall"));
 
         Assert.False(string.IsNullOrWhiteSpace(ordner));
         Assert.True(Directory.Exists(ordner));
@@ -54,7 +54,7 @@ public class BaseFolderResolverTests : IDisposable
         var frei = FreierLaufwerksbuchstabe();
         Assert.NotNull(frei);
 
-        var ergebnis = BaseFolderResolver.EnsureUsable($@"{frei}:\Fences");
+        var ergebnis = BaseFolderResolver.EnsureUsable($@"{frei}:\Fences", Path.Combine(_root, "Rueckfall"));
 
         Assert.NotEqual($@"{frei}:\Fences", ergebnis);
         Assert.True(Directory.Exists(ergebnis));

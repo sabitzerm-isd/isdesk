@@ -487,21 +487,10 @@ public sealed class FenceManager
 
         if (!deleteFolders) return;
 
-        var baseFolder = Path.GetFullPath(_config.Config.BaseFolder);
-        var toRecycle = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var tab in vm.Config.Tabs)
-        {
-            string folder;
-            try { folder = Path.GetFullPath(tab.FolderPath); }
-            catch (Exception) { continue; }
-
-            if (!IsUnder(folder, baseFolder)) continue;
-
-            // Standardlayout Basis\Bereich\Tab → ganzen Bereichsordner entfernen,
-            // liegt der Tab-Ordner direkt unter der Basis → nur ihn selbst.
-            var parent = Path.GetDirectoryName(folder);
-            toRecycle.Add(parent != null && IsUnder(parent, baseFolder) ? parent : folder);
-        }
+        var toRecycle = OrdnerZumEntfernen(
+            vm.Config.Tabs.Select(t => t.FolderPath),
+            _config.Config.Fences.SelectMany(f => f.Tabs).Select(t => t.FolderPath),
+            _config.Config.BaseFolder);
 
         foreach (var dir in toRecycle)
         {
@@ -515,6 +504,63 @@ public sealed class FenceManager
                 App.LogCrash(ex, "RemoveFence/DeleteFolder");
             }
         }
+    }
+
+    /// <summary>
+    /// Welche Ordner beim Entfernen eines Bereichs in den Papierkorb duerfen.
+    ///
+    /// Standardlayout Basis\Bereich\Tab: dann der ganze Bereichsordner. ABER nie
+    /// ein Ordner, in dem noch ein Reiter eines ANDEREN Bereichs liegt — nach
+    /// „Reiter abtrennen" oder „in anderen Bereich verschieben" bleibt dessen
+    /// Ordner am alten Ort. Frueher wanderte er mit dem Ursprungsbereich in den
+    /// Papierkorb, samt allem Inhalt eines Bereichs, der weiter benutzt wird.
+    /// In dem Fall werden nur die eigenen Reiter-Ordner entfernt.
+    /// </summary>
+    public static HashSet<string> OrdnerZumEntfernen(IEnumerable<string> eigeneTabs,
+                                                     IEnumerable<string> fremdeTabs,
+                                                     string basisOrdner)
+    {
+        var ergebnis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string basis;
+        try { basis = Path.GetFullPath(basisOrdner).TrimEnd('\\', '/'); }
+        catch (Exception) { return ergebnis; }
+
+        var fremde = new List<string>();
+        foreach (var f in fremdeTabs)
+        {
+            try { if (!string.IsNullOrWhiteSpace(f)) fremde.Add(Path.GetFullPath(f).TrimEnd('\\', '/')); }
+            catch (Exception) { }
+        }
+
+        // Liegt „ordner" selbst oder irgendwo darunter ein fremder Reiter?
+        bool Belegt(string ordner) => fremde.Any(f =>
+            string.Equals(f, ordner, StringComparison.OrdinalIgnoreCase) || IsUnder(f, ordner));
+
+        foreach (var tab in eigeneTabs)
+        {
+            string folder;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tab)) continue;
+                folder = Path.GetFullPath(tab).TrimEnd('\\', '/');
+            }
+            catch (Exception) { continue; }
+
+            if (!IsUnder(folder, basis)) continue;
+            if (Belegt(folder)) continue; // derselbe Ordner gehoert auch einem anderen Bereich
+
+            var parent = Path.GetDirectoryName(folder);
+            if (parent != null && IsUnder(parent, basis) && !Belegt(parent))
+                ergebnis.Add(parent);
+            else
+                ergebnis.Add(folder);
+        }
+
+        // Ein Reiter-Ordner, dessen Elternordner ohnehin entfernt wird, faellt weg.
+        foreach (var o in ergebnis.ToList())
+            if (ergebnis.Any(a => IsUnder(o, a))) ergebnis.Remove(o);
+
+        return ergebnis;
     }
 
     private static bool IsUnder(string path, string baseFolder)

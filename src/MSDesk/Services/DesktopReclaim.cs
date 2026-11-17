@@ -38,7 +38,19 @@ public static class DesktopReclaim
     /// Durchsucht den Desktop und ordnet bekannte Eintraege wieder ein.
     /// <paramref name="nurVorschau"/> = nichts verschieben, nur zaehlen.
     /// </summary>
-    public static Ergebnis Run(ConfigService config, bool nurVorschau = false)
+    public static Ergebnis Run(ConfigService config, bool nurVorschau = false,
+                               bool nurVerknuepfungen = false)
+    {
+        if (nurVorschau) return RunIntern(config, true, nurVerknuepfungen);
+
+        // Von Hand wie Automatik: kurz warten, dann aufgeben — ein gleichzeitiger
+        // zweiter Lauf hat sich frueher mit dem ersten in die Quere gebracht.
+        if (!Einsammeln.Betreten(15000)) return Ergebnis.Leer;
+        try { return RunIntern(config, false, nurVerknuepfungen); }
+        finally { Einsammeln.Verlassen(); }
+    }
+
+    private static Ergebnis RunIntern(ConfigService config, bool nurVorschau, bool nurVerknuepfungen)
     {
         int zurueck = 0, ersetzt = 0, fehler = 0;
         var gesperrt = new List<string>();
@@ -69,13 +81,30 @@ public static class DesktopReclaim
                     if ((eintrag.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
                     if (string.Equals(eintrag.Name, "desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
 
+                    // Die Automatik fasst NUR Verknuepfungen an. Ohne diese Grenze
+                    // wanderte bei ausgeschalteter Ablage trotzdem jeder neue
+                    // Ordner und jedes Archiv (.zip, .sza, .dwg …) nach wenigen
+                    // Sekunden vom Desktop — ueber die Endungs-Regeln der Ablage
+                    // und das Platz-Gedaechtnis fuer gleichnamige Ordner.
+                    if (nurVerknuepfungen && !IstVerknuepfung(eintrag)) continue;
+
                     var ziel = PlacementRegistry.LookupByPath(eintrag.FullName)
-                               ?? RegelOrdner(config, eintrag);   // z. B. die Ordner-Regel der Ablage
+                               ?? (nurVerknuepfungen ? null : RegelOrdner(config, eintrag));
                     var zielSchluessel = PlacementRegistry.ZielSchluessel(eintrag.FullName);
 
                     // Liegt dasselbe Programm schon in einem Bereich?
                     var bereitsDa = zielSchluessel != null
                                     && vorhanden.TryGetValue(zielSchluessel, out var alt) ? alt : null;
+
+                    // Gleicher Schluessel heisst nur: gleicher Programmname und
+                    // gleiche Argumente. Eine ZWEITE Installation (andere
+                    // HiCAD-Fassung, andere start.bat) hat denselben Schluessel,
+                    // ist aber etwas anderes — sie verdraengte frueher die
+                    // vorhandene still in den Papierkorb. Ersetzt wird deshalb
+                    // nur bei gleichem vollem Ziel oder wenn die alte
+                    // Verknuepfung nachweislich ins Leere zeigt.
+                    if (bereitsDa != null && !DieselbeInstallation(eintrag.FullName, bereitsDa.FullName))
+                        bereitsDa = null;
 
                     if (bereitsDa == null && ziel == null) continue;   // unbekannt → liegen lassen
                     if (bereitsDa == null && !Directory.Exists(ziel!)) continue;
@@ -176,6 +205,15 @@ public static class DesktopReclaim
     /// </summary>
     public static int RemoveDuplicates(ConfigService config, bool nurVorschau = false,
                                        bool nurGleicherOrdner = false)
+    {
+        if (nurVorschau) return RemoveDuplicatesIntern(config, true, nurGleicherOrdner);
+        if (!Einsammeln.Betreten(15000)) return 0;
+        try { return RemoveDuplicatesIntern(config, false, nurGleicherOrdner); }
+        finally { Einsammeln.Verlassen(); }
+    }
+
+    private static int RemoveDuplicatesIntern(ConfigService config, bool nurVorschau,
+                                              bool nurGleicherOrdner)
     {
         var entfernt = 0;
 
@@ -321,39 +359,100 @@ public static class DesktopReclaim
     }
 
     /// Legt den Desktop-Eintrag an die Stelle der vorhandenen Verknuepfung.
+    /// <summary>
+    /// Ist die Verknuepfung auf dem Desktop dieselbe Installation wie die im
+    /// Bereich? Gleiches volles Ziel — oder die alte zeigt nachweislich ins
+    /// Leere (Update hat den Versionsordner gewechselt).
+    /// </summary>
+    private static bool DieselbeInstallation(string neuPfad, string altPfad)
+    {
+        try
+        {
+            var neu = ShortcutFactory.ResolveLnk(neuPfad)?.Ziel;
+            var alt = ShortcutFactory.ResolveLnk(altPfad)?.Ziel;
+            if (string.IsNullOrWhiteSpace(neu) || string.IsNullOrWhiteSpace(alt)) return false;
+
+            if (string.Equals(Path.GetFullPath(neu), Path.GetFullPath(alt), StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return ZeigtNachweislichInsLeere(altPfad);
+        }
+        catch (Exception)
+        {
+            return false; // im Zweifel nichts ersetzen
+        }
+    }
+
+    /// <summary>
+    /// Legt den Desktop-Eintrag an die Stelle der vorhandenen Verknuepfung.
+    ///
+    /// Reihenfolge: ERST die neue sicher in den Ordner holen, DANN die alte in
+    /// den Papierkorb. Frueher umgekehrt — scheiterte das Holen, war die alte
+    /// schon weg. Gleicher Name → gleicher Platz in der Anordnung.
+    /// </summary>
     private static void ErsetzeAnGleicherStelle(FileSystemInfo neu, FileInfo alt)
     {
         var ordner = alt.DirectoryName;
         if (ordner == null) return;
 
-        // IN DEN PAPIERKORB, nicht endgueltig loeschen.
-        //
-        // Hier stand frueher alt.Delete() — ein Loeschen ohne Umweg. Was MSDesk
-        // an dieser Stelle irrtuemlich fuer dieselbe Verknuepfung hielt, war
-        // danach unwiederbringlich weg. Genau so ist ein „Planungsmanager"
-        // verschwunden. Ueber den Papierkorb bleibt jeder Irrtum umkehrbar.
+        // 1. Holen — unter freiem Namen, falls der alte Name gleich ist.
+        var zwischen = FreierZiel(ordner, neu);
+        FileSystem.MoveFile(neu.FullName, zwischen);   // ohne UIOption: kein Shell-Fenster aus dem Zeitgeber
+
+        // 2. Alte in den Papierkorb, nie endgueltig.
         try
         {
-            FileSystem.DeleteFile(alt.FullName, UIOption.OnlyErrorDialogs,
-                                  RecycleOption.SendToRecycleBin);
+            FileSystem.DeleteFile(alt.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             StartupLog.Write($"Ersetzt (alte Fassung in den Papierkorb): {alt.FullName}");
         }
         catch (Exception)
         {
-            // Gesperrt → weiter unten wird ueberschrieben.
+            // Gesperrt → beide bleiben; die neue liegt unter „(2)" daneben.
+            PlacementRegistry.Learn(zwischen, ordner);
+            return;
         }
 
+        // 3. Wurde der Name frei, die neue unter ihrem eigenen Namen ablegen.
         var ziel = Path.Combine(ordner, neu.Name);
-        // Ueberladung OHNE UIOption: der Lauf kommt auch aus dem Zeitgeber, ein
-        // Shell-Fehlerfenster ohne erkennbaren Anlass ist tabu. Ein Fehler
-        // fliegt als Ausnahme und wird je Eintrag gezaehlt.
-        FileSystem.MoveFile(neu.FullName, ziel);
+        if (!string.Equals(zwischen, ziel, StringComparison.OrdinalIgnoreCase) && !File.Exists(ziel))
+        {
+            try { File.Move(zwischen, ziel); } catch (Exception) { ziel = zwischen; }
+        }
+        else
+        {
+            ziel = zwischen;
+        }
+
         PlacementRegistry.Learn(ziel, ordner);
+    }
+
+    private static bool IstVerknuepfung(FileSystemInfo eintrag)
+        => eintrag is FileInfo
+           && Path.GetExtension(eintrag.Name).ToLowerInvariant() is ".lnk" or ".url" or ".appref-ms";
+
+    /// <summary>
+    /// Freier Zielname: bei Namensgleichheit „Name (2)". FileSystem.MoveDirectory
+    /// MISCHT einen Ordner sonst stillschweigend in einen gleichnamigen am Ziel
+    /// („Neuer Ordner" landete im Inhalt eines alten), und MoveFile scheitert.
+    /// </summary>
+    private static string FreierZiel(string zielOrdner, FileSystemInfo eintrag)
+    {
+        var ziel = Path.Combine(zielOrdner, eintrag.Name);
+        if (!File.Exists(ziel) && !Directory.Exists(ziel)) return ziel;
+
+        var istOrdner = eintrag is DirectoryInfo;
+        var stamm = istOrdner ? eintrag.Name : Path.GetFileNameWithoutExtension(eintrag.Name);
+        var endung = istOrdner ? "" : Path.GetExtension(eintrag.Name);
+        for (var n = 2; ; n++)
+        {
+            ziel = Path.Combine(zielOrdner, $"{stamm} ({n}){endung}");
+            if (!File.Exists(ziel) && !Directory.Exists(ziel)) return ziel;
+        }
     }
 
     private static void Verschiebe(FileSystemInfo eintrag, string zielOrdner)
     {
-        var ziel = Path.Combine(zielOrdner, eintrag.Name);
+        var ziel = FreierZiel(zielOrdner, eintrag);
 
         if (eintrag is DirectoryInfo)
             FileSystem.MoveDirectory(eintrag.FullName, ziel);
