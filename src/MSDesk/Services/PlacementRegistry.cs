@@ -14,6 +14,15 @@ public static class PlacementRegistry
     public static void Learn(string filePath, string tabFolder)
     {
         if (_config == null) return;
+
+        // Die Konfiguration wird nur auf dem Bedienfaden veraendert. Die
+        // Automatik ruft Learn aus dem Zeitgeber-Faden — dann dorthin umleiten.
+        var app = Application.Current;
+        if (app != null && !app.Dispatcher.CheckAccess())
+        {
+            app.Dispatcher.BeginInvoke(() => Learn(filePath, tabFolder));
+            return;
+        }
         var name = Path.GetFileName(filePath.TrimEnd('\\', '/')).ToLowerInvariant();
         if (name.Length == 0) return;
 
@@ -168,13 +177,63 @@ public static class PlacementRegistry
         });
     }
 
-    /// Gelernter Tab-Ordner fuer einen Dateinamen (null, wenn unbekannt oder Ordner weg).
+    /// <summary>
+    /// Vergisst den gelernten Platz einer Datei — Name UND Ziel, soweit sie auf
+    /// genau diesen Ordner zeigen. Fuer „Inhalte zurueck auf den Desktop": sonst
+    /// raeumte die Automatik die eben zurueckgelegten Verknuepfungen nach vier
+    /// Sekunden wieder ein. Vor dem Verschieben aufrufen (Ziel wird gelesen).
+    /// </summary>
+    public static void Vergessen(string filePath, string tabFolder)
+    {
+        if (_config == null) return;
+        var geaendert = false;
+
+        var name = Path.GetFileName(filePath.TrimEnd('\\', '/')).ToLowerInvariant();
+        if (_config.Config.Placements.TryGetValue(name, out var ordner)
+            && string.Equals(ordner, tabFolder, StringComparison.OrdinalIgnoreCase))
+            geaendert |= _config.Config.Placements.Remove(name);
+
+        var ziel = ZielSchluessel(filePath);
+        if (ziel != null && _config.Config.TargetPlacements.TryGetValue(ziel, out var zielOrdner)
+            && string.Equals(zielOrdner, tabFolder, StringComparison.OrdinalIgnoreCase))
+            geaendert |= _config.Config.TargetPlacements.Remove(ziel);
+
+        if (geaendert) _config.SaveDebounced();
+    }
+
+    /// <summary>
+    /// Zaehlt ein gelernter Ordner noch? Nur, wenn es ihn gibt UND er noch zu
+    /// einem Reiter gehoert. Nach „Reiter entfernen" bleibt der Ordner oft
+    /// stehen — die Automatik haette sonst neue Verknuepfungen dorthin gelegt,
+    /// wo kein Bereich sie mehr zeigt.
+    /// </summary>
+    private static bool Gueltig(string? ordner)
+    {
+        if (_config == null || string.IsNullOrWhiteSpace(ordner) || !Directory.Exists(ordner)) return false;
+        try
+        {
+            var gesucht = Path.GetFullPath(ordner).TrimEnd('\\', '/');
+            foreach (var fence in _config.Config.Fences.ToList())
+                foreach (var tab in fence.Tabs.ToList())
+                    if (!string.IsNullOrWhiteSpace(tab.FolderPath)
+                        && string.Equals(Path.GetFullPath(tab.FolderPath).TrimEnd('\\', '/'), gesucht,
+                                         StringComparison.OrdinalIgnoreCase))
+                        return true;
+        }
+        catch (Exception)
+        {
+            // Liste wurde gerade veraendert o. ae. → im Zweifel nicht verwenden
+        }
+        return false;
+    }
+
+    /// Gelernter Tab-Ordner fuer einen Dateinamen (null, wenn unbekannt oder kein Reiter mehr).
     public static string? Lookup(string fileName)
     {
         if (_config == null) return null;
         if (!_config.Config.Placements.TryGetValue(fileName.ToLowerInvariant(), out var folder))
             return null;
-        return Directory.Exists(folder) ? folder : null;
+        return Gueltig(folder) ? folder : null;
     }
 
     /// <summary>
@@ -193,7 +252,7 @@ public static class PlacementRegistry
         if (ziel == null) return null;
 
         return _config.Config.TargetPlacements.TryGetValue(ziel, out var ordner)
-               && Directory.Exists(ordner)
+               && Gueltig(ordner)
             ? ordner
             : null;
     }

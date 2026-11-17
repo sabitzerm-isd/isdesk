@@ -48,6 +48,8 @@ public static class DesktopRestore
                 try
                 {
                     var target = UniqueTarget(desktop, Path.GetFileName(file));
+                    // Platz vergessen, sonst holt die Automatik sie gleich zurueck.
+                    PlacementRegistry.Vergessen(file, folder);
                     File.Move(file, target);
                     moved++;
                 }

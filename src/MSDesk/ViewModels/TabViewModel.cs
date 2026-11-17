@@ -579,9 +579,15 @@ public sealed class TabViewModel : INotifyPropertyChanged, IDisposable
             _watcher.Dispose();
             _watcher = null;
         }
-        _debounce?.Stop();
-        _debounce?.Dispose();
-        _debounce = null;
+        // Unter derselben Sperre wie OnFileSystemChanged: sonst konnte ein
+        // spaetes Watcher-Ereignis Start() auf dem eben freigegebenen Zeitgeber
+        // aufrufen — die Ausnahme auf dem Pool-Faden beendete MSDesk wortlos.
+        lock (_sync)
+        {
+            _debounce?.Stop();
+            _debounce?.Dispose();
+            _debounce = null;
+        }
     }
 
     public void Dispose()
