@@ -15,6 +15,81 @@ public sealed class BackupService
     private readonly ConfigService _config;
     private readonly FenceManager _manager;
 
+    /// Die Bereichs-Dateien einer Sicherung samt Ziel — nur unterhalb des
+    /// Basisordners (Zip-Slip-Schutz).
+    private static IEnumerable<(ZipArchiveEntry Eintrag, string Ziel)> Ordnerdateien(ZipArchive zip, string baseFolder)
+    {
+        var basis = Path.GetFullPath(baseFolder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        foreach (var entry in zip.Entries)
+        {
+            if (!entry.FullName.StartsWith("Fences/", StringComparison.OrdinalIgnoreCase)) continue;
+            if (entry.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
+
+            var target = Path.GetFullPath(Path.Combine(baseFolder, entry.FullName.Substring("Fences/".Length)));
+            if (!target.StartsWith(basis, StringComparison.OrdinalIgnoreCase)) continue;
+            yield return (entry, target);
+        }
+    }
+
+    /// Vorhandene, ABWEICHENDE Zieldateien, die gerade geoeffnet sind.
+    public static List<string> GesperrteZiele(ZipArchive zip, string baseFolder)
+    {
+        var gesperrt = new List<string>();
+        foreach (var (entry, target) in Ordnerdateien(zip, baseFolder))
+        {
+            if (!File.Exists(target) || InhaltGleich(entry, target)) continue;
+            try { using var _ = new FileStream(target, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
+            catch (IOException) { gesperrt.Add(target); }
+            catch (UnauthorizedAccessException) { gesperrt.Add(target); }
+        }
+        return gesperrt;
+    }
+
+    /// <summary>
+    /// Spielt EINE Datei zurueck, ohne etwas zu vernichten: gleicher Inhalt →
+    /// nichts tun; abweichender Inhalt → die vorhandene (womoeglich neuere
+    /// Arbeitsdatei) zuerst in den Papierkorb, dann entpacken. Frueher wurde
+    /// einfach ueberschrieben — eine seit der Sicherung bearbeitete DXF/XLSX
+    /// war damit endgueltig auf dem alten Stand.
+    /// Rueckgabe: true, wenn geschrieben wurde.
+    /// </summary>
+    public static bool DateiZurueckspielen(ZipArchiveEntry entry, string target)
+    {
+        if (File.Exists(target))
+        {
+            if (InhaltGleich(entry, target)) return false;
+            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(target,
+                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        entry.ExtractToFile(target, overwrite: false);
+        return true;
+    }
+
+    private static bool InhaltGleich(ZipArchiveEntry entry, string pfad)
+    {
+        try
+        {
+            if (new FileInfo(pfad).Length != entry.Length) return false;
+            using var a = entry.Open();
+            using var b = File.OpenRead(pfad);
+            var pa = new byte[81920]; var pb = new byte[81920];
+            while (true)
+            {
+                var na = a.ReadAtLeast(pa, pa.Length, throwOnEndOfStream: false);
+                var nb = b.ReadAtLeast(pb, pb.Length, throwOnEndOfStream: false);
+                if (na != nb) return false;
+                if (na == 0) return true;
+                if (!pa.AsSpan(0, na).SequenceEqual(pb.AsSpan(0, nb))) return false;
+            }
+        }
+        catch (Exception)
+        {
+            return false; // nicht vergleichbar → als abweichend behandeln (Papierkorb, kein Verlust)
+        }
+    }
+
     public BackupService(ConfigService config, FenceManager manager)
     {
         _config = config;
@@ -56,7 +131,7 @@ public sealed class BackupService
             WriteBackup(dialog.FileName);
             var mb = Math.Max(1, new FileInfo(dialog.FileName).Length / 1024 / 1024);
             var text = $"Sicherung erstellt ({mb} MB):\n{dialog.FileName}";
-            if (_skippedLarge > 0) text += $"\n\n{_skippedLarge} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
+            if (_skippedLarge > 0) text += $"\n\n{_skippedLarge} große Datei(en) ausgelassen (Dateien über 1 MB werden nicht mitgesichert).";
             ConfirmDialog.Info(text, centerOn);
         }
         catch (Exception ex)
@@ -135,7 +210,7 @@ public sealed class BackupService
 
         var text = $"Sicherung erstellt ({ergebnis.Megabyte} MB):\n{ergebnis.Datei}";
         if (ergebnis.Ausgelassen > 0)
-            text += $"\n\n{ergebnis.Ausgelassen} große Datei(en) ausgelassen (nur Layout und Verknüpfungen werden gesichert).";
+            text += $"\n\n{ergebnis.Ausgelassen} große Datei(en) ausgelassen (Dateien über 1 MB werden nicht mitgesichert).";
         if (ergebnis.Entfernt > 0)
             text += $"\n{ergebnis.Entfernt} ältere Sicherung(en) entfernt – es bleiben die neuesten {Math.Max(1, _config.Config.AutoBackupKeep)}.";
         ConfirmDialog.Info(text, centerOn);
@@ -293,7 +368,7 @@ public sealed class BackupService
 
         var (confirmed, _) = ConfirmDialog.Show(
             "Sicherung wiederherstellen?\n\nDie aktuelle Konfiguration wird ersetzt, die gesicherten " +
-            "Bereichs-Ordner werden zurückgespielt (bestehende Dateien gleichen Namens werden überschrieben). " +
+            "Bereichs-Ordner werden zurückgespielt (abweichende Dateien gleichen Namens wandern vorher in den Papierkorb). " +
             "MSDesk startet danach neu.",
             centerOn, okText: "Wiederherstellen");
         if (!confirmed) return;
@@ -332,6 +407,20 @@ public sealed class BackupService
                     $"Wiederherstellung: {gesichert} nicht nutzbar → {baseFolder} ({umgezogen} Pfade angepasst)");
             }
 
+            // Erst pruefen, dann aendern: Ist eine Datei, die ersetzt werden
+            // muesste, gerade geoeffnet, wird VOR jeder Aenderung abgebrochen.
+            // Frueher scheiterte das Entpacken mittendrin — die Konfiguration
+            // war schon ersetzt, die Ordner nur halb zurueckgespielt.
+            var gesperrt = GesperrteZiele(zip, baseFolder);
+            if (gesperrt.Count > 0)
+            {
+                ConfirmDialog.Info("Wiederherstellung abgebrochen — nichts wurde verändert.\n\n" +
+                    "Diese Dateien sind gerade geöffnet:\n" + string.Join("\n", gesperrt.Take(10)) +
+                    (gesperrt.Count > 10 ? $"\n… und {gesperrt.Count - 10} weitere" : "") +
+                    "\n\nBitte schließen und erneut versuchen.", centerOn);
+                return;
+            }
+
             // Ab hier nichts mehr speichern (sonst ueberschreibt die alte In-Memory-Config die Wiederherstellung).
             _config.SuppressSaves();
             _manager.CloseAllWithoutSave();
@@ -357,20 +446,8 @@ public sealed class BackupService
 
             // Bereichs-Ordner zurueckspielen.
             Directory.CreateDirectory(baseFolder);
-            foreach (var entry in zip.Entries)
-            {
-                if (!entry.FullName.StartsWith("Fences/", StringComparison.OrdinalIgnoreCase)) continue;
-                if (entry.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
-
-                var rel = entry.FullName.Substring("Fences/".Length);
-                var target = Path.GetFullPath(Path.Combine(baseFolder, rel));
-                // Zip-Slip-Schutz: nur unterhalb des Basisordners schreiben.
-                if (!target.StartsWith(Path.GetFullPath(baseFolder) + Path.DirectorySeparatorChar,
-                        StringComparison.OrdinalIgnoreCase)) continue;
-
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                entry.ExtractToFile(target, overwrite: true);
-            }
+            foreach (var (entry, target) in Ordnerdateien(zip, baseFolder))
+                DateiZurueckspielen(entry, target);
 
             // Vorschaubilder der Anordnungen ebenfalls zurueckspielen.
             try
