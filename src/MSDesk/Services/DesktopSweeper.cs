@@ -240,13 +240,13 @@ public sealed class DesktopSweeper : IDisposable
             {
                 // Inhaltsgleiches Duplikat (typisch nach Programm-Update):
                 // Desktop-Kopie in den Papierkorb, Bereichs-Icon bleibt an seinem Platz.
-                FileSystem.DeleteFile(entry.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                Papierkorb.Verschieben(entry.FullName);
                 return;
             }
             // Gleicher Name, anderer Inhalt (neue Version): alte Datei in den
             // Papierkorb, neue uebernimmt Name UND Platz in der Anordnung.
             if (!isDir && File.Exists(dest))
-                FileSystem.DeleteFile(dest, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                Papierkorb.Verschieben(dest);
             else if (Directory.Exists(dest))
             {
                 // Ein Ordner gleichen Namens bekommt „(2)" — auch dann, wenn er

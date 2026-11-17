@@ -40,9 +40,7 @@ public static class FavoriteService
                 // ist die Datei oft die EINZIGE Fassung (Ziehen auf den Reiter
                 // verschiebt). Ein File.Delete hat sie dann unwiederbringlich
                 // vernichtet.
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(target,
-                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                Papierkorb.Verschieben(target);
                 return false;
             }
 

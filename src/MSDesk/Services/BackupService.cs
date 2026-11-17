@@ -58,9 +58,7 @@ public sealed class BackupService
         if (File.Exists(target))
         {
             if (InhaltGleich(entry, target)) return false;
-            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(target,
-                Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+            Papierkorb.Verschieben(target);
         }
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         entry.ExtractToFile(target, overwrite: false);

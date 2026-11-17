@@ -283,8 +283,7 @@ public static class DesktopReclaim
                     try
                     {
                         if (!nurVorschau)
-                            FileSystem.DeleteFile(datei.FullName, UIOption.OnlyErrorDialogs,
-                                                  RecycleOption.SendToRecycleBin);
+                            Papierkorb.Verschieben(datei.FullName);
                         entfernt++;
                     }
                     catch (Exception)
@@ -402,7 +401,7 @@ public static class DesktopReclaim
         // 2. Alte in den Papierkorb, nie endgueltig.
         try
         {
-            FileSystem.DeleteFile(alt.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            Papierkorb.Verschieben(alt.FullName);
             StartupLog.Write($"Ersetzt (alte Fassung in den Papierkorb): {alt.FullName}");
         }
         catch (Exception)

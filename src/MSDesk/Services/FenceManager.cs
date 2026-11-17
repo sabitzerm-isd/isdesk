@@ -497,7 +497,7 @@ public sealed class FenceManager
             try
             {
                 if (Directory.Exists(dir))
-                    FileSystem.DeleteDirectory(dir, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                    Papierkorb.Verschieben(dir);
             }
             catch (Exception ex)
             {
