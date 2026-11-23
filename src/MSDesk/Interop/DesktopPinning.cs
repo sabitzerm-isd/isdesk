@@ -41,6 +41,8 @@ public static class DesktopPinning
     private static readonly IntPtr HWND_BOTTOM = new(1);
     private static readonly IntPtr HWND_NOTOPMOST = new(-2);
     private const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
+    private const uint SWP_NOOWNERZORDER = 0x0200, SWP_NOSENDCHANGING = 0x0400;
+    private const int DWMWA_CLOAKED = 14;
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
 
@@ -66,7 +68,8 @@ public static class DesktopPinning
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
-    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hwnd, System.Text.StringBuilder sb, int max);
@@ -187,10 +190,7 @@ public static class DesktopPinning
         // Den GERADE gueltigen Zustand uebernehmen statt blind nach unten zu
         // schieben: Ein Bereich, der waehrend angezeigtem Desktop entsteht (neu
         // angelegt oder aus einem Tab abgetrennt), bliebe sonst unsichtbar.
-        var einfuegen = _desktopMode
-            ? (_ueberDemDesktop ? HWND_TOPMOST : HWND_TOP)
-            : HWND_BOTTOM;
-        SetWindowPos(hwnd, einfuegen, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        Einstufen(hwnd);
         HwndSource.FromHwnd(hwnd)!.AddHook(ZOrderHook);
 
         lock (Attached) Attached.Add(hwnd);
@@ -245,8 +245,11 @@ public static class DesktopPinning
     /// laesst sich dasselbe Merkmal fuers Hoch- UND Zurueckstufen benutzen und
     /// kann nicht schwingen.
     /// </summary>
-    private static bool DesktopLiegtVorn()
+    private static bool DesktopLiegtVorn() => DesktopLiegtVorn(out _);
+
+    private static bool DesktopLiegtVorn(out IntPtr entscheidend)
     {
+        entscheidend = IntPtr.Zero;
         var hwnd = GetTopWindow(IntPtr.Zero);
         for (var i = 0; hwnd != IntPtr.Zero && i < 300; i++, hwnd = GetWindow(hwnd, GW_HWNDNEXT))
         {
@@ -265,6 +268,14 @@ public static class DesktopPinning
             GetWindowThreadProcessId(hwnd, out var pid);
             if (pid == (uint)Environment.ProcessId) continue;
 
+            // Getarnte Fenster (anderer virtueller Desktop, schlafende
+            // Store-App) gelten fuer IsWindowVisible als sichtbar, sind es aber
+            // nicht. Laege eines ueber dem angezeigten Desktop, hiesse es
+            // faelschlich „Programm vorn" und alle Bereiche saenken ab.
+            if (DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out var getarnt, sizeof(int)) == 0
+                && getarnt != 0) continue;
+
+            entscheidend = hwnd;
             return IstDesktopFenster(hwnd);
         }
         return false;
@@ -293,8 +304,9 @@ public static class DesktopPinning
 
             lock (Attached) { if (Attached.Count == 0) return; }
 
-            if (DesktopLiegtVorn()) SetDesktopMode(true, ueberDemDesktop: true);
-            else if (_ueberDemDesktop && Environment.TickCount64 >= _manuellBis) SetDesktopMode(false);
+            if (DesktopLiegtVorn(out var entscheidend)) SetDesktopMode(true, ueberDemDesktop: true);
+            else if (_ueberDemDesktop && Environment.TickCount64 >= _manuellBis)
+                SetDesktopMode(false, grund: entscheidend);
 
             Abgleichen();
         }
@@ -336,8 +348,7 @@ public static class DesktopPinning
         foreach (var hwnd in fenster)
         {
             if (!IsWindow(hwnd) || !IsWindowVisible(hwnd)) continue;
-            var ist = (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
-            if (ist != soll) (abweichler ??= new List<IntPtr>()).Add(hwnd);
+            if (IstTopmost(hwnd) != soll) (abweichler ??= new List<IntPtr>()).Add(hwnd);
         }
         if (abweichler == null) return;
 
@@ -351,23 +362,54 @@ public static class DesktopPinning
             foreach (var hwnd in abweichler)
             {
                 if (!IsWindow(hwnd)) continue;
-                Einstufen(hwnd);
+                Einstufen(hwnd, erneut: true);
                 var sb = new System.Text.StringBuilder(64);
                 GetWindowText(hwnd, sb, 64);
-                namen.Add(sb.ToString());
+                namen.Add(sb + (IstTopmost(hwnd) == soll ? "" : " (ohne Erfolg)"));
             }
+            // Je Anzeige hoechstens ein paar Zeilen — sonst fuellt ein klemmendes
+            // Fenster das Protokoll, solange der Desktop offen liegt.
+            if (++_nachgezogen > 5) return;
             Services.StartupLog.Write(
                 $"Nachgezogen ({(soll ? "nach oben" : "nach unten")}): {string.Join(", ", namen)}");
         });
     }
 
-    /// Setzt EIN Fenster auf die Stufe, die der gemerkte Zustand verlangt.
-    private static void Einstufen(IntPtr hwnd)
+    private static bool IstTopmost(IntPtr hwnd)
+        => (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+
+    /// „Klasse, Programm" eines Fensters — nur fuers Protokoll.
+    private static string Beschreiben(IntPtr hwnd)
     {
-        if (_desktopMode)
+        var sb = new System.Text.StringBuilder(64);
+        GetClassName(hwnd, sb, 64);
+        GetWindowThreadProcessId(hwnd, out var pid);
+        try
         {
-            SetWindowPos(hwnd, _ueberDemDesktop ? HWND_TOPMOST : HWND_TOP,
-                         0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            using var prozess = System.Diagnostics.Process.GetProcessById((int)pid);
+            return $"{sb}, {prozess.ProcessName}";
+        }
+        catch (Exception)
+        {
+            return sb.ToString(); // schon beendet oder kein Zugriff
+        }
+    }
+
+    /// Beides nur im Bedienfaden benutzt, gilt bis zum naechsten Umschalten.
+    private static int _nachgezogen;
+    private static readonly HashSet<IntPtr> KurzVersteckt = new();
+
+    /// Setzt EIN Fenster auf die Stufe, die der gemerkte Zustand verlangt.
+    /// „erneut": der einfache Versuch hat schon einmal nicht gehalten.
+    private static void Einstufen(IntPtr hwnd, bool erneut = false)
+    {
+        if (_desktopMode && _ueberDemDesktop)
+        {
+            Hochstufen(hwnd, erneut);
+        }
+        else if (_desktopMode)
+        {
+            SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
         else
         {
@@ -375,6 +417,69 @@ public static class DesktopPinning
             SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
+    }
+
+    /// <summary>
+    /// Stuft EIN Fenster auf TOPMOST und prueft sofort nach, ob es ankam.
+    ///
+    /// Belegt am 23.11.2026: „Eigene Programme" blieb bei „Desktop anzeigen"
+    /// neun Sekunden unten, obwohl die Wache zwoelfmal SetWindowPos(TOPMOST)
+    /// aufrief — dasselbe noch einmal zu versuchen, hilft also nicht. Erst das
+    /// naechste „Desktop anzeigen" holte den Bereich zurueck; dazwischen lag ein
+    /// Herunterstufen. Genau diese Folge geht MSDesk deshalb selbst durch. Die
+    /// Ursache ist NICHT bekannt; die Protokollzeile nennt die Stufe, die half.
+    /// </summary>
+    private static void Hochstufen(IntPtr hwnd, bool erneut)
+    {
+        const uint basis = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+        var fehler = 0;
+
+        void Oben(uint zusatz = 0)
+        {
+            if (!SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, basis | zusatz))
+                fehler = Marshal.GetLastWin32Error();
+        }
+
+        var stufe = ErsteWirksame(() => IstTopmost(hwnd),
+            () => { if (!erneut) Oben(); },
+            () =>
+            {
+                SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, basis);
+                SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, basis);
+                Oben();
+            },
+            // Ohne die Fenster-Hooks und ohne das (unsichtbare) Besitzerfenster.
+            () => Oben(SWP_NOSENDCHANGING | SWP_NOOWNERZORDER),
+            () =>
+            {
+                // Verborgene (von Hand oder durch Firma/Privat) bleiben verborgen.
+                // Nur EINMAL je Anzeige, sonst flackerte es im Takt der Wache.
+                if (!IsWindowVisible(hwnd) || !KurzVersteckt.Add(hwnd)) return;
+                ShowWindow(hwnd, SW_HIDE);
+                try { Oben(); }
+                finally { ShowWindow(hwnd, SW_SHOWNOACTIVATE); }
+            });
+
+        if (stufe == 0) return; // der Regelfall
+        if (_nachgezogen >= 5) return;
+
+        var sb = new System.Text.StringBuilder(64);
+        GetWindowText(hwnd, sb, 64);
+        Services.StartupLog.Write(
+            $"Hochstufen klemmte: {sb} — {(stufe < 0 ? "KEINE Stufe half" : $"Stufe {stufe + 1} half")}, " +
+            $"Fehlercode {fehler}, sichtbar={IsWindowVisible(hwnd)}, minimiert={IsIconic(hwnd)}");
+    }
+
+    /// Fuehrt die Schritte der Reihe nach aus, bis „fertig" zutrifft.
+    /// Rueckgabe: Nummer des wirksamen Schritts, -1 wenn keiner half.
+    public static int ErsteWirksame(Func<bool> fertig, params Action[] schritte)
+    {
+        for (var i = 0; i < schritte.Length; i++)
+        {
+            schritte[i]();
+            if (fertig()) return i;
+        }
+        return -1;
     }
 
     /// <summary>
@@ -470,9 +575,7 @@ public static class DesktopPinning
             if (!IsWindow(hwnd)) continue;
             ShowWindow(hwnd, _ausgeblendet ? SW_HIDE : SW_SHOWNOACTIVATE);
 
-            if (!_ausgeblendet)
-                SetWindowPos(hwnd, _desktopMode ? (_ueberDemDesktop ? HWND_TOPMOST : HWND_TOP) : HWND_BOTTOM,
-                             0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            if (!_ausgeblendet) Einstufen(hwnd);
         }
 
         // Beim Einblenden zusaetzlich nach vorn holen. Ohne das waere der
@@ -530,7 +633,7 @@ public static class DesktopPinning
             if (DesktopLiegtVorn()) { SetDesktopMode(true, ueberDemDesktop: true); return; }
 
             _manuellBis = 0;
-            SetDesktopMode(false);  // normale App vorn → Bereiche wieder ganz nach unten
+            SetDesktopMode(false, grund: hwnd);  // normale App vorn → Bereiche wieder ganz nach unten
         }
     }
 
@@ -551,13 +654,13 @@ public static class DesktopPinning
     ///   in v0.16.0 pauschal auf HWND_TOP umgestellt; das hat den Teams-Fall
     ///   geloest und Win+D dabei kaputtgemacht.
     /// </summary>
-    private static void SetDesktopMode(bool active, bool ueberDemDesktop = false)
+    private static void SetDesktopMode(bool active, bool ueberDemDesktop = false, IntPtr grund = default)
     {
         // Nie aus einem fremden Faden — siehe ImBedienfaden.
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess())
         {
-            dispatcher.BeginInvoke(() => SetDesktopMode(active, ueberDemDesktop));
+            dispatcher.BeginInvoke(() => SetDesktopMode(active, ueberDemDesktop, grund));
             return;
         }
 
@@ -565,6 +668,8 @@ public static class DesktopPinning
         if (active && !ueberDemDesktop) ueberDemDesktop = _ueberDemDesktop;
 
         if (_desktopMode == active && _ueberDemDesktop == ueberDemDesktop) return;
+        _nachgezogen = 0;
+        KurzVersteckt.Clear();
         _desktopMode = active;
         _ueberDemDesktop = active && ueberDemDesktop;
 
@@ -575,7 +680,7 @@ public static class DesktopPinning
         // OnForegroundChanged). Steht er da, ist es die Z-Reihenfolge.
         Services.StartupLog.Write(active
             ? $"Bereiche sichtbar ({(_ueberDemDesktop ? "ueber dem Desktop" : "vorn")})"
-            : "Bereiche wieder ganz unten");
+            : "Bereiche wieder ganz unten" + (grund == IntPtr.Zero ? "" : $" (vorn: {Beschreiben(grund)})"));
 
         List<IntPtr> fenster;
         lock (Attached) fenster = Attached.ToList();
